@@ -2,7 +2,8 @@
  * Account and subscription (M6 6.3; spec 14.3, 14.4): the trial's days left or the subscription's
  * state and renewal date, the three plans, Subscribe (opens the provider's checkout; the fake
  * checkout returns here), cancel and resume, the provider's portal, and the account's data (export,
- * delete; R-SEC-010). Access itself is always the server's answer (R-SEC-007).
+ * delete; R-SEC-010), and the mute and block lists (M6 6.4, R-SEC-011). Access itself is always the
+ * server's answer (R-SEC-007).
  *
  * Also the "play is refused" views: `PlayLocked` on the online screen and `SubscribeRequired` for
  * the world, shown when the trial or subscription has ended.
@@ -12,6 +13,7 @@ import type { AccessView, BillingPlans, PlanId, SubscriptionView } from '@chain-
 import { go, route } from '../app/router.ts';
 import { ApiError, api, type Me } from '../net/api.ts';
 import { account, refreshAccount, signOut } from '../state/account.ts';
+import { SafetyPanel } from './SafetyPanel.tsx';
 import {
   accessText,
   billingErrorText,
@@ -338,6 +340,11 @@ export function AccountScreen() {
         {canBuy && plans?.provider === 'none' && (
           <p class="note warn">Subscriptions are not available on this server yet.</p>
         )}
+      </section>
+
+      <section class="panel" aria-labelledby="safety-h">
+        <h3 id="safety-h">Safety</h3>
+        <SafetyPanel />
       </section>
 
       <section class="panel" aria-labelledby="data-h">

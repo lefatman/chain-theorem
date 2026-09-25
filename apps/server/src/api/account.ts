@@ -2,9 +2,11 @@
 import { MAX_SAVED_LOADOUTS, engine } from '@chain-theorem/content';
 import { SaveLoadout } from '@chain-theorem/protocol';
 import type { Loadout, LoadoutError } from '@chain-theorem/rules';
-import type { Loadout as SavedRow } from '@chain-theorem/db';
+import type { Player, Loadout as SavedRow } from '@chain-theorem/db';
+import { verifyTicket } from '../auth/tickets.ts';
 import { cancelForDeletion } from '../billing/routes.ts';
 import { HttpError, body, json, noContent, type Router } from '../http.ts';
+import { DATA_ROOM } from '../moderation/sanctions.ts';
 import { playerFacts } from './collection.ts';
 import { publicMe, sessionCookie, type Ctx } from './context.ts';
 
@@ -45,22 +47,36 @@ export async function legalLoadout(
   return { loadout: view.loadout, level: me.level, name: me.displayName, playerId: me.id };
 }
 
+/**
+ * Whose data an export or deletion is for: the signed-in player, or a suspended player holding the
+ * short-lived data token their refused sign-in handed out (R-SEC-010, DD-91).
+ */
+async function dataSubject(req: Request, ctx: Ctx): Promise<Player> {
+  const me = await ctx.me();
+  if (me) return me;
+  const token = new URL(req.url).searchParams.get('data');
+  const id = token ? await verifyTicket(ctx.env.AUTH_SECRET, token, DATA_ROOM, ctx.now) : null;
+  const p = id ? await ctx.db.players.getById(id) : null;
+  if (!p) throw new HttpError(401, 'signed_out');
+  return p;
+}
+
 export function accountRoutes(r: Router<Ctx>): void {
   r.add('GET', '/api/me', async (_req, ctx) => {
     const me = await ctx.me();
     return json({ me: me ? publicMe(me, ctx.now) : null });
   });
 
-  r.add('GET', '/api/me/export', async (_req, ctx) => {
-    const me = await ctx.requireMe();
+  r.add('GET', '/api/me/export', async (req, ctx) => {
+    const me = await dataSubject(req, ctx);
     const data = await ctx.db.players.exportData(me.id, ctx.now);
     return json(data, 200, {
       'content-disposition': 'attachment; filename="chain-theorem-export.json"',
     });
   });
 
-  r.add('DELETE', '/api/me', async (_req, ctx) => {
-    const me = await ctx.requireMe();
+  r.add('DELETE', '/api/me', async (req, ctx) => {
+    const me = await dataSubject(req, ctx);
     // A deleted account is never billed again: end a live subscription first (M6 6.3).
     await cancelForDeletion(ctx, me);
     await ctx.db.players.delete(me.id);

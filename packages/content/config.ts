@@ -92,4 +92,29 @@ export const LEADERBOARD = {
 export const GUILDS = {
   /** Members per guild, enforced by a database CHECK inside every join (DD-15). */
   maxMembers: 50,
+  /** A guild invitation nobody answered expires after this long (M6 6.4). */
+  inviteTtlMs: 7 * 24 * 60 * 60 * 1000,
+};
+
+/** Trade and wager invitations (10.4, 9.5; M6 6.4). PLAYTEST values. */
+export const TRADE_INVITES = {
+  /** Invitations one player may have waiting for an answer at once. */
+  open: 1,
+  /** Invitations one player may send per minute (answered or not). */
+  perMinute: 3,
+};
+
+/**
+ * Report, mute and block (15 R-SEC-011: available to everyone; M6 6.4). PLAYTEST values. The
+ * report reasons are a fixed list in the protocol (`ReportReason`).
+ */
+export const SAFETY = {
+  /** Reports one player may file per rolling 24 hours. */
+  reportsPerDay: 10,
+  /** Longest optional note on a report. */
+  reportNoteMax: 500,
+  /** Players one player may mute. */
+  maxMutes: 200,
+  /** Players one player may block. */
+  maxBlocks: 200,
 };

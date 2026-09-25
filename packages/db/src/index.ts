@@ -23,6 +23,7 @@ export {
   JsonObject,
   LoadoutJson,
   LoginTokenData,
+  ReportContextJson,
   RewardPayload,
   jsonCodec,
   type JsonCodec,
@@ -116,3 +117,13 @@ export {
   type JoinResult,
   type RankResult,
 } from './repos/guilds.ts';
+export { type AddResult, type SafetyRepo, type SafetyRow } from './repos/safety.ts';
+export {
+  REPORT_REASONS,
+  type FileReportInput,
+  type FileReportResult,
+  type ModerationRepo,
+  type Report,
+  type ReportReasonName,
+  type ReportStatus,
+} from './repos/moderation.ts';

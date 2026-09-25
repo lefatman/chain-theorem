@@ -17,6 +17,11 @@
  *   and invalid frames are dropped and counted; repeat offenders get a `close` effect.
  * - R-SEC-011: chat filtered by the youngest participant, recomputed from the current membership
  *   for every message; whispers to or from minors only between friends; adults may opt in.
+ * - R-SEC-011 (M6 6.4): mute and block, applied where lines are delivered (a muted player cannot
+ *   route around it with another client): a recipient never gets lines from players they muted or
+ *   blocked; a blocked pair gets no whispers or challenges either way, refused exactly like an
+ *   offline (`whisper_refused`) or unavailable (`busy`) target; a moderator's chat ban drops the
+ *   player's lines on every channel and tells them once.
  * - R-COST-002: positions are persisted only on leave (logout) and warp (zone change).
  */
 import { engine as defaultEngine } from '@chain-theorem/content';
@@ -63,6 +68,7 @@ import type {
   PlayerState,
   QuestProgress,
   RoutedChat,
+  SafetyLists,
   ServerMsg,
   TelemetryState,
   ZoneSnapshot,
@@ -116,6 +122,8 @@ export const ZoneErr = {
   no_guild: 'no_guild',
   friends_only: 'friends_only',
   whisper_refused: 'whisper_refused',
+  /** A moderator banned this player from chat (M6 6.4); sent once per ban. */
+  chat_banned: 'chat_banned',
   /** Host notices (parties span zones, so the host decides these; see `notice`). */
   party_full: 'party_full',
   in_party: 'in_party',
@@ -228,7 +236,12 @@ function checkPlayer(p: PlayerInit): void {
   if (!Number.isInteger(p.level) || p.level < 1 || p.level > 100) bad('level must be 1..100');
   for (const k of ['friends', 'quests', 'lessonsDone', 'defeatedNpcs', 'keyItems'] as const)
     if (!Array.isArray(p[k])) bad(`${k} must be an array`);
+  for (const k of ['muted', 'blocked'] as const)
+    if (p[k] !== undefined && !Array.isArray(p[k])) bad(`${k} must be an array`);
 }
+
+const ids = (list: readonly string[] | undefined): string[] =>
+  [...new Set(list ?? [])].filter((x) => typeof x === 'string');
 
 // ---- The core ----------------------------------------------------------------------------------
 
@@ -372,8 +385,12 @@ export class ZoneCore {
       keyItems: [...init.keyItems],
       party: init.party ? clone(init.party) : null,
       guild: init.guild ?? null,
+      muted: ids(init.muted),
+      blocked: ids(init.blocked),
+      chatBanUntil: init.chatBanUntil ?? null,
+      chatBanTold: false,
       battling: init.battling ?? false,
-      battleId: null,
+      battleId: init.battling ? (init.battleId ?? null) : null,
       battleEndedAt: init.battleEndedAt ?? null,
       grace: 0,
       inChallenge: this.inChallenge(pos.x, pos.y),
@@ -466,7 +483,7 @@ export class ZoneCore {
       case 'step':
         return this.step(p, msg.d.dir, t);
       case 'chat':
-        return this.chat(p, msg.d.ch, msg.d.text, msg.d.to);
+        return this.chat(p, msg.d.ch, msg.d.text, msg.d.to, t);
       case 'chal':
         return this.challenge(p, msg.d.to, msg.d.format, t);
       case 'chalReply':
@@ -588,7 +605,28 @@ export class ZoneCore {
   // ---------------------------------------------------------------------------------------------
   // Chat (R-SEC-011)
 
-  private chat(p: PlayerState, ch: ChatChannel, raw: string, to: string | undefined): boolean {
+  private chat(
+    p: PlayerState,
+    ch: ChatChannel,
+    raw: string,
+    to: string | undefined,
+    t: number,
+  ): boolean {
+    // M6 6.4: a chat ban drops the line on every channel (all chat starts here) and says so once.
+    if (p.chatBanUntil != null && t < p.chatBanUntil) {
+      if (!p.chatBanTold) {
+        p.chatBanTold = true;
+        this.out.save = true;
+        this.send(p.id, {
+          t: 'err',
+          d: {
+            code: ZoneErr.chat_banned,
+            msg: `A moderator turned chat off for you until ${new Date(p.chatBanUntil).toISOString().slice(0, 16).replace('T', ' ')} UTC.`,
+          },
+        });
+      }
+      return false;
+    }
     const text = cut(sanitizeText(raw), 200);
     if (!text) return this.refuse(p, ZoneErr.bad_message);
     switch (ch) {
@@ -597,7 +635,8 @@ export class ZoneCore {
         const conversation = conversationFiltered(this.s.players);
         let clean: string | null = null;
         for (const r of this.s.players) {
-          if (!r.live) continue;
+          // R-SEC-011 (M6 6.4): nobody receives lines from a player they muted or blocked.
+          if (!r.live || this.ignores(r, p.id)) continue;
           const filtered = viewFiltered(conversation, r);
           if (filtered) clean ??= cut(this.filter.clean(text), 200);
           this.send(r.id, {
@@ -633,9 +672,12 @@ export class ZoneCore {
       }
       case 'whisper': {
         if (to === undefined || to === p.id) return this.refuse(p, ZoneErr.bad_target);
+        // A blocked pair (either way) answers exactly like an offline target (M6 6.4).
+        if (p.blocked?.includes(to)) return this.refuse(p, ZoneErr.whisper_refused);
         const friend = p.friends.includes(to);
         if (!p.adult && !friend) return this.refuse(p, ZoneErr.friends_only);
         const q = this.byId.get(to);
+        if (q?.blocked?.includes(p.id)) return this.refuse(p, ZoneErr.whisper_refused);
         if (q && !whisperAllowed(p, q)) return this.refuse(p, ZoneErr.whisper_refused);
         const filtered = !p.adult || (q !== undefined && !q.adult);
         const msg: RoutedChat = {
@@ -647,8 +689,10 @@ export class ZoneCore {
           fromAdult: p.adult,
           friend,
         };
-        if (q) this.deliver(q, msg);
-        else this.out.effects.push({ kind: 'chat', from: p.id, to: [to], msg });
+        // A muted sender's whisper is dropped silently at the recipient (the mute stays private).
+        if (q) {
+          if (this.deliver(q, msg) === 'refused') return this.refuse(p, ZoneErr.whisper_refused);
+        } else this.out.effects.push({ kind: 'chat', from: p.id, to: [to], msg });
         return true;
       }
       case 'guild': {
@@ -672,10 +716,16 @@ export class ZoneCore {
     }
   }
 
-  /** Show a routed line to `r`; false when a whisper is not allowed for this recipient. */
-  private deliver(r: PlayerState, m: RoutedChat): boolean {
+  /**
+   * Show a routed line to `r`. `refused`: a whisper this recipient may not get (a minor without
+   * friendship, or a blocked pair: answered like an offline target); `dropped`: the recipient muted
+   * or blocked the sender (party and guild lines, muted whispers: nothing tells the sender).
+   */
+  private deliver(r: PlayerState, m: RoutedChat): 'shown' | 'refused' | 'dropped' {
+    if (m.ch === 'whisper' && r.blocked?.includes(m.from)) return 'refused';
+    if (this.ignores(r, m.from)) return 'dropped';
     if (m.ch === 'whisper' && (!m.fromAdult || !r.adult)) {
-      if (!(m.friend && r.friends.includes(m.from))) return false;
+      if (!(m.friend && r.friends.includes(m.from))) return 'refused';
     }
     const filtered = viewFiltered(m.filtered || !m.fromAdult, r);
     const text = filtered ? cut(this.filter.clean(m.text), 200) : m.text;
@@ -683,7 +733,19 @@ export class ZoneCore {
       t: 'chatmsg',
       d: { ch: m.ch, from: m.from, name: cut(m.name, 40), text: cut(text, 200), filtered },
     });
-    return true;
+    return 'shown';
+  }
+
+  /** R-SEC-011 (M6 6.4): `r` muted or blocked `from`, so never receives their lines. */
+  private ignores(r: PlayerState, from: string): boolean {
+    return (
+      r.id !== from && (r.muted?.includes(from) === true || r.blocked?.includes(from) === true)
+    );
+  }
+
+  /** Either player blocked the other (M6 6.4). */
+  private blockedPair(a: PlayerState, b: PlayerState): boolean {
+    return a.blocked?.includes(b.id) === true || b.blocked?.includes(a.id) === true;
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -695,6 +757,9 @@ export class ZoneCore {
     if (!q || q.warping) return this.refuse(p, ZoneErr.not_here);
     if (p.battling) return this.refuse(p, ZoneErr.battling);
     if (q.battling) return this.refuse(p, ZoneErr.busy);
+    // M6 6.4: a blocked pair (either way) cannot challenge, consent or challenge zone alike; the
+    // answer is the one an unavailable target gets, so nobody learns who blocked whom.
+    if (this.blockedPair(p, q)) return this.refuse(p, ZoneErr.busy);
     const bracket = slotBracket(this.engine, p.level);
     if (p.inChallenge && q.inChallenge && bracket === slotBracket(this.engine, q.level)) {
       // Entering a challenge zone is consent (9.3): the battle starts at once in the zone's format.
@@ -720,6 +785,12 @@ export class ZoneCore {
 
   private challengeReply(p: PlayerState, id: string, accept: boolean): boolean {
     const c = this.s.challenges.find((x) => x.id === id && x.to === p.id);
+    const sender = c ? this.byId.get(c.from) : undefined;
+    if (c && sender && this.blockedPair(p, sender)) {
+      this.s.challenges = this.s.challenges.filter((x) => x !== c);
+      this.out.save = true;
+      return this.refuse(p, ZoneErr.no_challenge);
+    }
     if (!c) return this.refuse(p, ZoneErr.no_challenge);
     this.s.challenges = this.s.challenges.filter((x) => x !== c);
     this.out.save = true;
@@ -1092,11 +1163,16 @@ export class ZoneCore {
     return this.flush();
   }
 
-  /** A party or whisper line routed from another zone core (a `chat` effect). */
+  /**
+   * A party, whisper or guild line routed from another zone core (a `chat` effect) or a GuildRoom.
+   * A whisper that cannot be shown bounces back to the sender exactly like one to an offline player;
+   * a line from a player the recipient muted or blocked is dropped (M6 6.4, R-SEC-011).
+   */
   deliverChat(toId: string, msg: RoutedChat, now: number): Outbox {
     this.begin(now);
     const r = this.byId.get(toId);
-    if (!r ? msg.ch === 'whisper' : !this.deliver(r, msg))
+    const result = r ? this.deliver(r, msg) : 'refused';
+    if (result === 'refused' && msg.ch === 'whisper')
       this.out.effects.push({ kind: 'bounce', to: msg.from, code: ZoneErr.whisper_refused });
     return this.flush();
   }
@@ -1125,6 +1201,83 @@ export class ZoneCore {
     p.party = party ? clone(party) : null;
     this.sendParty(p);
     this.out.save = true;
+    return this.flush();
+  }
+
+  /**
+   * The player's own mute and block lists changed (M6 6.4, R-SEC-011): applied before the next
+   * line. Pending consent challenges between the player and anyone they now block are dropped.
+   */
+  setSafety(id: string, lists: SafetyLists, now: number): Outbox {
+    this.begin(now);
+    const p = this.byId.get(id);
+    if (!p) return this.flush();
+    p.muted = ids(lists.muted);
+    p.blocked = ids(lists.blocked);
+    const blocked = new Set(p.blocked);
+    this.s.challenges = this.s.challenges.filter(
+      (c) => !((c.from === id && blocked.has(c.to)) || (c.to === id && blocked.has(c.from))),
+    );
+    this.out.save = true;
+    return this.flush();
+  }
+
+  /**
+   * A moderator banned the player from chat until `until` (null or past: lifted; M6 6.4). Their
+   * lines are dropped on every channel; the next attempt tells them once.
+   */
+  setChatBan(id: string, until: number | null, now: number): Outbox {
+    this.begin(now);
+    const p = this.byId.get(id);
+    if (!p) return this.flush();
+    p.chatBanUntil = until;
+    p.chatBanTold = false;
+    this.out.save = true;
+    return this.flush();
+  }
+
+  /**
+   * A battle started (`on`) or ended outside this zone: an item wager from a TradeSession, a queue,
+   * ranked or challenge-link battle, an NPC battle from the online screen (M6 6.4). The player is
+   * marked battling like in a zone battle (no challenges, no steps, no encounters); the end clears
+   * the marker only when it names the battle that set it, and starts the 60 s challenge cooldown.
+   */
+  externalBattle(id: string, battleId: string, on: boolean, now: number): Outbox {
+    const t = this.begin(now);
+    const p = this.byId.get(id);
+    if (!p) return this.flush();
+    if (on) {
+      if (p.battling) {
+        // Marked by a reload that did not know the battle yet: remember it for the end.
+        if (p.battleId === null) {
+          p.battleId = battleId;
+          this.out.save = true;
+        }
+        return this.flush();
+      }
+      p.battling = true;
+      p.battleId = battleId;
+      p.dialog = null;
+      this.broadcast({ t: 'zbattle', d: { p: p.id, battling: true } });
+      this.out.save = true;
+      return this.flush();
+    }
+    if (!p.battling || p.battleId !== battleId) return this.flush();
+    p.battling = false;
+    p.battleId = null;
+    p.battleEndedAt = t;
+    this.broadcast({ t: 'zbattle', d: { p: p.id, battling: false } });
+    this.out.save = true;
+    return this.flush();
+  }
+
+  /**
+   * Close the player's socket (a moderator's suspension, M6 6.4): a `close` effect, after which the
+   * host calls `leave`.
+   */
+  kick(id: string, code: number, reason: string, now: number): Outbox {
+    this.begin(now);
+    if (this.byId.has(id)) this.out.effects.push({ kind: 'close', id, code, reason });
     return this.flush();
   }
 
@@ -1231,6 +1384,11 @@ export class ZoneCore {
     p.filterChat = init.filterChat;
     p.party = init.party ? clone(init.party) : null;
     p.guild = init.guild ?? null;
+    p.muted = ids(init.muted);
+    p.blocked = ids(init.blocked);
+    if ((p.chatBanUntil ?? null) !== (init.chatBanUntil ?? null)) p.chatBanTold = false;
+    p.chatBanUntil = init.chatBanUntil ?? null;
+    if (p.battling && p.battleId === null && init.battleId) p.battleId = init.battleId;
     p.keyItems = union(p.keyItems, init.keyItems);
     p.lessonsDone = union(p.lessonsDone, init.lessonsDone);
     p.defeatedNpcs = union(p.defeatedNpcs, init.defeatedNpcs);

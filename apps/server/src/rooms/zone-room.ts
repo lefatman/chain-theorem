@@ -11,7 +11,10 @@
  * `/deliver`, `/refused`, `/party`, `/invite`, `/grant`, `/ended` and `/notify` (one message the host
  * composed: trade and wager invitations and results, M6); each answers 404 when the player is not in
  * this channel. M6 guilds add `/guild` (the player's guild changed); guild lines leave through the
- * guild's GuildRoom, which delivers them back with `/deliver`.
+ * guild's GuildRoom, which delivers them back with `/deliver`. M6 6.4 adds `/safety` (the player's
+ * own mute and block lists changed, R-SEC-011), `/chatBan` (a moderator's chat ban), `/battle` (a
+ * battle outside the zone started or ended: wagers, queues, links) and `/kick` (a suspension closes
+ * the socket, R-SEC-006).
  */
 import { DurableObject } from 'cloudflare:workers';
 import { DISCOVERY_XP, world, type Dir, type Reward } from '@chain-theorem/content/world';
@@ -69,7 +72,26 @@ interface Calls {
   ended: { id: string; outcome: BattleOutcome | null; rewards: Reward[]; level: number };
   notify: { id: string; msg: ServerMsg };
   guild: { id: string; guild: string | null };
+  safety: { id: string; muted: string[]; blocked: string[] };
+  chatBan: { id: string; until: number | null };
+  battle: { id: string; battleId: string; on: boolean };
+  kick: { id: string; code: number; reason: string };
 }
+
+const CALLS: readonly ZoneCall[] = [
+  'deliver',
+  'refused',
+  'party',
+  'invite',
+  'grant',
+  'ended',
+  'notify',
+  'guild',
+  'safety',
+  'chatBan',
+  'battle',
+  'kick',
+];
 
 const target = (call: ZoneCall, body: Calls[ZoneCall]): string =>
   call === 'deliver' || call === 'invite'
@@ -115,10 +137,7 @@ export class ZoneRoom extends DurableObject<Env> {
       );
     }
     const call = url.pathname.slice(1) as ZoneCall;
-    if (
-      req.method !== 'POST' ||
-      !['deliver', 'refused', 'party', 'invite', 'grant', 'ended', 'notify', 'guild'].includes(call)
-    )
+    if (req.method !== 'POST' || !CALLS.includes(call))
       return new Response('not found', { status: 404 });
     const body = (await req.json()) as Calls[ZoneCall];
     const out = this.apply(call, body, Date.now());
@@ -164,6 +183,22 @@ export class ZoneRoom extends DurableObject<Env> {
       case 'guild': {
         const b = body as Calls['guild'];
         return [core.setGuild(b.id, b.guild, now)];
+      }
+      case 'safety': {
+        const b = body as Calls['safety'];
+        return [core.setSafety(b.id, { muted: b.muted, blocked: b.blocked }, now)];
+      }
+      case 'chatBan': {
+        const b = body as Calls['chatBan'];
+        return [core.setChatBan(b.id, b.until, now)];
+      }
+      case 'battle': {
+        const b = body as Calls['battle'];
+        return [core.externalBattle(b.id, b.battleId, b.on, now)];
+      }
+      case 'kick': {
+        const b = body as Calls['kick'];
+        return [core.kick(b.id, b.code, b.reason, now)];
       }
     }
   }

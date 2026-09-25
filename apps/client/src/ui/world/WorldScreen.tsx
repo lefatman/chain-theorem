@@ -34,6 +34,8 @@ import {
 } from './SocialPanels.tsx';
 import { ChallengeBanner, Prompts, QuestTracker, Toasts, TouchControls } from './StageOverlays.tsx';
 import { TradeWindow } from './TradeWindow.tsx';
+import { ReportDialog } from './ReportDialog.tsx';
+import { closeReport, loadSafety } from '../../state/safety.ts';
 import { activeTrade, closeTrade } from '../../trade/session.ts';
 
 type Tab = 'chat' | 'players' | 'party' | 'guild' | 'friends' | 'quests' | 'settings';
@@ -110,6 +112,8 @@ function World({ me }: { me: Me }) {
   useEffect(() => void loadWorld(), []);
   // M6: the guild (for the chat's Guild tab and the Guild panel).
   useEffect(() => void refreshGuild().catch(() => undefined), []);
+  // M6 6.4: the player's mute and block lists (chat hides those lines; the panels show state).
+  useEffect(() => void loadSafety().catch(() => undefined), []);
 
   // Leaving the screen leaves the world, unless the world just handed the player to a battle.
   useEffect(
@@ -118,6 +122,7 @@ function World({ me }: { me: Me }) {
       if (route.peek().name !== 'battle') {
         leaveWorld();
         closeTrade();
+        closeReport();
       }
     },
     [],
@@ -392,6 +397,7 @@ function World({ me }: { me: Me }) {
       </div>
       <LessonPanel c={c} />
       {activeTrade.value && <TradeWindow key={activeTrade.value.id} c={activeTrade.value} />}
+      <ReportDialog />
     </main>
   );
 }

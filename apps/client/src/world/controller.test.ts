@@ -325,6 +325,32 @@ describe('WorldController connection (R-SEC-006, R-WORLD-001)', () => {
     expect(r.sockets).toHaveLength(2);
   });
 
+  it('R-SEC-006 a suspension closes the world without reconnecting (M6 6.4)', async () => {
+    const h = setup();
+    const s = await joined(h);
+    s.drop(4003);
+    expect(h.c.connection.value).toBe('closed');
+    expect(h.c.notice.value).toMatch(/suspended/);
+    expect(h.timers).toEqual([]);
+  });
+
+  it('R-SEC-011 a chat ban is shown with the moderator line the zone sends once (M6 6.4)', async () => {
+    const h = setup();
+    const s = await joined(h);
+    s.deliver({
+      t: 'err',
+      d: {
+        code: 'chat_banned',
+        msg: 'A moderator turned chat off for you until 2026-09-26 10:00 UTC.',
+      },
+    });
+    s.deliver({ t: 'err', d: { code: 'chat_banned' } });
+    expect(h.c.toasts.value.map((t) => ('text' in t ? t.text : ''))).toEqual([
+      'A moderator turned chat off for you until 2026-09-26 10:00 UTC.',
+      'A moderator turned chat off for you for a while.',
+    ]);
+  });
+
   it('R-SEC-011 sends the stored chat filter choice after every hello, and on change', async () => {
     const h = setup({ filterChat: true });
     const s = await joined(h);

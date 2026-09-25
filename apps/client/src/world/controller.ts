@@ -201,6 +201,8 @@ const OPEN = 1;
 /** Zone close codes that must not trigger an automatic reconnect (ZoneRoom). */
 export const CLOSE_REPLACED = 4000;
 export const CLOSE_POLICY = 1008;
+/** A moderator suspended the account (M6 6.4): the sessions are gone too, so do not reconnect. */
+export const CLOSE_SUSPENDED = 4003;
 /** Every chat channel, in tab order. */
 export const CHANNELS: readonly Channel[] = ['zone', 'party', 'guild', 'whisper'];
 
@@ -239,6 +241,7 @@ const ERRORS: Record<string, string> = {
   no_guild: 'Join a guild to use guild chat.',
   friends_only: 'Players under 18 can whisper friends only.',
   whisper_refused: 'That player cannot receive your whispers.',
+  chat_banned: 'A moderator turned chat off for you for a while.',
   party_full: 'That party is full.',
   in_party: 'That player is already in a party.',
   not_online: 'That player is not online.',
@@ -247,6 +250,8 @@ const ERRORS: Record<string, string> = {
 };
 
 export function errorText(code: string, msg?: string): string {
+  // A chat ban says until when (M6 6.4); the server composes that line.
+  if (code === 'chat_banned' && msg) return msg;
   return ERRORS[code] ?? msg ?? `Something went wrong (${code}).`;
 }
 
@@ -389,6 +394,10 @@ export class WorldController {
       // 1008: the zone closed us for a policy reason (too many refused messages); don't hammer it.
       if (code === CLOSE_POLICY) {
         this.stop('The zone closed the connection.');
+        return;
+      }
+      if (code === CLOSE_SUSPENDED) {
+        this.stop('This account is suspended.');
         return;
       }
       this.retry();

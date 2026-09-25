@@ -54,6 +54,9 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       'AUTH_SECRET:e2e-online-secret-0123456789abcdef0123456789abcdef',
       '--var',
       'MAIL_MODE:console',
+      // M6 6.4: the moderation console's admin (moderation.spec.ts signs up with this email).
+      '--var',
+      'ADMIN_EMAILS:moderator@example.com',
     ],
     {
       cwd: ROOT,

@@ -39,6 +39,21 @@ export type BattleOrigin =
    */
   | { kind: 'wager'; wagerId: string };
 
+/**
+ * A battle started outside the zone core (M6 6.4): an item wager, a queue, ranked or challenge-link
+ * battle, an NPC battle from the online screen. The BattleRoom tells each player's zone channel when
+ * it starts and ends (`/battle`), so the player is marked battling there (no consent challenges).
+ * Zone battles (wild, trainer, lesson, challenge) are tracked by the zone core itself.
+ */
+export function outsideZone(origin: BattleOrigin): boolean {
+  return (
+    origin.kind !== 'wild' &&
+    origin.kind !== 'trainer' &&
+    origin.kind !== 'lesson' &&
+    origin.kind !== 'challenge'
+  );
+}
+
 /** A human seat's fighting loadout, already checked legal (R-LOAD-004). */
 export interface Fighter {
   playerId: string;

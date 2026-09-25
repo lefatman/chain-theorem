@@ -8,6 +8,8 @@ import type {
   BillingPlans,
   LoadoutBody,
   PlanId,
+  ReportBody,
+  SafetyLists,
   SubscriptionView,
   TradeAccess,
   TradeMode,
@@ -28,10 +30,13 @@ import type {
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
-  constructor(status: number, code: string) {
+  /** The error body's other fields (e.g. a suspension's `until` and data token). */
+  readonly details: Record<string, unknown>;
+  constructor(status: number, code: string, details: Record<string, unknown> = {}) {
     super(code);
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -64,7 +69,11 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
     // A non-JSON error (static hosting, a dev proxy with no Worker behind it) means no API server.
     const code = data === null ? 'no_server' : ((data as { error?: string }).error ?? 'error');
     if (res.status === 402 && code === 'subscription_required') subscriptionRequired?.();
-    throw new ApiError(res.status, code);
+    throw new ApiError(
+      res.status,
+      code,
+      data !== null && typeof data === 'object' ? (data as Record<string, unknown>) : {},
+    );
   }
   if (data === null) throw new ApiError(res.status, 'no_server');
   return data as T;
@@ -173,6 +182,9 @@ export const api = {
   resumeSubscription: () => call<SubscriptionView>('POST', '/api/billing/resume'),
   billingPortal: () => call<{ url: string }>('POST', '/api/billing/portal'),
   deleteAccount: () => call<void>('DELETE', '/api/me'),
+  /** R-SEC-010 for a suspended account: delete with the token its refused sign-in gave. */
+  deleteWithDataToken: (data: string) =>
+    call<void>('DELETE', `/api/me?data=${encodeURIComponent(data)}`),
   // M6 6.2 ranked queues and 6.1 leaderboards and guilds (9.3, 10.4).
   rankedTicket: (format: FormatId, loadoutId: string) =>
     call<RankedTicket>('POST', '/api/ranked/ticket', { format, loadoutId }),
@@ -203,6 +215,13 @@ export const api = {
   leaveGuild: () => call<MyGuild>('POST', '/api/guilds/leave'),
   disbandGuild: (guildId: string) =>
     call<MyGuild>('DELETE', `/api/guilds/${encodeURIComponent(guildId)}`),
+  // M6 6.4 report, mute and block (R-SEC-011: available to everyone).
+  safety: () => call<SafetyLists>('GET', '/api/safety'),
+  mute: (id: string) => call<SafetyLists>('POST', '/api/mutes', { id }),
+  unmute: (id: string) => call<SafetyLists>('DELETE', `/api/mutes/${encodeURIComponent(id)}`),
+  block: (id: string) => call<SafetyLists>('POST', '/api/blocks', { id }),
+  unblock: (id: string) => call<SafetyLists>('DELETE', `/api/blocks/${encodeURIComponent(id)}`),
+  report: (body: ReportBody) => call<{ id: string }>('POST', '/api/reports', body),
 };
 
 /** Absolute WebSocket URL for a server-relative socket path. */

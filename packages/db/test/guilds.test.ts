@@ -117,8 +117,10 @@ describe.each(ENGINES)('guilds on $name', (engine) => {
         const after = await db().guilds.get(g.id);
         expect(after?.size).toBe(3);
         expect(await db().guilds.members(g.id)).toHaveLength(3);
-        // A full guild cannot invite anyone else.
-        expect(await db().guilds.invite(g.id, lead!.id, rest[4]!.id)).toBe('full');
+        // A full guild cannot invite anyone else (someone whose acceptance was refused: which two
+        // of the five got in depends on how the concurrent lists were ordered).
+        const outside = rest.find((_, i) => results[i] === 'full');
+        expect(await db().guilds.invite(g.id, lead!.id, outside!.id)).toBe('full');
       });
 
       it('R-WORLD-004 ranks: only the leader promotes, demotes and hands over; one leader at a time', async () => {

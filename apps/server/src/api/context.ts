@@ -8,6 +8,7 @@ import {
 } from '../auth/cookies.ts';
 import type { AccessView } from '@chain-theorem/protocol';
 import { accessView } from '../billing/entitlement.ts';
+import { isSuspended } from '../moderation/sanctions.ts';
 import type { Env } from '../env.ts';
 import { HttpError } from '../http.ts';
 
@@ -45,7 +46,9 @@ export function makeCtx(req: Request, env: Env, db: Db, now: number): Ctx {
     cached ??= (async () => {
       if (!token || token.length > 128) return null;
       const s = await db.sessions.getValid(token, now);
-      return s ? db.players.getById(s.playerId) : null;
+      const p = s ? await db.players.getById(s.playerId) : null;
+      // M6 6.4 (R-SEC-006): a suspension revokes the sessions; a session that raced it is refused.
+      return p && !isSuspended(p, now) ? p : null;
     })();
     return cached;
   };

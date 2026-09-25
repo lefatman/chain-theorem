@@ -42,6 +42,12 @@ export interface PlayersTable {
   filter_chat: Generated<number>;
   /** Provider time of the billing event that last set sub_status (0004; out-of-order guard). */
   sub_event_at: number | null;
+  /** When a moderator suspended the account (0006, M6 6.4); NULL when not suspended. */
+  suspended_at: number | null;
+  /** The suspension ends at this instant; NULL with `suspended_at` set: indefinitely. */
+  suspended_until: number | null;
+  /** Server-wide chat ban until this instant (0006); NULL or past: may chat. */
+  chat_ban_until: number | null;
 }
 
 export interface SessionsTable {
@@ -317,6 +323,40 @@ export interface BillingEventsTable {
   payload_json: JsonColumn;
 }
 
+/** A player's report about another player (0006, M6 6.4, R-SEC-011). */
+export interface ReportsTable {
+  id: string;
+  /** NULL once the reporter's account is deleted (the report stays, anonymized; R-SEC-010). */
+  reporter_id: string | null;
+  target_id: string;
+  /** CHECK: harassment, hate, cheating, spam, inappropriate_name, other. */
+  reason: string;
+  note: string | null;
+  /** `{ chat?: {text, ch}, battleId?, tradeId? }` (Zod `ReportContextJson`). */
+  context_json: NullableJsonColumn;
+  /** 'open' | 'reviewed' | 'dismissed'. */
+  status: Generated<string>;
+  created_at: number;
+  resolved_at: number | null;
+  /** The moderator who closed it; NULL once that account is deleted. */
+  resolved_by: string | null;
+  resolution_note: string | null;
+}
+
+/** `player_id` no longer receives `target_id`'s chat lines (0006, R-SEC-011). */
+export interface MutesTable {
+  player_id: string;
+  target_id: string;
+  created_at: number;
+}
+
+/** `player_id` blocked `target_id`: mute plus no whispers, challenges or invitations either way. */
+export interface BlocksTable {
+  player_id: string;
+  target_id: string;
+  created_at: number;
+}
+
 export interface Schema {
   schema_migrations: SchemaMigrationsTable;
   players: PlayersTable;
@@ -346,6 +386,9 @@ export interface Schema {
   wager_escrows: WagerEscrowsTable;
   guild_invites: GuildInvitesTable;
   rated_games: RatedGamesTable;
+  reports: ReportsTable;
+  mutes: MutesTable;
+  blocks: BlocksTable;
 }
 
 /** Every table of spec 13.3 plus the auth and reward tables, in creation order. */
@@ -377,4 +420,7 @@ export const TABLES = [
   'wager_escrows',
   'guild_invites',
   'rated_games',
+  'reports',
+  'mutes',
+  'blocks',
 ] as const satisfies readonly (keyof Schema)[];

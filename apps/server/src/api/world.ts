@@ -9,10 +9,12 @@ import type { WorldTicket } from '@chain-theorem/protocol';
 import { signTicket, verifyTicket } from '../auth/tickets.ts';
 import { refusePlay, requirePlay } from '../billing/gate.ts';
 import type { Env } from '../env.ts';
-import { HttpError, json, type Router } from '../http.ts';
+import { json, type Router } from '../http.ts';
+import { requireAdmin } from '../moderation/admin-auth.ts';
 import type { CostDashboard } from '../metrics.ts';
 import type { RoomInfo } from '../rooms/battle-room.ts';
 import { metricsStub } from '../rooms/metrics.ts';
+import { ADMIN_CSP } from '../moderation/pages.ts';
 import { ZONE_HEADERS } from '../rooms/zone-room.ts';
 import { factsFromFlags, loadPlayerInit, storedQuests } from '../world/progress.ts';
 import { MAX_CHANNELS, zoneStub } from '../world/routing.ts';
@@ -23,15 +25,18 @@ export function entryZone(saved: string | null): string {
   return saved && zoneById.has(saved) ? saved : world.start.zone;
 }
 
-/** Still in a battle that has not ended (a reload mid-battle keeps the battling marker, 10.1). */
-async function inBattle(env: Env, db: Db, playerId: string): Promise<boolean> {
+/**
+ * The battle the player is still in, if any (a reload mid-battle keeps the battling marker, 10.1);
+ * its id lets the end of a battle started outside the zone clear the marker (M6 6.4).
+ */
+export async function activeBattle(env: Env, db: Db, playerId: string): Promise<string | null> {
   for (const b of (await db.battles.listActiveForPlayer(playerId, 3)).slice(0, 3)) {
     const res = await env.BATTLE_ROOM.get(env.BATTLE_ROOM.idFromName(b.id)).fetch(
       'https://room/info',
     );
-    if (((await res.json()) as RoomInfo).status === 'active') return true;
+    if (((await res.json()) as RoomInfo).status === 'active') return b.id;
   }
-  return false;
+  return null;
 }
 
 /**
@@ -55,7 +60,7 @@ export async function zoneSocket(
   if (!who) return json({ error: 'not_found' }, 404);
   const refused = refusePlay(who, now);
   if (refused) return refused;
-  const loaded = await loadPlayerInit(db, player, zone, now, await inBattle(env, db, player));
+  const loaded = await loadPlayerInit(db, player, zone, now, await activeBattle(env, db, player));
   if (!loaded) return json({ error: 'not_found' }, 404);
   const preferred: number[] = [];
   for (const m of loaded.init.party?.members ?? []) {
@@ -79,18 +84,6 @@ export async function zoneSocket(
     if (res.status !== 409) return res;
   }
   return json({ error: 'zone_full' }, 503);
-}
-
-function admins(env: Env): string[] {
-  return (env.ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-async function requireAdmin(ctx: Ctx): Promise<void> {
-  const me = await ctx.requireMe();
-  if (!admins(ctx.env).includes(me.email.toLowerCase())) throw new HttpError(403, 'forbidden');
 }
 
 async function dashboard(env: Env, hours: number, now: number): Promise<CostDashboard> {
@@ -117,7 +110,7 @@ export function dashboardHtml(d: CostDashboard): string {
 body{font:14px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--fg);margin:16px}
 table{border-collapse:collapse;width:100%;overflow-x:auto;display:block}td,th{border-bottom:1px solid var(--line);padding:4px 8px;text-align:right;white-space:nowrap}
 th:first-child,td:first-child{text-align:left}.alert td{color:var(--bad);font-weight:600}.banner{padding:8px 12px;border:2px solid var(--bad);color:var(--bad);margin:12px 0}
-</style></head><body><h1>Infrastructure cost (spec 14.2)</h1>
+</style></head><body><p><a href="/admin">Moderation console</a></p><h1>Infrastructure cost (spec 14.2)</h1>
 ${t.alert ? `<p class="banner" role="alert">Projected cost ${usd(t.cost.perSubscriberMonth)} per heavy subscriber-month exceeds the $0.10 guardrail.</p>` : ''}
 <p>Last ${d.hours.length} active hours: ${(t.rollup.playerMs / 3_600_000).toFixed(2)} player-hours, ${t.rollup.battles} battles.
 Cost per player-hour ${usd(t.cost.perPlayerHour, 6)}; per heavy subscriber-month (60 h) <strong>${usd(t.cost.perSubscriberMonth)}</strong>
@@ -166,7 +159,7 @@ export function worldRoutes(r: Router<Ctx>): void {
     return new Response(dashboardHtml(await dashboard(ctx.env, hours, ctx.now)), {
       headers: {
         'content-type': 'text/html; charset=utf-8',
-        'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'",
+        'content-security-policy': ADMIN_CSP,
       },
     });
   });

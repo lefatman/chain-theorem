@@ -7,16 +7,19 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
 
 (Top of file. Updated whenever a session ends mid-step.)
 
-- Current step: M6 (economy, social and billing).
+- Current step: M7 (tournaments, spectating, content).
 - Done so far: M0, M1, M2 (23 review findings fixed, DD-41..DD-55, 100k fuzz re-run green), M3
   (board scene, overlay, AI, simulator, Scenario Lab, e2e, budgets all passing), Playtest Gate 1
   report (designer questions open; the build continues per BUILD_PROMPT 6), M4 (online battles).
 - M5 complete: world content (4 zones, 18 NPCs, 7 lessons, 3 quests), the pure zone core, the
   ZoneRoom host with world battles and idempotent rewards, parties, the Metrics cost dashboard, the
   overworld client; `pnpm test:load` and `pnpm test:firstwin` are the done-when, both in CI.
-- M6 6.1–6.3 done: trading and wagers with escrow, ranked queues with Glicko-2, leaderboards, guilds
-  with guild chat, billing (fake provider end to end, Paddle behind keys), trial and entitlement.
-- Next: M6 6.4 report, mute, block and the admin console; then the M6 done-when evidence.
+- M6 complete: trading and wagers with escrow, ranked queues with Glicko-2, leaderboards, guilds
+  with guild chat, billing (fake provider end to end, Paddle behind keys), trial and entitlement,
+  report, mute, block, suspensions and chat bans with a minimal admin console (`/admin`).
+- Next: M7 7.1 TournamentRoom (Swiss and single elimination), 7.2 delayed public-projection
+  spectating, 7.3 Storm, Stone and Frost (18 creatures, at least 4 abilities each), another zone
+  with NPC trainers, balance passes.
 - The `TODO` strings in `apps/tools/src/content/new.ts` are scaffold template text for new modules,
   not open work.
 
@@ -91,7 +94,7 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 - [x] 6.1 Trading (TradeSession + transactions), item wagers with escrow, guilds, leaderboards.
 - [x] 6.2 Ranked queues with slot brackets and Glicko-2.
 - [x] 6.3 Billing: fake provider + Paddle sandbox, 7-day trial, verified webhooks, entitlement checks (Paddle sandbox run itself is human-only: keys).
-- [ ] 6.4 Report, mute, block; minimal admin console.
+- [x] 6.4 Report, mute, block; minimal admin console.
 - Done when: concurrency tests show no item duplication; billing works end to end in test mode.
 
 ## M7 — Tournaments, spectating, content
@@ -123,6 +126,16 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-09-25 M6 done-when: concurrency tests show no item duplication (`pnpm test:db:pg` 271/271:
+  parallel two-way trades, escrows and settlements, rewards racing trades on the same rows, guild
+  member-cap races; the same suites on SQLite and D1 in `pnpm test:db` 185); billing works end to
+  end in test mode with the fake provider (`apps/server/test/billing.test.ts`, and
+  `e2e-online/billing.spec.ts` paying on the fake checkout in a browser at 360x640); a real Paddle
+  sandbox payment needs the human-only keys (DEPLOY.md 5). 6.4: `pnpm test:workers` 53/53 (moderation
+  16, incl. a suspended player's export and deletion), `pnpm test:e2e:online` 7/7 (block, report,
+  admin console, suspension, data rights), `pnpm check` 1,243 unit tests, `pnpm test:e2e` 19/19,
+  `pnpm test:load` $0.0305 / $0.0149, `pnpm test:firstwin` 14.7 minutes.
 
 - 2026-09-25 M6 6.1–6.3: `pnpm check` 1,225 unit tests; `pnpm test:db` 165 (+76 PostgreSQL-only);
   `pnpm test:db:pg` 241/241 including the concurrency tests (24 parallel two-way trades and 10

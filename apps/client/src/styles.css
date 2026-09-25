@@ -1985,6 +1985,57 @@ button.link {
   }
 }
 
+/* ---- report, mute and block (M6 6.4, R-SEC-011) ------------------------------------------------ */
+.chat-log button.line-menu {
+  min-width: 1.8em;
+  min-height: 1.8em;
+  margin-right: 0.25em;
+  text-decoration: none;
+  color: var(--muted);
+}
+.line-actions {
+  margin: 2px 0 4px;
+  gap: 4px;
+}
+.report-window {
+  width: min(32rem, 100%);
+  display: grid;
+  gap: 0.6em;
+}
+.report-window form {
+  display: grid;
+  gap: 0.6em;
+}
+.report-window textarea {
+  width: 100%;
+  min-width: 0;
+}
+.report-reasons {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  margin: 0;
+}
+.report-line {
+  overflow-wrap: anywhere;
+  font-style: italic;
+}
+.safety-panel h5 {
+  margin: 0.6em 0 0.3em;
+}
+@media (max-width: 760px) {
+  .report-window {
+    height: auto;
+    max-height: 100%;
+  }
+  .report-back {
+    place-items: center;
+    padding: 8px;
+  }
+}
+
 /* ---- reduced motion (11.2) --------------------------------------------------------------------- */
 [data-reduced-motion='true'] *,
 [data-reduced-motion='true'] *::before,

@@ -7,7 +7,7 @@ import type { CompiledQuery, Selectable } from 'kysely';
 import { mapDbError } from '../errors.ts';
 import { uuidv7 } from '../ids.ts';
 import { rows, type RepoContext } from '../db-types.ts';
-import { JsonObject } from '../json.ts';
+import { JsonObject, ReportContextJson } from '../json.ts';
 import type { PlayersTable } from '../schema.ts';
 import { toBattle, type Battle } from './battles.ts';
 import { toLoadout, type Loadout } from './loadouts.ts';
@@ -40,6 +40,12 @@ export interface Player {
   /** Epoch ms when the account turns 18 (R-SEC-011). */
   adultFrom: number;
   createdAt: number;
+  /** When a moderator suspended the account (M6 6.4); null when it is not suspended. */
+  suspendedAt: number | null;
+  /** When the suspension ends; null while `suspendedAt` is set: indefinitely. */
+  suspendedUntil: number | null;
+  /** Server-wide chat ban until this instant (epoch ms); null or past: may chat. */
+  chatBanUntil: number | null;
 }
 
 export interface NewPlayer {
@@ -95,6 +101,25 @@ export interface PlayerExport {
   partyId: string | null;
   /** Subscription billing (M6 6.3): provider ids, plan and every recorded webhook event. */
   billing: { account: BillingAccount | null; events: BillingEventRecord[] };
+  /** Players this player muted and blocked (M6 6.4); never who muted or blocked them. */
+  mutes: { targetId: string; createdAt: number }[];
+  blocks: { targetId: string; createdAt: number }[];
+  /** Reports this player filed, in full (M6 6.4). */
+  reportsFiled: {
+    id: string;
+    targetId: string;
+    reason: string;
+    note: string | null;
+    context: ReportContextJson | null;
+    status: string;
+    createdAt: number;
+    resolvedAt: number | null;
+  }[];
+  /**
+   * Reports about this player: reason, status and date only. Never the reporter, the note or the
+   * context, so the reported player never learns who reported them (DD in spec 18).
+   */
+  reportsAbout: { id: string; reason: string; status: string; createdAt: number }[];
 }
 
 export function normalizeEmail(email: string): string {
@@ -116,6 +141,9 @@ export function toPlayer(row: Selectable<PlayersTable>): Player {
     trialEndsAt: row.trial_ends_at,
     adultFrom: row.adult_from,
     createdAt: row.created_at,
+    suspendedAt: row.suspended_at ?? null,
+    suspendedUntil: row.suspended_until ?? null,
+    chatBanUntil: row.chat_ban_until ?? null,
   };
 }
 
@@ -394,6 +422,36 @@ export function playerRepo(ctx: RepoContext) {
           .orderBy('battle_id')
           .execute(),
       ]);
+      const [mutes, blocks, filed, about] = await Promise.all([
+        k
+          .selectFrom('mutes')
+          .select(['target_id', 'created_at'])
+          .where('player_id', '=', id)
+          .orderBy('created_at')
+          .orderBy('target_id')
+          .execute(),
+        k
+          .selectFrom('blocks')
+          .select(['target_id', 'created_at'])
+          .where('player_id', '=', id)
+          .orderBy('created_at')
+          .orderBy('target_id')
+          .execute(),
+        k
+          .selectFrom('reports')
+          .selectAll()
+          .where('reporter_id', '=', id)
+          .orderBy('created_at')
+          .orderBy('id')
+          .execute(),
+        k
+          .selectFrom('reports')
+          .select(['id', 'reason', 'status', 'created_at'])
+          .where('target_id', '=', id)
+          .orderBy('created_at')
+          .orderBy('id')
+          .execute(),
+      ]);
       const battleIds = battles.map((b) => b.id);
       const wagers =
         battleIds.length === 0
@@ -483,6 +541,27 @@ export function playerRepo(ctx: RepoContext) {
           payload: ctx.json.decode('audit_log.payload_json', JsonObject, a.payload_json),
           at: a.at,
         })),
+        mutes: mutes.map((m) => ({ targetId: m.target_id, createdAt: m.created_at })),
+        blocks: blocks.map((b) => ({ targetId: b.target_id, createdAt: b.created_at })),
+        reportsFiled: filed.map((r) => ({
+          id: r.id,
+          targetId: r.target_id,
+          reason: r.reason,
+          note: r.note,
+          context:
+            r.context_json === null
+              ? null
+              : ctx.json.decode('reports.context_json', ReportContextJson, r.context_json),
+          status: r.status,
+          createdAt: r.created_at,
+          resolvedAt: r.resolved_at,
+        })),
+        reportsAbout: about.map((r) => ({
+          id: r.id,
+          reason: r.reason,
+          status: r.status,
+          createdAt: r.created_at,
+        })),
       };
     },
 
@@ -554,6 +633,19 @@ export function playerRepo(ctx: RepoContext) {
         // M6 ranked: the opponent's rated history stays with this side anonymized.
         k.updateTable('rated_games').set({ a_id: null }).where('a_id', '=', id).compile(),
         k.updateTable('rated_games').set({ b_id: null }).where('b_id', '=', id).compile(),
+        // M6 6.4: mutes and blocks both ways go; reports about the player go with the account;
+        // reports the player filed or closed stay for the moderators with this side anonymized.
+        k
+          .deleteFrom('mutes')
+          .where((eb) => eb.or([eb('player_id', '=', id), eb('target_id', '=', id)]))
+          .compile(),
+        k
+          .deleteFrom('blocks')
+          .where((eb) => eb.or([eb('player_id', '=', id), eb('target_id', '=', id)]))
+          .compile(),
+        k.deleteFrom('reports').where('target_id', '=', id).compile(),
+        k.updateTable('reports').set({ reporter_id: null }).where('reporter_id', '=', id).compile(),
+        k.updateTable('reports').set({ resolved_by: null }).where('resolved_by', '=', id).compile(),
         k.deleteFrom('players').where('id', '=', id).compile(),
       ];
       const counts = await ctx.atomic(statements);

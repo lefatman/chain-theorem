@@ -2,11 +2,24 @@
  * Chat (M5, spec 10.4, R-SEC-011): zone, party, whisper and (M6) guild tabs. The zone filters each
  * conversation for its youngest participant; filtered lines carry a marker. Sending is rate-limit
  * friendly: the button pauses briefly after each line and while the 1/s allowance refills (R-SEC-005).
+ * M6 6.4: every line from someone else has actions (whisper, report with the line as context, mute,
+ * block); lines from muted or blocked players are hidden here too (the server stops sending them).
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Channel } from '@chain-theorem/protocol';
 import type { ChatLine, WorldController } from '../../world/controller.ts';
 import { guild } from '../../state/guild.ts';
+import {
+  blockedIds,
+  hidden,
+  loadSafety,
+  mutedIds,
+  openReport,
+  safety,
+  safetyError,
+  setBlocked,
+  setMuted,
+} from '../../state/safety.ts';
 
 const LABEL: Record<Channel, string> = {
   zone: 'Zone',
@@ -29,10 +42,39 @@ export interface ChatPanelProps {
   onTarget(t: WhisperTarget | null): void;
 }
 
-function Line({ l, onName }: { l: ChatLine; onName(t: WhisperTarget): void }) {
+interface LineProps {
+  l: ChatLine;
+  onName(t: WhisperTarget): void;
+  open: boolean;
+  onMenu(open: boolean): void;
+  onNote(text: string | null): void;
+}
+
+function Line({ l, onName, open, onMenu, onNote }: LineProps) {
   const who = l.own ? 'You' : l.name;
+  const act = async (f: () => Promise<unknown>, done: string) => {
+    onMenu(false);
+    onNote(null);
+    try {
+      await f();
+      onNote(done);
+    } catch (e) {
+      onNote(safetyError(e));
+    }
+  };
   return (
     <li class={l.own ? 'own' : ''}>
+      {!l.own && (
+        <button
+          type="button"
+          class="link line-menu"
+          aria-expanded={open}
+          aria-label={`Actions for ${l.name}'s message`}
+          onClick={() => onMenu(!open)}
+        >
+          <span aria-hidden="true">⋯</span>
+        </button>
+      )}
       {l.own || l.ch !== 'whisper' ? (
         <strong>{who}</strong>
       ) : (
@@ -53,6 +95,62 @@ function Line({ l, onName }: { l: ChatLine; onName(t: WhisperTarget): void }) {
           <span class="sr-only">filtered</span>
         </span>
       )}
+      {open && (
+        <div class="row start line-actions" role="group" aria-label={`Actions for ${l.name}`}>
+          <button
+            type="button"
+            class="small"
+            onClick={() => {
+              onMenu(false);
+              onName({ p: l.from, name: l.name });
+            }}
+          >
+            Whisper
+          </button>
+          <button
+            type="button"
+            class="small"
+            onClick={() => {
+              onMenu(false);
+              openReport({
+                p: l.from,
+                name: l.name,
+                context: { chat: { text: l.text, ch: l.ch } },
+              });
+            }}
+          >
+            <span aria-hidden="true">⚑</span> Report
+          </button>
+          {!mutedIds.value.has(l.from) && (
+            <button
+              type="button"
+              class="small"
+              onClick={() =>
+                void act(
+                  () => setMuted(l.from, true),
+                  `You muted ${l.name}. Unmute them any time in Settings.`,
+                )
+              }
+            >
+              Mute
+            </button>
+          )}
+          {!blockedIds.value.has(l.from) && (
+            <button
+              type="button"
+              class="small danger"
+              onClick={() =>
+                void act(
+                  () => setBlocked(l.from, true),
+                  `You blocked ${l.name}. Unblock them any time in Settings.`,
+                )
+              }
+            >
+              Block
+            </button>
+          )}
+        </div>
+      )}
     </li>
   );
 }
@@ -60,12 +158,20 @@ function Line({ l, onName }: { l: ChatLine; onName(t: WhisperTarget): void }) {
 export function ChatPanel({ c, channel, onChannel, target, onTarget }: ChatPanelProps) {
   const [text, setText] = useState('');
   const [, tick] = useState(0);
+  const [menu, setMenu] = useState<number | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (safety.peek() === null) loadSafety().catch(() => undefined);
+  }, []);
   const list = useRef<HTMLOListElement>(null);
   const chat = c.chat.value;
   const unread = c.unread.value;
   const readyAt = c.chatReadyAt.value;
   const party = c.party.value;
-  const lines = chat[channel];
+  // Lines from players muted or blocked since they arrived are hidden too (M6 6.4).
+  void mutedIds.value;
+  void blockedIds.value;
+  const lines = chat[channel].filter((l) => l.own || !hidden(l.from));
   const tabs: Channel[] = ['zone', 'party', 'whisper'];
   // M6: the Guild tab shows while the player is in a guild (or a guild line arrived).
   const inGuild = guild.value?.guild != null;
@@ -154,9 +260,17 @@ export function ChatPanel({ c, channel, onChannel, target, onTarget }: ChatPanel
                 onTarget(t);
                 onChannel('whisper');
               }}
+              open={menu === l.id}
+              onMenu={(o) => setMenu(o ? l.id : null)}
+              onNote={setNote}
             />
           ))}
         </ol>
+        {note && (
+          <p class="note small-text" role="status">
+            {note}
+          </p>
+        )}
         {channel === 'whisper' && (
           <label class="inline small-text">
             To

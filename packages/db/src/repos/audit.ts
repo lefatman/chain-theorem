@@ -44,6 +44,36 @@ export function auditRepo(ctx: RepoContext) {
     /** The insert, for atomic lists (trades and wagers log in the same transaction). */
     appendStatement,
 
+    /**
+     * The player's entries of these kinds at or after `since`, newest first (trade invitation
+     * limits, the sessions a moderator's suspension must close).
+     */
+    async listKinds(
+      playerId: string,
+      kinds: readonly string[],
+      since: number,
+      limit = 100,
+    ): Promise<AuditEntry[]> {
+      if (kinds.length === 0) return [];
+      const list = await k
+        .selectFrom('audit_log')
+        .selectAll()
+        .where('player_id', '=', playerId)
+        .where('kind', 'in', [...kinds])
+        .where('at', '>=', since)
+        .orderBy('at', 'desc')
+        .orderBy('id', 'desc')
+        .limit(Math.max(1, Math.min(1000, Math.floor(limit))))
+        .execute();
+      return list.map((a) => ({
+        id: a.id,
+        playerId: a.player_id,
+        kind: a.kind,
+        payload: ctx.json.decode('audit_log.payload_json', JsonObject, a.payload_json),
+        at: a.at,
+      }));
+    },
+
     async listForPlayer(playerId: string, limit = 100): Promise<AuditEntry[]> {
       const list = await k
         .selectFrom('audit_log')

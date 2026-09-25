@@ -3,6 +3,8 @@
  * in the database (at most 4 members, race-safe joins); every member's zone channel gets the new view
  * on any change, with `minor` recomputed so party chat is filtered by its youngest member (R-SEC-011).
  *
+ * M6 6.4: a blocked pair (either way) cannot invite each other; the refusal is the offline one.
+ *
  * Invitations are stateless (DD-79): the invite id is `<expiry>.<inviter>.<mac>`, an HMAC over the
  * expiry, the inviter and the invitee, so any zone can check a reply without shared storage, and a
  * forwarded invite id is useless to anyone but the invitee.
@@ -86,6 +88,8 @@ export async function partyOp(h: PartyHost, op: PartyOp): Promise<void> {
     case 'invite': {
       const target = await db.players.getById(op.to);
       if (!target || !(await db.world.presence(op.to))) return h.notice(op.from, 'not_online');
+      // R-SEC-011 (M6 6.4): a blocked pair (either way) is answered like an offline player.
+      if (await db.safety.blockedEither(op.from, op.to)) return h.notice(op.from, 'not_online');
       if (await db.social.partyOf(op.to)) return h.notice(op.from, 'in_party');
       const mine = await db.social.partyOf(op.from);
       if (mine && mine.members.length >= PARTY_MAX) return h.notice(op.from, 'party_full');
@@ -101,6 +105,8 @@ export async function partyOp(h: PartyHost, op: PartyOp): Promise<void> {
       const from = await verifyInvite(h.secret, op.invite, op.from, h.now);
       if (!from) return h.notice(op.from, 'invite_expired');
       if (!op.accept) return;
+      // A block made after the invitation was sent voids it (M6 6.4).
+      if (await db.safety.blockedEither(op.from, from)) return h.notice(op.from, 'invite_expired');
       if (await db.social.partyOf(op.from)) return h.notice(op.from, 'in_party');
       if (!(await db.players.getById(from))) return h.notice(op.from, 'invite_expired');
       const party = (await db.social.partyOf(from)) ?? (await db.social.createParty(from, h.now));

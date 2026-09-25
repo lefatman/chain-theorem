@@ -19,6 +19,13 @@ import {
 } from '../auth/oauth.ts';
 import type { Env } from '../env.ts';
 import { HttpError, body, json, noContent, type Router } from '../http.ts';
+import { signTicket } from '../auth/tickets.ts';
+import {
+  DATA_ROOM,
+  DATA_TOKEN_TTL_MS,
+  SUSPENDED,
+  suspensionView,
+} from '../moderation/sanctions.ts';
 import { grantStarterCollection } from './collection.ts';
 import { publicMe, secureCookies, sessionCookie, type Ctx } from './context.ts';
 
@@ -55,7 +62,19 @@ const Complete = z.object({
   dob: IsoDate,
 });
 
+/** A 15-minute token for the suspended player's own data export and deletion (R-SEC-010). */
+function dataToken(ctx: Ctx, player: Player): Promise<string> {
+  return signTicket(ctx.env.AUTH_SECRET, player.id, DATA_ROOM, ctx.now, DATA_TOKEN_TTL_MS);
+}
+
 async function signIn(ctx: Ctx, player: Player): Promise<Response> {
+  // M6 6.4 (R-SEC-006): a suspended account cannot sign in; it is told until when, never why here.
+  const suspended = suspensionView(player, ctx.now);
+  if (suspended)
+    return json(
+      { error: SUSPENDED, until: suspended.until, data: await dataToken(ctx, player) },
+      403,
+    );
   const { token } = await ctx.db.sessions.create(player.id, {
     ttlMs: SESSION_TTL_MS,
     now: ctx.now,
@@ -188,7 +207,10 @@ export function authRoutes(r: Router<Ctx>): void {
       path: '/api/auth/oauth',
     });
     const headers = new Headers({ 'set-cookie': clear });
-    if (player) {
+    if (player && suspensionView(player, ctx.now)) {
+      const data = encodeURIComponent(await dataToken(ctx, player));
+      headers.set('location', `${ctx.env.APP_ORIGIN}/#/login?error=suspended&data=${data}`);
+    } else if (player) {
       if (!linked) await ctx.db.oauthAccounts.link(player.id, p.id, profile.id);
       const { token } = await ctx.db.sessions.create(player.id, {
         ttlMs: SESSION_TTL_MS,

@@ -389,15 +389,25 @@ export function guildRepo(ctx: RepoContext) {
     /**
      * Invite `targetId` to the guild. The actor must be its leader or an officer; the target must
      * not be in a guild. The insert carries both conditions, so a concurrent change cannot slip in.
+     * With `ttlMs` (config `GUILDS.inviteTtlMs`), an expired invitation is replaced.
      */
     async invite(
       guildId: string,
       actorId: string,
       targetId: string,
       now: number = ctx.now(),
+      ttlMs?: number,
     ): Promise<InviteResult> {
       const actorRank = await rankIn(guildId, actorId);
       if (actorRank !== 'leader' && actorRank !== 'officer') return 'not_allowed';
+      // M6 6.4: an expired invitation (older than `ttlMs`) no longer blocks a new one.
+      if (ttlMs !== undefined)
+        await k
+          .deleteFrom('guild_invites')
+          .where('guild_id', '=', guildId)
+          .where('player_id', '=', targetId)
+          .where('created_at', '<=', now - ttlMs)
+          .execute();
       if (await membership(targetId)) return 'in_guild';
       const g = await get(guildId);
       if (!g) return 'not_allowed';
@@ -441,9 +451,12 @@ export function guildRepo(ctx: RepoContext) {
       return (await membership(targetId)) ? 'in_guild' : 'not_allowed';
     },
 
-    /** Invitations waiting for a player, newest first. */
-    async invitesFor(playerId: string): Promise<GuildInvite[]> {
-      const list = await k
+    /**
+     * Invitations waiting for a player, newest first; with `validSince`, only those created after
+     * it (M6 6.4: invitations expire).
+     */
+    async invitesFor(playerId: string, validSince?: number): Promise<GuildInvite[]> {
+      let q = k
         .selectFrom('guild_invites as i')
         .innerJoin('guilds as g', 'g.id', 'i.guild_id')
         .innerJoin('players as p', 'p.id', 'i.player_id')
@@ -458,10 +471,9 @@ export function guildRepo(ctx: RepoContext) {
           'p.display_name as player_name',
           'by.display_name as by_name',
         ])
-        .where('i.player_id', '=', playerId)
-        .orderBy('i.created_at', 'desc')
-        .orderBy('i.guild_id')
-        .execute();
+        .where('i.player_id', '=', playerId);
+      if (validSince !== undefined) q = q.where('i.created_at', '>', validSince);
+      const list = await q.orderBy('i.created_at', 'desc').orderBy('i.guild_id').execute();
       return list.map((r) => ({
         guildId: r.guild_id,
         guildName: r.name,
@@ -474,9 +486,9 @@ export function guildRepo(ctx: RepoContext) {
       }));
     },
 
-    /** Pending invitations of a guild, oldest first. */
-    async invitesOf(guildId: string): Promise<GuildInvite[]> {
-      const list = await k
+    /** Pending invitations of a guild, oldest first; with `validSince`, unexpired ones only. */
+    async invitesOf(guildId: string, validSince?: number): Promise<GuildInvite[]> {
+      let q = k
         .selectFrom('guild_invites as i')
         .innerJoin('guilds as g', 'g.id', 'i.guild_id')
         .innerJoin('players as p', 'p.id', 'i.player_id')
@@ -491,10 +503,9 @@ export function guildRepo(ctx: RepoContext) {
           'p.display_name as player_name',
           'by.display_name as by_name',
         ])
-        .where('i.guild_id', '=', guildId)
-        .orderBy('i.created_at')
-        .orderBy('i.player_id')
-        .execute();
+        .where('i.guild_id', '=', guildId);
+      if (validSince !== undefined) q = q.where('i.created_at', '>', validSince);
+      const list = await q.orderBy('i.created_at').orderBy('i.player_id').execute();
       return list.map((r) => ({
         guildId: r.guild_id,
         guildName: r.name,
@@ -505,6 +516,15 @@ export function guildRepo(ctx: RepoContext) {
         invitedByName: r.by_name,
         createdAt: r.created_at,
       }));
+    },
+
+    /** Delete invitations created at or before `before` (expired); the count deleted. */
+    async deleteExpiredInvites(before: number): Promise<number> {
+      const r = await k
+        .deleteFrom('guild_invites')
+        .where('created_at', '<=', before)
+        .executeTakeFirst();
+      return rows(r.numDeletedRows);
     },
 
     /** The invitee declines, or the leader or an officer revokes; false when there was none. */
@@ -518,11 +538,16 @@ export function guildRepo(ctx: RepoContext) {
     },
 
     /**
-     * Accept an invitation: the member row is inserted only from the invitation itself, the
-     * recount's CHECK refuses a full guild, the unique player index refuses a second guild, and the
-     * player's other invitations go.
+     * Accept an invitation: the member row is inserted only from the invitation itself (created
+     * after `validSince` when given: an expired one is refused), the recount's CHECK refuses a full
+     * guild, the unique player index refuses a second guild, and the player's other invitations go.
      */
-    async accept(guildId: string, playerId: string, now: number = ctx.now()): Promise<JoinResult> {
+    async accept(
+      guildId: string,
+      playerId: string,
+      now: number = ctx.now(),
+      validSince?: number,
+    ): Promise<JoinResult> {
       let counts: number[];
       try {
         counts = await ctx.atomic([
@@ -540,7 +565,8 @@ export function guildRepo(ctx: RepoContext) {
                   sql.lit(now).as('joined_at'),
                 ])
                 .where('i.guild_id', '=', guildId)
-                .where('i.player_id', '=', playerId),
+                .where('i.player_id', '=', playerId)
+                .where('i.created_at', '>', validSince ?? Number.MIN_SAFE_INTEGER),
             )
             .compile(),
           recountStatement(k, guildId),

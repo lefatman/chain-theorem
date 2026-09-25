@@ -1,8 +1,9 @@
 /**
  * World side panels (M5, spec 10.4, 10.5, R-SEC-011): players here (whisper, party invite, friend
  * request, consent-based challenges; a quick Challenge on nearby players inside a challenge zone,
- * R-WORLD-006; M6: Trade and Wager battle, off with the reason for trial accounts, 14.4), the party,
- * friends (REST), quests, and settings (own chat filter, new-player hints).
+ * R-WORLD-006; M6: Trade and Wager battle, off with the reason for trial accounts, 14.4; M6 6.4:
+ * Mute, Block and Report for everyone, R-SEC-011), the party, friends (REST), quests, and settings
+ * (own chat filter, new-player hints, the mute and block lists).
  */
 import { useEffect, useState } from 'preact/hooks';
 import { FORMATS } from '@chain-theorem/content';
@@ -17,6 +18,17 @@ import {
   tradeApiError,
 } from '../../trade/session.ts';
 import { account } from '../../state/account.ts';
+import {
+  blockedIds,
+  loadSafety,
+  mutedIds,
+  openReport,
+  safety,
+  safetyError,
+  setBlocked,
+  setMuted,
+} from '../../state/safety.ts';
+import { SafetyPanel } from '../SafetyPanel.tsx';
 import { settings, updateSettings } from '../../state/settings.ts';
 import { worldIndex, zoneName } from '../../world/content.ts';
 import type { WorldController } from '../../world/controller.ts';
@@ -34,6 +46,95 @@ function apiError(e: unknown): string {
     offline: 'The server cannot be reached.',
   };
   return known[code] ?? `Something went wrong (${code}).`;
+}
+
+/** Mute, Block (with a confirmation) and Report for one player (M6 6.4, R-SEC-011). */
+export function SafetyActions({
+  p,
+  name,
+  onNote,
+}: {
+  p: string;
+  name: string;
+  onNote(text: string | null): void;
+}) {
+  const muted = mutedIds.value.has(p);
+  const blocked = blockedIds.value.has(p);
+  const [confirm, setConfirm] = useState(false);
+  useEffect(() => {
+    if (safety.peek() === null) loadSafety().catch(() => undefined);
+  }, []);
+  useEffect(() => setConfirm(false), [p]);
+  const act = async (f: () => Promise<unknown>, done: string) => {
+    onNote(null);
+    try {
+      await f();
+      onNote(done);
+    } catch (e) {
+      onNote(safetyError(e));
+    }
+  };
+  return (
+    <>
+      <div class="row start" role="group" aria-label={`Safety for ${name}`}>
+        <button
+          type="button"
+          aria-pressed={muted}
+          onClick={() =>
+            void act(
+              () => setMuted(p, !muted),
+              muted
+                ? `${name} is no longer muted.`
+                : `You muted ${name}. Their messages are hidden from you.`,
+            )
+          }
+        >
+          {muted ? 'Unmute' : 'Mute'}
+        </button>
+        <button
+          type="button"
+          class={blocked ? '' : 'danger'}
+          aria-pressed={blocked}
+          onClick={() =>
+            blocked
+              ? void act(() => setBlocked(p, false), `${name} is no longer blocked.`)
+              : setConfirm(true)
+          }
+        >
+          {blocked ? 'Unblock' : 'Block'}
+        </button>
+        <button type="button" onClick={() => openReport({ p, name })}>
+          <span aria-hidden="true">⚑</span> Report
+        </button>
+      </div>
+      {confirm && (
+        <div class="note warn small-text" role="group" aria-label={`Confirm blocking ${name}`}>
+          <p>
+            Block {name}? Their messages are hidden, neither of you can whisper, challenge, invite
+            or trade with the other, and a friendship between you ends. They are not told.
+          </p>
+          <div class="row start">
+            <button
+              type="button"
+              class="danger"
+              onClick={() => {
+                setConfirm(false);
+                void act(
+                  () => setBlocked(p, true),
+                  `You blocked ${name}. Unblock them any time in Settings.`,
+                );
+              }}
+            >
+              Yes, block {name}
+            </button>
+            <button type="button" onClick={() => setConfirm(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 function Battling() {
@@ -176,6 +277,7 @@ export function PlayersPanel({ c, onWhisper }: PlayersPanelProps) {
               {locked}
             </p>
           )}
+          <SafetyActions p={sel.p} name={sel.name} onNote={setNote} />
           {!inside && (
             <div class="row start">
               <label class="inline">
@@ -518,6 +620,8 @@ export function WorldSettingsPanel({ c }: { c: WorldController }) {
         "This square is attacked" hints
       </label>
       <p class="muted small-text">Both stay on for new players until you turn them off.</p>
+      <h4>Safety</h4>
+      <SafetyPanel />
     </section>
   );
 }

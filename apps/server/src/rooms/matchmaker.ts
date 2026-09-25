@@ -30,8 +30,25 @@ interface Waiter {
 type RankedWaiter = Waiter & { ranked: { bracket: Bracket; rating: number }; rating: number };
 
 export class Matchmaker extends DurableObject<Env> {
-  /** Worker → `GET /ws` upgrade with the verified player in `x-waiter` (JSON). */
+  /**
+   * Worker → `GET /ws` upgrade with the verified player in `x-waiter` (JSON). `POST /kick {playerId,
+   * code}` closes that player's queue socket (a moderator's suspension, M6 6.4); 404 when they are
+   * not waiting here.
+   */
   override async fetch(req: Request): Promise<Response> {
+    if (req.method === 'POST' && new URL(req.url).pathname === '/kick') {
+      const { playerId, code } = (await req.json()) as { playerId: string; code: number };
+      const socks = this.ctx.getWebSockets(playerId);
+      for (const ws of socks) {
+        try {
+          ws.close(code, 'suspended');
+        } catch {
+          /* already closed */
+        }
+      }
+      if (socks.length > 0) await this.broadcastCounts();
+      return Response.json({ closed: socks.length }, { status: socks.length > 0 ? 200 : 404 });
+    }
     if (req.headers.get('upgrade') !== 'websocket')
       return new Response('expected websocket', { status: 426 });
     const raw = req.headers.get('x-waiter');

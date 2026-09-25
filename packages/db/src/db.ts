@@ -25,6 +25,8 @@ import { tradeRepo } from './repos/trades.ts';
 import { worldRepo } from './repos/world.ts';
 import { socialRepo } from './repos/social.ts';
 import { billingRepo } from './repos/billing.ts';
+import { safetyRepo } from './repos/safety.ts';
+import { moderationRepo } from './repos/moderation.ts';
 
 export interface CreateDbOptions {
   /** Clock for created/updated timestamps (epoch ms). Defaults to `Date.now`. */
@@ -107,6 +109,10 @@ export function createDb(
     social: socialRepo(ctx),
     /** M6 6.3: provider webhooks (idempotent, out-of-order safe) and billing accounts. */
     billing: billingRepo(ctx),
+    /** M6 6.4: mutes and blocks (R-SEC-011). */
+    safety: safetyRepo(ctx),
+    /** M6 6.4: reports, suspensions, chat bans, player lookup (the admin console). */
+    moderation: moderationRepo(ctx),
     /** Closes the pool or database handle. */
     async destroy(): Promise<void> {
       await kysely.destroy();

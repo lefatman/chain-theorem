@@ -11,8 +11,14 @@
  * | `POST /api/trades`                | `StartTrade` | `TradeTicket { id, mode, url }` (inviter)  |
  * | `POST /api/trades/:id/ticket`     | —            | `TradeTicket` (either player; reconnects)  |
  * | `POST /api/trades/:id/decline`    | —            | `204` (either player ends the session)     |
+ *
+ * M6 6.4: one invitation waiting for an answer per inviter and a small per-minute cap (config
+ * `TRADE_INVITES`; 429 `too_many_invites`), counted from the `trade.invite` audit entries (each
+ * invitation is logged for both players, for support and fraud review, 10.4). A blocked pair (either
+ * way) is refused exactly like an offline invitee (409 `not_online`, R-SEC-011).
  */
-import type { Player } from '@chain-theorem/db';
+import { TRADE_INVITES } from '@chain-theorem/content';
+import type { Db, Player } from '@chain-theorem/db';
 import {
   StartTrade,
   type TradeAccess,
@@ -28,6 +34,29 @@ import { callPlayer } from '../world/routing.ts';
 import type { Ctx } from './context.ts';
 
 const OPEN: ReadonlySet<TradeInfo['status']> = new Set(['invited', 'open', 'executing']);
+
+/** Audit kinds of a trade or wager invitation: the inviter's and the invitee's entry. */
+export const TRADE_INVITE = 'trade.invite';
+export const TRADE_INVITED = 'trade.invited';
+/** How long an unanswered invitation can wait (TradeCore INVITE_TTL_MS, with a margin). */
+const INVITE_WINDOW_MS = 3 * 60_000;
+const MINUTE_MS = 60_000;
+
+/**
+ * 429 `too_many_invites` when the inviter already has `TRADE_INVITES.open` invitations waiting for
+ * an answer, or sent `TRADE_INVITES.perMinute` in the last minute (M6 6.4).
+ */
+async function checkInviteLimits(env: Env, db: Db, inviter: string, now: number): Promise<void> {
+  const recent = await db.audit.listKinds(inviter, [TRADE_INVITE], now - INVITE_WINDOW_MS, 50);
+  if (recent.filter((e) => e.at > now - MINUTE_MS).length >= TRADE_INVITES.perMinute)
+    throw new HttpError(429, 'too_many_invites');
+  let waiting = 0;
+  for (const e of recent) {
+    const id = e.payload.trade;
+    if (typeof id === 'string' && (await info(env, id)).status === 'invited') waiting++;
+    if (waiting >= TRADE_INVITES.open) throw new HttpError(429, 'too_many_invites');
+  }
+}
 
 function session(env: Env, id: string): DurableObjectStub {
   return env.TRADE_SESSION.get(env.TRADE_SESSION.idFromName(id));
@@ -74,7 +103,19 @@ export function tradeRoutes(r: Router<Ctx>): void {
     const them = await ctx.db.players.getById(input.with);
     if (!them || them.id === me.id) throw new HttpError(404, 'not_found');
     if (!canTrade(them, ctx.now)) throw new HttpError(409, 'partner_cannot_trade');
+    await checkInviteLimits(ctx.env, ctx.db, me.id, ctx.now);
     const id = crypto.randomUUID();
+    // R-SEC-011 (M6 6.4): a blocked pair looks exactly like an invitee who is not online, down to
+    // the inviter's audit entry that the per-minute limit counts.
+    if (await ctx.db.safety.blockedEither(me.id, them.id)) {
+      await ctx.db.audit.append({
+        playerId: me.id,
+        kind: TRADE_INVITE,
+        payload: { trade: id, to: them.id, mode: input.mode },
+        at: ctx.now,
+      });
+      throw new HttpError(409, 'not_online');
+    }
     const res = await session(ctx.env, id).fetch('https://trade/init', {
       method: 'POST',
       body: JSON.stringify({
@@ -86,6 +127,21 @@ export function tradeRoutes(r: Router<Ctx>): void {
       }),
     });
     if (!res.ok) throw new HttpError(409, 'try_again');
+    // Logged for both players (support and fraud review, 10.4; the invitation limits above).
+    await ctx.db.atomic([
+      ctx.db.audit.appendStatement({
+        playerId: me.id,
+        kind: TRADE_INVITE,
+        payload: { trade: id, to: them.id, mode: input.mode },
+        at: ctx.now,
+      }),
+      ctx.db.audit.appendStatement({
+        playerId: them.id,
+        kind: TRADE_INVITED,
+        payload: { trade: id, from: me.id, mode: input.mode },
+        at: ctx.now,
+      }),
+    ]);
     // The invitation travels through the invitee's zone channel (they must be in the world).
     const told = await callPlayer(ctx.env, ctx.db, them.id, 'notify', {
       id: them.id,

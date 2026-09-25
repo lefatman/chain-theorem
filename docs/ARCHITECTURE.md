@@ -577,9 +577,53 @@ Guild chat uses the zone socket (`chat {ch: 'guild'}`): the zone core emits a `g
 the ZoneRoom forwards it to the GuildRoom, which delivers it through presence (`/deliver`, `RoutedChat.ch
 = 'guild'`), filtered for everyone while any member is under 18 (R-SEC-011).
 
+M6 report, mute, block and the admin console (6.4; `api/safety.ts`, `api/admin.ts`,
+`moderation/`, migration `0006_moderation`). Schemas in `packages/protocol/src/moderation.ts`;
+PLAYTEST values in `packages/content/config.ts` (`SAFETY`, `TRADE_INVITES`, `GUILDS.inviteTtlMs`).
+Report, mute and block are available to every signed-in player, minors and trial accounts included
+(R-SEC-011); the lists are private and the reported player never learns who reported them.
+
+| Method and path                                         | Body                                       | Answer                                                                                                  |
+| ------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `GET /api/safety`                                       | —                                          | `SafetyLists { muted: {id, name, at}[], blocked: [...], limits }`                                       |
+| `POST /api/mutes`, `POST /api/blocks`                   | `{ id }`                                   | `SafetyLists`; 400 `bad_target` (self), 404 `not_found`, 409 `too_many` (200 each)                      |
+| `DELETE /api/mutes/:id`, `/api/blocks/:id`              | —                                          | `SafetyLists`                                                                                           |
+| `POST /api/reports`                                     | `{ target, reason, note?, context? }`      | 201 `{ id }`; 429 `too_many_reports` (10 per rolling day), 404, 400                                     |
+| `GET /api/admin/reports`                                | —                                          | `{ reports, open }`: open reports, oldest first, with reporter, target, reason, note, context           |
+| `POST /api/admin/reports/:id`                           | `{ action: 'review' \| 'dismiss', note? }` | `{ report }`; 404 `not_open` (closed once)                                                              |
+| `GET /api/admin/players?q=`                             | —                                          | `{ players }` by id, exact email or display-name prefix; emails masked (`a***@example.com`)             |
+| `GET /api/admin/players/:id`                            | —                                          | facts: level, created, access, suspension, chat ban, online zone, reports about them, recent audit rows |
+| `POST /api/admin/players/:id/suspend`                   | `{ hours \| null, reason }`                | `{ player, closed }`: sessions revoked, live zone/trade/queue/battle sockets closed (4003)              |
+| `POST /api/admin/players/:id/unsuspend`                 | —                                          | `{ player }`                                                                                            |
+| `POST /api/admin/players/:id/chat-ban`                  | `{ hours, reason }`                        | `{ player }`: the live zone core drops their lines at once                                              |
+| `POST /api/admin/players/:id/chat-unban`                | —                                          | `{ player }`                                                                                            |
+| `GET /admin`, `/admin/players?q=`, `/admin/players/:id` | —                                          | server-rendered pages (strict CSP, no script); forms post to `/admin/...` and redirect back (303)       |
+
+`reason` is one of `harassment`, `hate`, `cheating`, `spam`, `inappropriate_name`, `other`; `context`
+is `{ chat?: {text, ch}, battleId?, tradeId? }`. Admin routes need an email in `ADMIN_EMAILS`
+(401/403 otherwise); every action writes an `admin.*` audit row on the admin (with the target) and a
+`moderation.*` row on the player (without the admin id). A suspended player (`players.suspended_at`,
+`suspended_until` null = indefinite) is refused at sign-in (403 `{ error: 'suspended', until }`,
+OAuth ends at `/#/login?error=suspended`), by the session lookup, by `requirePlay` (403 `suspended`)
+and at every socket upgrade even with a ticket issued earlier; a battle in progress is left to the
+normal disconnect grace. A chat ban (`players.chat_ban_until`) drops the player's lines in the zone
+core (all chat starts there) and sends `err {code: 'chat_banned', msg}` once.
+
+Mutes and blocks apply where lines are delivered: the zone core never sends a recipient lines from a
+player they muted or blocked (zone, party, guild, whisper). A blocked pair (either way) gets no
+whispers (`whisper_refused`, the offline answer), no consent or challenge-zone challenges (`busy`),
+no party invites (`not_online`), no trade or wager invitations (409 `not_online`, logged like an
+offline invitee so the per-minute limit leaks nothing), and no guild invitations (stored, shown as
+pending to the inviter, never shown to or accepted by the invitee). Blocking removes the pair's
+friendship and pending requests; the blocker cannot send a request and a blocked player's request is
+not shown. `POST /api/trades` also answers 429 `too_many_invites` beyond one waiting invitation per
+inviter or 3 per minute (counted from `trade.invite` audit rows, written for both players); guild
+invitations expire after 7 days.
+
 The zone socket (`/ws/zone/:zone?t=`, a 60 s ticket for `zone:<zone>`): the Worker loads the
 player (`PlayerInit`: level, adult flag, friends, saved tile, quests, lessons done, defeated story
-trainers, key items, party with its youngest-member flag, chat preference, still-battling flag) and
+trainers, key items, party with its youngest-member flag, chat preference, the battle still in
+progress, M6 6.4: own mutes and blocks and a chat ban) and
 offers the upgrade to the zone's channels in order (a party member's channel first, then 0, 1, ...;
 a full channel answers 409). Messages are `ClientZone` / `ServerZone` (`packages/protocol/src/zone.ts`).
 
@@ -610,7 +654,12 @@ each player's tile into their socket attachment (free, survives hibernation), an
 creating BattleRooms (`world/battles.ts`, origin kept server-side), idempotent grants and level-ups
 (`world/progress.ts`), positions on warp and logout, quest storage, cross-channel chat, party and
 invite routing through presence (`world/routing.ts`, host calls `/deliver`, `/refused`, `/party`,
-`/invite`, `/grant`, `/ended`), and telemetry to Analytics Engine and `Metrics`. When a battle ends,
+`/invite`, `/grant`, `/ended`; M6 `/notify`, `/guild`; M6 6.4 `/safety`, `/chatBan`, `/battle` and
+`/kick`), and telemetry to Analytics Engine and `Metrics`. A battle started outside the zone (a
+wager, a queue, ranked or challenge-link battle, an NPC battle from the online screen) calls
+`/battle {on: true}` from `BattleRoom` init and `{on: false}` from `settleBattle`, so the player is
+marked battling in their zone (no consent challenges mid-battle). `BattleRoom` and `Matchmaker`
+answer `POST /kick {playerId, code}` for a suspension. When a battle ends,
 the BattleRoom pays each human seat once per grant key (`battle:<id>`, `trainer:<player>:<npc>`;
 lessons pay `lesson:<player>:<id>` when they complete, quests `quest:<player>:<id>`), raises the level,
 and posts the outcome to the player's channel; a player who already left gets the quest and lesson
@@ -682,7 +731,9 @@ export function migrate(db: Db): Promise<string[]>; // ids applied by this call;
 | `world`         | `coins`, `addCoinsStatement`, `spendCoins` (conditional), `keyItems`, `keyItemStatement`, `flags`, `flagStatement`, `setFlag`, `quests`, `questStatement`, `setQuest`, `setPosition`, `setPresence`, `presence`, `filterChat`, `setFilterChat`, `setLevel` (migration 0002) |
 | `social`        | `requestFriend` (a mutual request makes friends), `removeFriend`, `areFriends`, `friendIds`, `friends` (with presence for friends), `createParty`, `joinParty` (race-safe cap of 4 by `CHECK (size <= 4)`), `leaveParty`, `party`, `partyOf`                                |
 | `ratings`       | `get(playerId, format, bracket)`, `listForPlayer`, `upsert(...)` (Glicko-2 update: M6)                                                                                                                                                                                      |
-| `audit`         | `append({ playerId, kind, payload })`, `appendStatement`, `listForPlayer`                                                                                                                                                                                                   |
+| `audit`         | `append({ playerId, kind, payload })`, `appendStatement`, `listForPlayer`, `listKinds(playerId, kinds, since)` (M6 6.4)                                                                                                                                                     |
+| `safety`        | M6 6.4: `mute`, `unmute`, `mutes`, `mutedIds`, `block` (one atomic list with the friendship removal), `unblock`, `blocks`, `blockedIds`, `blockedEither(a, b)`, `blockedAmong(player, others)`                                                                              |
+| `moderation`    | M6 6.4: `fileReport` (per-day limit), `openReports` (oldest first), `countOpen`, `reportsAbout`, `reportCounts`, `resolveReport` (once), `suspend` (revokes sessions atomically), `liftSuspension`, `setChatBan`, `findPlayers`                                             |
 
 Later milestones add repositories for guilds, trades, friends, quests, billing, social and tournaments; the
 guild, guild member, trade, friend and quest progress tables already exist.

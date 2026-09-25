@@ -87,14 +87,15 @@ export function factsFromFlags(flags: readonly string[]): {
 
 /**
  * Everything a zone channel needs to admit `playerId` into `zone`; null for an unknown player. The
- * saved tile is used only when it belongs to this zone.
+ * saved tile is used only when it belongs to this zone. `battle` is the battle the player is still
+ * in (a reload mid-battle), or null.
  */
 export async function loadPlayerInit(
   db: Db,
   playerId: string,
   zone: string,
   now: number,
-  battling: boolean,
+  battle: string | null,
 ): Promise<{ init: PlayerInit; firstVisit: boolean } | null> {
   const p = await db.players.getById(playerId);
   if (!p) return null;
@@ -113,9 +114,14 @@ export async function loadPlayerInit(
     keyItems: await db.world.keyItems(playerId),
     party: await partyView(db, await db.social.partyOf(playerId), now),
     filterChat: await db.world.filterChat(playerId),
-    battling,
+    battling: battle !== null,
+    battleId: battle,
     // M6 (10.4): guild chat goes to this guild's GuildRoom.
     guild: await db.guilds.guildIdOf(playerId),
+    // M6 6.4 (R-SEC-011): the player's own mutes and blocks, and a moderator's chat ban.
+    muted: await db.safety.mutedIds(playerId),
+    blocked: await db.safety.blockedIds(playerId),
+    chatBanUntil: p.chatBanUntil,
   };
   return { init, firstVisit: !flags.zonesSeen.includes(zone) };
 }

@@ -14,6 +14,9 @@ import { worldRoutes, zoneSocket } from './api/world.ts';
 import { guildRoutes } from './api/guilds.ts';
 import { rankedRoutes, rankedSocket } from './api/ranked.ts';
 import { tradeRoutes } from './api/trades.ts';
+import { safetyRoutes } from './api/safety.ts';
+import { adminRoutes } from './api/admin.ts';
+import { isSuspended } from './moderation/sanctions.ts';
 import { refusePlay } from './billing/gate.ts';
 import { billingRoutes } from './billing/routes.ts';
 import { verifyTicket } from './auth/tickets.ts';
@@ -38,6 +41,8 @@ rankedRoutes(router);
 guildRoutes(router);
 tradeRoutes(router);
 billingRoutes(router);
+safetyRoutes(router);
+adminRoutes(router);
 
 const FORMATS = new Set(Object.keys(engine.caps.FORMATS));
 
@@ -57,6 +62,22 @@ async function api(req: Request, env: Env): Promise<Response> {
 }
 
 /**
+ * A suspended player's socket upgrade is refused even with a ticket issued before the suspension
+ * (tickets live 60 s; M6 6.4, R-SEC-006). The zone, queue and ranked upgrades check it with the
+ * entitlement (`refusePlay`).
+ */
+async function refuseSuspended(env: Env, playerId: string, now: number): Promise<Response | null> {
+  const db = await getDb(env);
+  try {
+    const p = await db.players.getById(playerId);
+    if (!p) return json({ error: 'not_found' }, 404);
+    return isSuspended(p, now) ? json({ error: 'suspended' }, 403) : null;
+  } finally {
+    await releaseDb(env, db);
+  }
+}
+
+/**
  * `/ws/battle/:id?t=`, `/ws/queue/:format/:loadoutId?t=`, `/ws/ranked/:format/:loadoutId?t=` (M6),
  * `/ws/zone/:zone?t=` and `/ws/trade/:id?t=`: check the ticket, then hand over.
  */
@@ -70,6 +91,8 @@ async function socket(req: Request, env: Env): Promise<Response> {
     const battleId = parts[2] as string;
     const player = await verifyTicket(env.AUTH_SECRET, token, `battle:${battleId}`, now);
     if (!player) return json({ error: 'bad_ticket' }, 403);
+    const refused = await refuseSuspended(env, player, now);
+    if (refused) return refused;
     const headers = new Headers(req.headers);
     headers.set('x-player-id', player);
     const stub = env.BATTLE_ROOM.get(env.BATTLE_ROOM.idFromName(battleId));
@@ -80,6 +103,8 @@ async function socket(req: Request, env: Env): Promise<Response> {
     const tradeId = parts[2] as string;
     const player = await verifyTicket(env.AUTH_SECRET, token, `trade:${tradeId}`, now);
     if (!player) return json({ error: 'bad_ticket' }, 403);
+    const refused = await refuseSuspended(env, player, now);
+    if (refused) return refused;
     const headers = new Headers(req.headers);
     headers.set('x-player-id', player);
     const stub = env.TRADE_SESSION.get(env.TRADE_SESSION.idFromName(tradeId));
@@ -143,7 +168,8 @@ async function socket(req: Request, env: Env): Promise<Response> {
 export default {
   async fetch(req, env): Promise<Response> {
     const path = new URL(req.url).pathname;
-    if (path.startsWith('/api/') || path.startsWith('/admin/')) return api(req, env);
+    if (path.startsWith('/api/') || path === '/admin' || path.startsWith('/admin/'))
+      return api(req, env);
     if (path.startsWith('/ws/')) return socket(req, env);
     return env.ASSETS.fetch(req);
   },

@@ -62,6 +62,21 @@ export const LoginTokenData = z.object({
 });
 export type LoginTokenData = z.infer<typeof LoginTokenData>;
 
+/** What a report is about (0006, M6 6.4): a chat line as the reporter saw it, a battle, a trade. */
+export const ReportContextJson = z
+  .object({
+    chat: z
+      .object({
+        text: z.string().max(200),
+        ch: z.enum(['zone', 'party', 'guild', 'whisper']),
+      })
+      .optional(),
+    battleId: z.string().min(1).max(128).optional(),
+    tradeId: z.string().min(1).max(128).optional(),
+  })
+  .strict();
+export type ReportContextJson = z.infer<typeof ReportContextJson>;
+
 /** Free-form JSON object (audit payloads, quest data). */
 export const JsonObject = z.record(z.string(), z.json());
 export type JsonObject = z.infer<typeof JsonObject>;

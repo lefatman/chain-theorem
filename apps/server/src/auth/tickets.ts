@@ -24,10 +24,9 @@ export async function signTicket(
   player: string,
   room: string,
   now: number,
+  ttlMs: number = TICKET_TTL_MS,
 ): Promise<string> {
-  const body = base64url(
-    enc.encode(JSON.stringify({ p: player, r: room, exp: now + TICKET_TTL_MS })),
-  );
+  const body = base64url(enc.encode(JSON.stringify({ p: player, r: room, exp: now + ttlMs })));
   return `${body}.${await hmac(secret, `ticket.${body}`)}`;
 }
 

@@ -27,7 +27,15 @@ export type ZoneCall =
   | 'grant'
   | 'notify'
   /** M6: the player's guild changed (joined, left, kicked, disbanded). */
-  | 'guild';
+  | 'guild'
+  /** M6 6.4: the player's own mute and block lists changed (R-SEC-011). */
+  | 'safety'
+  /** M6 6.4: a moderator's chat ban was set or lifted. */
+  | 'chatBan'
+  /** M6 6.4: a battle outside the zone started or ended (wager, queue, ranked, link, NPC). */
+  | 'battle'
+  /** M6 6.4: close the player's zone socket (a moderator's suspension, R-SEC-006). */
+  | 'kick';
 
 /**
  * Send a host call to the channel the player is in. Resolves false when the player is offline or
@@ -47,4 +55,22 @@ export async function callPlayer(
     body: JSON.stringify(body),
   });
   return res.ok;
+}
+
+/**
+ * Tell the player's zone channel (if they are in the world) that a battle outside the zone started
+ * or ended (M6 6.4: wagers, queues, links), so they are marked battling there. Never throws.
+ */
+export async function tellZone(
+  env: Env,
+  db: Db,
+  playerId: string,
+  battleId: string,
+  on: boolean,
+): Promise<void> {
+  try {
+    await callPlayer(env, db, playerId, 'battle', { id: playerId, battleId, on });
+  } catch (err) {
+    console.error(`battle ${battleId}: telling ${playerId}'s zone failed: ${String(err)}`);
+  }
 }

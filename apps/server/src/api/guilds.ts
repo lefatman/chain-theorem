@@ -17,6 +17,10 @@
  * After each membership change the guild's GuildRoom reloads its roster (R-SEC-011: the guild chat
  * filter follows the youngest member before the next line), and every affected member's zone channel
  * learns the new guild so guild chat follows at once.
+ *
+ * M6 6.4: invitations expire after `GUILDS.inviteTtlMs` (PLAYTEST). An invitation between a blocked
+ * pair (either way) is stored like any other but never shown to the invitee and cannot be accepted:
+ * to the inviter it looks exactly like an invitation nobody answered (R-SEC-011, no leak).
  */
 import { GUILDS } from '@chain-theorem/content';
 import type { Db, GuildRankName } from '@chain-theorem/db';
@@ -34,10 +38,23 @@ import { callPlayer } from '../world/routing.ts';
 import { basicChatFilter } from '../zone/index.ts';
 import type { Ctx } from './context.ts';
 
+/** Invitations created after this instant are still valid (M6 6.4). */
+const validSince = (now: number) => now - GUILDS.inviteTtlMs;
+
+/** The caller's unexpired invitations, without those from a player in a block with them. */
+async function openInvites(db: Db, playerId: string, now: number) {
+  const list = await db.guilds.invitesFor(playerId, validSince(now));
+  const hidden = await db.safety.blockedAmong(
+    playerId,
+    list.flatMap((i) => (i.invitedBy ? [i.invitedBy] : [])),
+  );
+  return list.filter((i) => !(i.invitedBy && hidden.has(i.invitedBy)));
+}
+
 /** The caller's guild, rank and invitations. */
-export async function myGuild(db: Db, playerId: string): Promise<MyGuild> {
+export async function myGuild(db: Db, playerId: string, now: number): Promise<MyGuild> {
   const m = await db.guilds.membership(playerId);
-  const invites = (await db.guilds.invitesFor(playerId)).map((i) => ({
+  const invites = (await openInvites(db, playerId, now)).map((i) => ({
     guildId: i.guildId,
     name: i.guildName,
     tag: i.guildTag,
@@ -64,7 +81,7 @@ export async function myGuild(db: Db, playerId: string): Promise<MyGuild> {
       joinedAt: x.joinedAt,
     })),
     invited: staff
-      ? (await db.guilds.invitesOf(g.id)).map((i) => ({
+      ? (await db.guilds.invitesOf(g.id, validSince(now))).map((i) => ({
           id: i.playerId,
           name: i.playerName,
           at: i.createdAt,
@@ -110,7 +127,7 @@ function clean(s: string): boolean {
 export function guildRoutes(r: Router<Ctx>): void {
   r.add('GET', '/api/guilds/me', async (_req, ctx) => {
     const me = await ctx.requireMe();
-    return json(await myGuild(ctx.db, me.id));
+    return json(await myGuild(ctx.db, me.id, ctx.now));
   });
 
   r.add('POST', '/api/guilds', async (req, ctx) => {
@@ -127,7 +144,7 @@ export function guildRoutes(r: Router<Ctx>): void {
     if (res.status !== 'created') throw new HttpError(409, res.status);
     await refreshRoom(ctx.env, res.guild.id);
     await tellZones(ctx.env, ctx.db, [me.id], res.guild.id);
-    return json(await myGuild(ctx.db, me.id));
+    return json(await myGuild(ctx.db, me.id, ctx.now));
   });
 
   r.add('POST', '/api/guilds/invites', async (req, ctx) => {
@@ -137,28 +154,32 @@ export function guildRoutes(r: Router<Ctx>): void {
     if (!m) throw new HttpError(404, 'no_guild');
     const target = await findPlayer(ctx.db, to);
     if (target === me.id) throw new HttpError(409, 'in_guild');
-    const res = await ctx.db.guilds.invite(m.guildId, me.id, target, ctx.now);
+    await ctx.db.guilds.deleteExpiredInvites(validSince(ctx.now));
+    const res = await ctx.db.guilds.invite(m.guildId, me.id, target, ctx.now, GUILDS.inviteTtlMs);
     if (res === 'not_allowed') throw new HttpError(403, res);
     if (res !== 'invited') throw new HttpError(409, res);
-    return json(await myGuild(ctx.db, me.id));
+    return json(await myGuild(ctx.db, me.id, ctx.now));
   });
 
   r.add('POST', '/api/guilds/invites/:guildId/accept', async (_req, ctx, params) => {
     const me = await ctx.requireMe();
     const guildId = params.guildId ?? '';
-    const res = await ctx.db.guilds.accept(guildId, me.id, ctx.now);
+    // Only an invitation the caller can see (unexpired, not from a blocked pair) can be accepted.
+    if (!(await openInvites(ctx.db, me.id, ctx.now)).some((i) => i.guildId === guildId))
+      throw new HttpError(404, 'no_invite');
+    const res = await ctx.db.guilds.accept(guildId, me.id, ctx.now, validSince(ctx.now));
     if (res === 'no_invite') throw new HttpError(404, res);
     if (res !== 'joined') throw new HttpError(409, res);
     await refreshRoom(ctx.env, guildId);
     await tellZones(ctx.env, ctx.db, [me.id], guildId);
-    return json(await myGuild(ctx.db, me.id));
+    return json(await myGuild(ctx.db, me.id, ctx.now));
   });
 
   r.add('DELETE', '/api/guilds/invites/:guildId', async (_req, ctx, params) => {
     const me = await ctx.requireMe();
     if (!(await ctx.db.guilds.deleteInvite(params.guildId ?? '', me.id)))
       throw new HttpError(404, 'no_invite');
-    return json(await myGuild(ctx.db, me.id));
+    return json(await myGuild(ctx.db, me.id, ctx.now));
   });
 
   r.add('DELETE', '/api/guilds/invites/:guildId/:playerId', async (_req, ctx, params) => {
@@ -168,7 +189,7 @@ export function guildRoutes(r: Router<Ctx>): void {
     if (rank !== 'leader' && rank !== 'officer') throw new HttpError(403, 'not_allowed');
     if (!(await ctx.db.guilds.deleteInvite(guildId, params.playerId ?? '')))
       throw new HttpError(404, 'no_invite');
-    return json(await myGuild(ctx.db, me.id));
+    return json(await myGuild(ctx.db, me.id, ctx.now));
   });
 
   r.add('PUT', '/api/guilds/members/:id', async (req, ctx, params) => {
@@ -184,7 +205,7 @@ export function guildRoutes(r: Router<Ctx>): void {
     );
     if (res !== 'ok') throw new HttpError(403, res);
     await refreshRoom(ctx.env, m.guildId);
-    return json(await myGuild(ctx.db, me.id));
+    return json(await myGuild(ctx.db, me.id, ctx.now));
   });
 
   r.add('DELETE', '/api/guilds/members/:id', async (_req, ctx, params) => {
@@ -196,7 +217,7 @@ export function guildRoutes(r: Router<Ctx>): void {
     if (res !== 'ok') throw new HttpError(403, res);
     await refreshRoom(ctx.env, m.guildId);
     await tellZones(ctx.env, ctx.db, [target], null);
-    return json(await myGuild(ctx.db, me.id));
+    return json(await myGuild(ctx.db, me.id, ctx.now));
   });
 
   r.add('POST', '/api/guilds/leave', async (_req, ctx) => {
@@ -207,7 +228,7 @@ export function guildRoutes(r: Router<Ctx>): void {
     if (res === 'not_member') throw new HttpError(404, 'no_guild');
     await refreshRoom(ctx.env, m.guildId);
     await tellZones(ctx.env, ctx.db, [me.id], null);
-    return json(await myGuild(ctx.db, me.id));
+    return json(await myGuild(ctx.db, me.id, ctx.now));
   });
 
   r.add('DELETE', '/api/guilds/:id', async (_req, ctx, params) => {
@@ -218,6 +239,6 @@ export function guildRoutes(r: Router<Ctx>): void {
     if (res !== 'ok') throw new HttpError(403, res);
     await refreshRoom(ctx.env, guildId);
     await tellZones(ctx.env, ctx.db, members, null);
-    return json(await myGuild(ctx.db, me.id));
+    return json(await myGuild(ctx.db, me.id, ctx.now));
   });
 }

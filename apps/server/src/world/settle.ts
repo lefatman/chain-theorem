@@ -9,10 +9,10 @@ import type { Reward } from '@chain-theorem/content/world';
 import type { BattleArchive, BattleSummary } from '../battle/index.ts';
 import type { Env } from '../env.ts';
 import type { BattleUsage } from '../metrics.ts';
-import type { BattleOrigin } from './battles.ts';
+import { outsideZone, type BattleOrigin } from './battles.ts';
 import { battleGrants, seatResults, zoneOutcome } from './outcome.ts';
 import { grantOnce, offlineBattleEnd, syncLevel } from './progress.ts';
-import { callPlayer } from './routing.ts';
+import { callPlayer, tellZone } from './routing.ts';
 import { settleWager } from './wager.ts';
 import { settleRanked } from '../rating/settle.ts';
 import { telemetrySink } from '../telemetry.ts';
@@ -63,6 +63,10 @@ export async function settleBattle(
       await syncLevel(db, seat.playerId);
     }
   }
+  // M6 6.4: a battle started outside the zone clears its battling marker in the player's zone.
+  if (outsideZone(origin))
+    for (const seat of seatResults(summary, archive))
+      await tellZone(env, db, seat.playerId, summary.battleId, false);
 }
 
 /** What the battle cost, for the cost dashboard (14.2). */

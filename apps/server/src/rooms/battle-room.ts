@@ -10,6 +10,10 @@
  * The init may carry the battle's origin (a wild encounter, a trainer, a lesson, a challenge, M5); it
  * stays in storage, never reaches a client, and decides the rewards and quest progress when the
  * battle ends (R-SEC-003).
+ *
+ * M6 6.4: a battle started outside the zone (a wager, a queue, a link) tells each player's zone
+ * channel when it starts and ends (`/battle`), so they are marked battling there; `POST /kick`
+ * closes a suspended player's socket (R-SEC-006) and the normal disconnect grace takes over.
  */
 import { DurableObject } from 'cloudflare:workers';
 import type { Side } from '@chain-theorem/rules';
@@ -23,7 +27,8 @@ import {
 } from '../battle/index.ts';
 import { getDb, releaseDb } from '../db.ts';
 import type { Env } from '../env.ts';
-import type { BattleOrigin } from '../world/battles.ts';
+import { outsideZone, type BattleOrigin } from '../world/battles.ts';
+import { tellZone } from '../world/routing.ts';
 import { battleUsage, settleBattle } from '../world/settle.ts';
 import { assignColours, type LobbyInit } from './init.ts';
 import { metricsStub } from './metrics.ts';
@@ -90,6 +95,10 @@ export class BattleRoom extends DurableObject<Env> {
         return this.openLobby((await req.json()) as LobbyInit);
       case 'POST /join':
         return this.join((await req.json()) as SeatInit);
+      case 'POST /kick': {
+        const { playerId, code } = (await req.json()) as { playerId: string; code: number };
+        return this.kick(playerId, code);
+      }
       case 'GET /info':
         return Response.json(this.info());
       default:
@@ -143,11 +152,38 @@ export class BattleRoom extends DurableObject<Env> {
         blackId: playerOf(init.black),
         startedAt: now,
       });
+      // M6 6.4: players in the world are marked battling there (no challenges mid-battle).
+      if (outsideZone(origin))
+        for (const id of [playerOf(init.white), playerOf(init.black)])
+          if (id) await tellZone(this.env, db, id, init.battleId, true);
     } finally {
       await releaseDb(this.env, db);
     }
     await this.deliver(started.out);
     return new Response('ok');
+  }
+
+  /**
+   * Close a player's socket(s) in this battle (a moderator's suspension, M6 6.4). The side is
+   * disconnected at once; it cannot come back, so the disconnect grace decides the battle (9.2).
+   */
+  private async kick(playerId: string, code: number): Promise<Response> {
+    let closed = 0;
+    const sides = new Set<Side>();
+    for (const ws of this.ctx.getWebSockets()) {
+      const a = ws.deserializeAttachment() as Attachment | null;
+      if (a?.playerId !== playerId) continue;
+      try {
+        ws.close(code, 'suspended');
+      } catch {
+        /* already closed */
+      }
+      closed++;
+      if (a.side !== 'lobby') sides.add(a.side);
+    }
+    const core = this.core;
+    if (core) for (const side of sides) await this.deliver(core.disconnect(side, Date.now()));
+    return closed > 0 ? Response.json({ closed }) : Response.json({ closed }, { status: 404 });
   }
 
   private async openLobby(lobby: LobbyInit): Promise<Response> {

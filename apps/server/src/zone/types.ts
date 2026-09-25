@@ -61,6 +61,27 @@ export interface PlayerInit {
   battleEndedAt?: number | null;
   /** The player's guild (M6, 10.4): guild chat goes to its GuildRoom; null or absent: none. */
   guild?: string | null;
+  /**
+   * The battle the player is still in when `battling` (a reload mid-battle), so the end of a battle
+   * started outside the zone (`externalBattle`) clears the marker; null or absent: unknown.
+   */
+  battleId?: string | null;
+  /** Players whose chat lines this player never receives: their mutes (M6 6.4, R-SEC-011). */
+  muted?: string[];
+  /**
+   * Players this player blocked (M6 6.4): muted too, and whispers and challenges are refused in
+   * both directions. The other direction (who blocked this player) is checked at the recipient's
+   * core and by the host, so this list stays bounded (config `SAFETY.maxBlocks`).
+   */
+  blocked?: string[];
+  /** A moderator's server-wide chat ban until this instant (epoch ms); null or past: may chat. */
+  chatBanUntil?: number | null;
+}
+
+/** A player's own mute and block lists (M6 6.4); the host refreshes them with `setSafety`. */
+export interface SafetyLists {
+  muted: string[];
+  blocked: string[];
 }
 
 /** A battle the host must create (a BattleRoom), then answer with `battleStarted` per player. */
@@ -243,6 +264,12 @@ export interface PlayerState {
   party: PartyView | null;
   /** The player's guild id (M6); absent in snapshots stored before M6. */
   guild?: string | null;
+  /** Own mutes and blocks (M6 6.4); absent in snapshots stored before M6 6.4. */
+  muted?: string[];
+  blocked?: string[];
+  /** Chat ban until (epoch ms), and whether the player was told about it (told once). */
+  chatBanUntil?: number | null;
+  chatBanTold?: boolean;
   battling: boolean;
   battleId: string | null;
   battleEndedAt: number | null;

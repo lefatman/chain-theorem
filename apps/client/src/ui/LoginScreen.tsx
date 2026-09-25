@@ -17,6 +17,8 @@ const MESSAGES: Record<string, string> = {
   rate_limited: 'Too many requests. Wait a minute and try again.',
   offline: 'The server cannot be reached. Local play still works.',
   no_server: 'This build runs without a server. Local play still works.',
+  suspended: 'This account is suspended by a moderator.',
+  oauth: 'Signing in with that provider did not work. Try again or use email.',
 };
 
 function message(e: unknown): string {
@@ -33,8 +35,19 @@ export function LoginScreen() {
   const [name, setName] = useState('');
   const [dob, setDob] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => {
+    // An OAuth sign-in ends here with `?error=` (a suspended account, a failed exchange).
+    const e = params.get('error');
+    return e ? (MESSAGES[e] ?? MESSAGES.oauth ?? null) : null;
+  });
   const [providers, setProviders] = useState<string[]>([]);
+  /** A suspended account keeps its data rights (R-SEC-010): the refused sign-in carries a token. */
+  const [dataToken, setDataToken] = useState<string | null>(params.get('data'));
+  const [deleted, setDeleted] = useState(false);
+  const refused = (e: unknown) => {
+    setError(message(e));
+    if (e instanceof ApiError && typeof e.details.data === 'string') setDataToken(e.details.data);
+  };
 
   useEffect(() => {
     api.providers().then(
@@ -54,7 +67,7 @@ export function LoginScreen() {
           go('online');
         } else setSignup(r.signup);
       })
-      .catch((e: unknown) => setError(message(e)))
+      .catch(refused)
       .finally(() => setBusy(false));
   }, [token]);
 
@@ -106,6 +119,44 @@ export function LoginScreen() {
       {error && (
         <p class="note warn" role="alert">
           {error}
+        </p>
+      )}
+      {dataToken && !deleted && (
+        <section class="note" aria-labelledby="data-rights-h">
+          <h3 id="data-rights-h">Your data</h3>
+          <p>You can still download everything stored about you, or delete your account.</p>
+          <a
+            class="button-link"
+            href={`/api/me/export?data=${encodeURIComponent(dataToken)}`}
+            download="chain-theorem-export.json"
+          >
+            Download my data
+          </a>{' '}
+          <button
+            class="danger"
+            disabled={busy}
+            onClick={async () => {
+              if (!window.confirm('Delete this account and all its data? This cannot be undone.'))
+                return;
+              setBusy(true);
+              try {
+                await api.deleteWithDataToken(dataToken);
+                setDeleted(true);
+                setError(null);
+              } catch (e) {
+                setError(message(e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Delete my account
+          </button>
+        </section>
+      )}
+      {deleted && (
+        <p class="note" role="status">
+          Your account and its data were deleted.
         </p>
       )}
       {signup ? (

@@ -40,6 +40,8 @@ APP_ORIGIN=http://localhost:5173
 # Signing key for the fake provider's checkout links and webhooks (default: derived from AUTH_SECRET).
 # FAKE_BILLING_SECRET=
 
-# Emails (comma-separated) that may open the cost dashboard at /admin/cost (14.2). Locally the seeded
-# level25@local.test account is the admin; in production set it with `wrangler secret put`.
+# Emails (comma-separated) that may open the admin pages: the moderation console at /admin (reports
+# queue, player lookup, suspensions and chat bans; M6 6.4) and the cost dashboard at /admin/cost
+# (14.2). Locally the seeded level25@local.test account is the admin; in production set it with
+# `wrangler secret put`.
 ADMIN_EMAILS=level25@local.test

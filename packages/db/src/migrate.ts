@@ -11,6 +11,7 @@ import { m0002World } from './migrations/0002_world.ts';
 import { m0003Economy } from './migrations/0003_economy.ts';
 import { m0004Billing } from './migrations/0004_billing.ts';
 import { m0005GuildsRanked } from './migrations/0005_guilds_ranked.ts';
+import { m0006Moderation } from './migrations/0006_moderation.ts';
 import { columnTypes, type Migration } from './migrations/types.ts';
 
 /** All migrations in order. Append only; never edit or reorder an applied migration. */
@@ -20,6 +21,7 @@ export const MIGRATIONS: readonly Migration[] = [
   m0003Economy,
   m0004Billing,
   m0005GuildsRanked,
+  m0006Moderation,
 ];
 
 /** Applied migration ids, or null when the ledger table does not exist (yet). */
