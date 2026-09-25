@@ -61,6 +61,9 @@ describe('crypto helpers', () => {
     const bytes = new Uint8Array([0, 255, 62, 63, 1, 2, 3]);
     expect(fromBase64url(base64url(bytes))).toEqual(bytes);
     expect(fromBase64url('not base64!')).toBeNull();
+    // One spelling per value: non-zero padding bits are rejected (no signature malleability).
+    expect(fromBase64url('AB')).toBeNull();
+    expect(fromBase64url('AA')).toEqual(new Uint8Array([0]));
     const a = randomToken();
     expect(a).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(randomToken()).not.toBe(a);
@@ -122,7 +125,8 @@ describe('magic links and OAuth', () => {
     expect(await checkState(p, state, 'other.cookie', SECRET, 1000)).toBeNull();
     expect(await checkState(PROVIDERS.google, state, cookie, SECRET, 1000)).toBeNull();
     expect(await checkState(p, state, cookie, SECRET, 11 * 60_000)).toBeNull();
-    const flipped = state.slice(0, -1) + (state.endsWith('A') ? 'B' : 'A');
+    const mid = state.length - 10;
+    const flipped = state.slice(0, mid) + (state[mid] === 'A' ? 'B' : 'A') + state.slice(mid + 1);
     expect(await checkState(p, flipped, cookie, SECRET, 1000)).toBeNull();
   });
 });

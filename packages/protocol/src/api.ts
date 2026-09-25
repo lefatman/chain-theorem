@@ -48,10 +48,8 @@ export const CreateBattle = z.discriminatedUnion('kind', [
   }),
 ]);
 
-export const AcceptChallenge = z.object({
-  code: z.string().regex(/^[A-Za-z0-9]{6,16}$/),
-  loadoutId: z.string().max(64),
-});
+/** Body of `POST /api/challenges/:code/accept` (the code is in the path). */
+export const AcceptChallenge = z.object({ loadoutId: z.string().max(64) });
 
 export const JoinQueue = z.object({ format: Format, loadoutId: z.string().max(64) });
 

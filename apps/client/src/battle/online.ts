@@ -217,6 +217,10 @@ export class OnlineController implements BattleController {
       case 'drawOffer':
         this.drawOffer = msg.d.by;
         break;
+      case 'drawDeclined':
+        this.drawOffer = null;
+        if (msg.d.by === this.you) this.notice = 'Draw declined: play on.';
+        break;
       case 'clock':
         if (msg.d.echo !== undefined) {
           // NTP-style estimate: the server stamped `now` halfway through the round trip.

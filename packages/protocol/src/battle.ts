@@ -100,6 +100,8 @@ export const ServerBattle = {
   prompt: z.object({ promptId: z.string(), request: Payload, deadline: z.number() }),
   bend: z.object({ result: ResultMsg, rewards: Payload.optional() }),
   drawOffer: z.object({ by: Side }),
+  /** The draw offer by `by` was declined (by the opponent or an NPC); play goes on. */
+  drawDeclined: z.object({ by: Side }),
   /** Clock sync; `echo` returns the client's `sync.t`. */
   clock: z.object({ clocks: Clocks, echo: z.number().optional(), now: z.number() }),
   /** The opponent's connection: while away the battle waits `graceUntil` at most (9.2). */

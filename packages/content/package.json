@@ -8,7 +8,8 @@
     ".": "./index.ts",
     "./config": "./config.ts",
     "./testing": "./src/testing.ts",
-    "./scan": "./src/scan.ts"
+    "./scan": "./src/scan.ts",
+    "./npcs": "./src/npcs.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

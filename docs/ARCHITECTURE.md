@@ -537,42 +537,99 @@ Interfaces with a local implementation and a production implementation (never fa
 
 ## 7. Database (`@chain-theorem/db`, 13.3, 13.6, R-DATA-003/004)
 
+One Kysely query layer, written once, runs on PostgreSQL, better-sqlite3 and D1. The package has four
+entries so the Worker bundle never pulls in native code (a test walks the import graph):
+
+| Import                   | Contents                                                                             | Used by                                     |
+| ------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------- |
+| `@chain-theorem/db`      | `Schema` types, `createDb`, `migrate`, repositories, errors, `uuidv7`, JSON schemas  | anything (imports only `kysely` and `zod`)  |
+| `@chain-theorem/db/pg`   | `postgresDb(connectionString, { max? })` via node-postgres (BIGINT parsed to number) | Worker through Hyperdrive, CI, `test:db:pg` |
+| `@chain-theorem/db/d1`   | `d1Db(binding)` via kysely-d1; atomic lists run as one `binding.batch()`             | Worker in `wrangler dev` and Workers tests  |
+| `@chain-theorem/db/node` | `sqliteDb(filename = ':memory:')` via better-sqlite3; re-exports `postgresDb`        | Node only: repository tests, tools, seed    |
+
 ```ts
-export function createDb(config: DbConfig): Db; // { kind: 'sqlite' | 'd1' | 'postgres', ... }
+export function createDb(
+  kysely: Kysely<Schema>,
+  dialect: 'sqlite' | 'd1' | 'postgres',
+  options?: { now?: () => number; runAtomic?: AtomicRunner }, // D1 must pass a batch() runner
+): Db;
 export interface Db {
   kysely: Kysely<Schema>;
   dialect: 'sqlite' | 'd1' | 'postgres';
-  atomic(statements: CompiledQuery[]): Promise<number[]>; // one transaction; returns rows affected
+  atomic(statements: readonly CompiledQuery[]): Promise<number[]>; // rows affected, in order
+  now(): number; // injectable clock for created/updated timestamps
   players: PlayerRepo;
   sessions: SessionRepo;
   loginTokens: LoginTokenRepo;
+  oauthAccounts: OauthAccountRepo;
   inventory: InventoryRepo;
   loadouts: LoadoutRepo;
   ratings: RatingRepo;
   battles: BattleRepo;
   wagers: WagerRepo;
-  guilds: GuildRepo;
-  trades: TradeRepo;
-  friends: FriendRepo;
-  quests: QuestRepo;
-  audit: AuditRepo;
-  billing: BillingRepo;
-  social: SocialRepo;
-  tournaments: TournamentRepo;
   rewards: RewardRepo;
+  audit: AuditRepo;
+  destroy(): Promise<void>;
 }
-export function migrate(db: Db): Promise<void>; // forward-only, dialect branches only for types
+export function migrate(db: Db): Promise<string[]>; // ids applied by this call; [] when up to date
 ```
 
-Atomic writes (DD-15): every multi-row write (rewards, trades, wagers) is compiled into an ordered list
-of statements executed in one transaction (PostgreSQL and better-sqlite3: `BEGIN … COMMIT`; D1:
-`batch()`, which is atomic). Invariants are enforced inside the write: quantities have
-`CHECK (qty >= 0)` so an over-spend aborts the whole transaction, conditional updates
-(`WHERE qty >= n`) are verified by affected-row counts where the driver reports them, and idempotency uses
-unique keys (reward grants keyed by battle id, R-SEC-003). No `SELECT … FOR UPDATE`.
+| Repository      | Methods (M4)                                                                                                                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `players`       | `create({ email, displayName, adultFrom })`, `getById`, `getByEmail`, `rename`, `addXp(id, delta, levelForXp?)`, `syncLevel(id, levelForXp)` (level only rises), `addXpStatement`, `exportData(id)`, `delete(id)` (R-SEC-010)                    |
+| `sessions`      | `create(playerId, { ttlMs })` returns the raw 32-byte token once and stores its SHA-256, `getValid(token, now)`, `delete(token)`, `deleteForPlayer`, `deleteExpired(now)` (R-SEC-006)                                                            |
+| `loginTokens`   | `issue({ email, purpose, ttlMs, data? })` (magic link; hashed; `data` carries display name, `adultFrom` and a pending `oauth` identity), `consume(token, now, purpose?)` exactly once, `countIssuedSince(email, since)`, `deleteExpired(now)`    |
+| `oauthAccounts` | `link(playerId, provider, providerUserId)` (false if already linked), `findPlayerId(provider, providerUserId)`, `listForPlayer`                                                                                                                  |
+| `inventory`     | `list(playerId)`, `qty`, `grant(playerId, 'item' \| 'card', id, qty)`, `spend(...)` (conditional, boolean), `grantStatement`, `spendStatements` (for atomic lists)                                                                               |
+| `loadouts`      | `list(playerId)`, `get(playerId, id)`, `count`, `save(playerId, { id?, name, loadout, isValid })` (null if the id is not the player's), `setValid`, `delete(playerId, id)`                                                                       |
+| `battles`       | `create({ id?, format, whiteId, blackId })` (result null; `id` may be any 1..128 char string, e.g. `c-<code>`), `get`, `finish(id, { result, reason, endedAt, logKey })` (once), `finishStatement`, `listRecentForPlayer`, `listActiveForPlayer` |
+| `wagers`        | `create({ battleId, whiteStake, blackStake, status? })`, `get`, `getByBattle` (escrow and settlement: M6)                                                                                                                                        |
+| `rewards`       | `grant({ key, playerId, items?, cards?, xp? })` returns `granted` or `duplicate`, `grantStatements` (to compose with `finishStatement`), `get(key, playerId)`                                                                                    |
+| `ratings`       | `get(playerId, format, bracket)`, `listForPlayer`, `upsert(...)` (Glicko-2 update: M6)                                                                                                                                                           |
+| `audit`         | `append({ playerId, kind, payload })`, `appendStatement`, `listForPlayer`                                                                                                                                                                        |
 
-IDs are UUIDv7 strings from the application; timestamps are epoch milliseconds (`BIGINT` on PostgreSQL);
-JSON is `JSONB` on PostgreSQL and `TEXT` on SQLite, parsed and validated with Zod in repositories.
+Later milestones add repositories for guilds, trades, friends, quests, billing, social and tournaments; the
+guild, guild member, trade, friend and quest progress tables already exist.
+
+**Tables** (migration `0001_initial`): every table of spec 13.3 plus `login_tokens` (hashed token,
+email, purpose, pending sign-up data, `expires_at`, `used_at`), `oauth_accounts` (UNIQUE provider +
+provider user id) and `reward_grants` (UNIQUE `grant_key` + `player_id`, R-SEC-003), and the
+`schema_migrations` ledger. Player-owned rows reference `players(id)` with foreign keys (enforced on all
+three engines). `players.adult_from` (epoch ms of the 18th birthday, from `adultFromBirthDate()`) is the
+only age data; the birth date is never stored (R-SEC-011).
+
+**Portability** (spec 13.6): IDs are UUIDv7 strings from the application (`uuidv7()`, monotonic within
+a process); timestamps are epoch milliseconds (`BIGINT` on PostgreSQL, `INTEGER` on SQLite); JSON is
+`JSONB` on PostgreSQL and `TEXT` on SQLite, validated with Zod on write and on read (a bad row throws
+`DbDataError`); booleans are `INTEGER` 0/1 on both. Migrations are forward-only, branch by dialect only
+for column types (`ts`, `json`, `real`), use `IF NOT EXISTS`, and apply with their ledger row as one
+atomic list; `migrate()` is a no-op when run again, including concurrently.
+
+**Atomic writes (DD-15):** `atomic(statements)` runs an ordered list of compiled queries in one
+transaction: `BEGIN … COMMIT` on one connection for PostgreSQL and better-sqlite3, one `batch()` on D1
+(which has no interactive transactions). It resolves to the affected-row count of each statement. Any
+error rolls back every statement; constraint violations surface as `DbConstraintError` with `kind`
+(`unique`, `check`, `foreign_key`, `not_null`) and, where the engine reports them, `table` and
+`constraint`. Because a D1 batch cannot stop halfway on a row count, every invariant inside an atomic list
+is a constraint: `inventory.spendStatements` inserts a zero row if missing (conflict ignored) and then
+decrements without a condition, so an over-spend or a spend of something never owned violates
+`CHECK (qty >= 0)` and aborts the list; grants are upserts; reward idempotency is the `reward_grants`
+unique key (the duplicate aborts the list and `rewards.grant` reports `duplicate`). Standalone
+operations use conditional updates checked by affected rows: `inventory.spend` (`qty = qty - n WHERE
+qty >= n`), `loginTokens.consume` (`used_at IS NULL AND expires_at > now`), `battles.finish`
+(`result IS NULL`). No `SELECT … FOR UPDATE` anywhere.
+
+**Tests:** the same suite (`packages/db/test`) runs on in-memory SQLite, on `d1Db` over an in-process D1
+stand-in backed by better-sqlite3 (same surface and error text as workerd's D1), and on PostgreSQL when
+`TEST_PG_URL` is set (a fresh schema per test). `pnpm test:db` runs SQLite and D1; `pnpm test:db:pg`
+uses `TEST_PG_URL`, or starts a throwaway local cluster (PostgreSQL binaries; as root it runs as
+`postgres`), or Docker `postgres:17`, and otherwise prints why it skipped and exits 0.
+
+In the Worker, create the `Db` per request from the binding (`d1Db(env.DB)` or
+`postgresDb(env.HYPERDRIVE.connectionString, { max: 5 })`) and close a PostgreSQL one with
+`ctx.waitUntil(db.destroy())`: Workers do not share sockets between requests and allow six open
+connections per invocation, and Hyperdrive does the real pooling. Repositories never use Kysely's
+`transaction()`, which D1 lacks; multi-statement writes go through `atomic()`.
 
 ## 8. Client (`apps/client`)
 

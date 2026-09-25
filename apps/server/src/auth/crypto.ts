@@ -17,7 +17,8 @@ export function fromBase64url(s: string): Uint8Array | null {
     const bin = atob(pad);
     const out = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-    return out;
+    // Only the canonical encoding: unused trailing bits must be zero, so a signature has one spelling.
+    return base64url(out) === s ? out : null;
   } catch {
     return null;
   }

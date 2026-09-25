@@ -1,0 +1,21 @@
+# Local secrets for `wrangler dev` (copy to .dev.vars; `pnpm dev` creates it for you).
+# Production values are set with `wrangler secret put NAME` (DEPLOY.md 4), never committed (R-SEC-009).
+
+# HMAC key for 60-second socket tickets and OAuth state (R-SEC-006). At least 32 random bytes.
+AUTH_SECRET=replace-with-64-random-hex-characters
+
+# Local development opens the client through Vite on port 5173 (magic links point there).
+APP_ORIGIN=http://localhost:5173
+
+# Magic-link email (production). Locally MAIL_MODE=console prints links in the dev console.
+# MAIL_ENDPOINT=https://api.your-mail-provider.example/emails
+# MAIL_API_KEY=
+# MAIL_FROM=Chain Theorem <signin@your-domain>
+
+# Optional OAuth sign-in: a provider is enabled when both values are set.
+# GITHUB_CLIENT_ID=
+# GITHUB_CLIENT_SECRET=
+# GOOGLE_CLIENT_ID=
+# GOOGLE_CLIENT_SECRET=
+# DISCORD_CLIENT_ID=
+# DISCORD_CLIENT_SECRET=

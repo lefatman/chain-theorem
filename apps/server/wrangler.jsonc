@@ -1,0 +1,58 @@
+// Chain Theorem Worker (spec 12, 13; DEPLOY.md). Local development (`pnpm dev`) runs this Worker with
+// a local D1 database, local R2 and local Durable Objects; production values marked REPLACE_WITH are set by
+// the operator (DEPLOY.md), never committed.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "chain-theorem",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-15",
+  "compatibility_flags": ["nodejs_compat"],
+  // The built client is served as static assets; the Worker runs first only for the API and sockets.
+  "assets": {
+    "directory": "../client/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/ws/*"],
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "BATTLE_ROOM", "class_name": "BattleRoom" },
+      { "name": "MATCHMAKER", "class_name": "Matchmaker" },
+    ],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BattleRoom", "Matchmaker"] }],
+  // Local and test database (13.6): D1 (SQLite). Production uses PostgreSQL through Hyperdrive.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "chain-theorem-local",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+    },
+  ],
+  "r2_buckets": [{ "binding": "BATTLE_LOGS", "bucket_name": "chain-theorem-battle-logs" }],
+  "vars": {
+    "APP_ORIGIN": "http://localhost:8787",
+    "MAIL_MODE": "console",
+    "DB_KIND": "d1",
+  },
+  "observability": { "enabled": true },
+  "env": {
+    "production": {
+      "vars": {
+        "APP_ORIGIN": "https://REPLACE_WITH_YOUR_DOMAIN",
+        "MAIL_MODE": "http",
+        "DB_KIND": "postgres",
+      },
+      // Set by the operator: `wrangler hyperdrive create` (DEPLOY.md 2) and paste its id here.
+      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "REPLACE_WITH_HYPERDRIVE_ID" }],
+      "durable_objects": {
+        "bindings": [
+          { "name": "BATTLE_ROOM", "class_name": "BattleRoom" },
+          { "name": "MATCHMAKER", "class_name": "Matchmaker" },
+        ],
+      },
+      "r2_buckets": [{ "binding": "BATTLE_LOGS", "bucket_name": "chain-theorem-battle-logs" }],
+      "d1_databases": [],
+    },
+  },
+}

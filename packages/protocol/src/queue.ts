@@ -8,8 +8,7 @@ import { Format } from './battle.ts';
 
 /** Client → Matchmaker. */
 export const ClientQueue = {
-  /** Join with a saved loadout (validated by the server against the account's level and inventory). */
-  join: z.object({ loadoutId: z.string().max(64) }),
+  /** Keep-alive; the loadout is chosen when the queue ticket is issued (REST). */
   ping: z.object({}),
 };
 export type ClientQueueMap = typeof ClientQueue;

@@ -149,7 +149,7 @@ describe('queue (R-FMT-004)', () => {
     expect(levelWindow(29_999)).toBe(5);
     expect(levelWindow(30_000)).toBe(6);
     expect(levelWindow(60_000)).toBe(9);
-    expect(decode(CQ, '{"t":"join","d":{"loadoutId":"abc"}}')).not.toBeNull();
+    expect(decode(CQ, '{"t":"ping"}')).not.toBeNull();
     expect(decode(CQ, '{"t":"join","d":{}}')).toBeNull();
   });
 });
