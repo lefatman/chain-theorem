@@ -101,7 +101,7 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 
 - [x] All INVARIANT requirements have passing tests (`pnpm req:coverage`: all 83 requirement IDs,
       11 of them INVARIANT, have named tests; every suite green).
-- [ ] R-SEC-001 payload scan passes across 10,000 fuzzed battles (`pnpm test:fuzz:full` scans 10,000
+- [x] R-SEC-001 payload scan passes across 10,000 fuzzed battles (`pnpm test:fuzz:full` scans 10,000
       of 100,000 games for players and spectators; a separate 20,000-game run scanned all of them).
 - [ ] Balance targets met in simulator (closed beta is human-only). Partly: White win rate and Full
       Battle surprise losses meet 17.2; the advantaged-element rate (64% First Blood, 73% Full
@@ -126,6 +126,14 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-09-25 Release: `pnpm test:fuzz:full` on the final catalogue (26 abilities, 13 items, six
+  elements): 100,000 games, 8,780,184 plies, 0 failures, replays identical, 10,000 games
+  projection-scanned for players and spectators, max 27 events in one action, 599 s on 4 cores.
+  `pnpm measure:client`: 9 of 9 budgets pass on two consecutive runs (initial JS 101.4 kB gzip,
+  first playable 583.3 kB, minimum-device NPC game 38.2 fps, desktop 58.1 fps, renderer PSS
+  127.7 / 148.7 MB) after the online screens and the in-thread NPC fallback became lazy chunks (the
+  desktop renderer had reached 151 MB with the M6–M7 screens and the AI in the main bundle).
 
 - 2026-09-25 M7 done-when: `pnpm tournament:local` completes an 8-player Swiss tournament (4 rounds,
   Bot 7 won 4/4, 3 prizes granted once each, 32 s) and `--format se` a knockout (Bot 1 won, 4 prizes,

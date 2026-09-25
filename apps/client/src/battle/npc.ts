@@ -1,6 +1,10 @@
-/** Promise wrapper around the NPC Web Worker, with an in-thread fallback (tests, no-worker envs). */
+/**
+ * Promise wrapper around the NPC Web Worker, with an in-thread fallback (tests, no-worker envs). The
+ * fallback loads the search on demand, so a browser's main thread never holds a second copy of it
+ * (12.3 memory budget).
+ */
 import { engine } from '@chain-theorem/content';
-import { chooseOption, search, type Tier } from '@chain-theorem/ai';
+import type { Tier } from '@chain-theorem/ai';
 import type { ChoiceRequest, Loadout, Move, PublicState } from '@chain-theorem/rules';
 import type { NpcRequest, NpcResponse } from './npc.worker.ts';
 
@@ -25,22 +29,20 @@ function getWorker(): Worker | null {
 
 type NpcCall = NpcRequest extends infer R ? (R extends NpcRequest ? Omit<R, 'id'> : never) : never;
 
-function call(req: NpcCall): Promise<NpcResponse> {
+async function call(req: NpcCall): Promise<NpcResponse> {
   const w = getWorker();
   const id = nextId++;
   if (!w) {
     // Fallback: search on this thread.
+    const { chooseOption, search } = await import('@chain-theorem/ai');
     if (req.kind === 'move') {
       const r = search(engine, req.pub, req.own, req.tier, {
         ms: req.ms,
         now: () => performance.now(),
       });
-      return Promise.resolve({ id, move: r.move });
+      return { id, move: r.move };
     }
-    return Promise.resolve({
-      id,
-      option: chooseOption(engine, req.pub, req.own, req.request, req.tier),
-    });
+    return { id, option: chooseOption(engine, req.pub, req.own, req.request, req.tier) };
   }
   return new Promise((resolve) => {
     pending.set(id, resolve);

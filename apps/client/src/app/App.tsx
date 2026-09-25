@@ -6,10 +6,21 @@ import { PlaySetup } from '../ui/PlaySetup.tsx';
 import { BattleScreen } from '../ui/BattleScreen.tsx';
 import { LoadoutsScreen } from '../ui/LoadoutsScreen.tsx';
 import { SettingsScreen } from '../ui/SettingsScreen.tsx';
-import { LoginScreen } from '../ui/LoginScreen.tsx';
-import { OnlineScreen } from '../ui/OnlineScreen.tsx';
-import { AccountScreen, SubscribeRequired } from '../ui/AccountScreen.tsx';
 import { account } from '../state/account.ts';
+
+// Online screens (M4–M7) load on demand: local play never downloads or parses them (12.3 budgets).
+const LoginScreen = lazy(() =>
+  import('../ui/LoginScreen.tsx').then((m) => ({ default: m.LoginScreen })),
+);
+const OnlineScreen = lazy(() =>
+  import('../ui/OnlineScreen.tsx').then((m) => ({ default: m.OnlineScreen })),
+);
+const AccountScreen = lazy(() =>
+  import('../ui/AccountScreen.tsx').then((m) => ({ default: m.AccountScreen })),
+);
+const SubscribeRequired = lazy(() =>
+  import('../ui/AccountScreen.tsx').then((m) => ({ default: m.SubscribeRequired })),
+);
 
 // The overworld (M5) is its own lazy chunk; its Phaser scene is a further lazy chunk (12.3).
 const WorldScreen = lazy(() =>
