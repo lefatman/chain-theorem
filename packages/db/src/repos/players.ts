@@ -159,6 +159,18 @@ export function playerRepo(ctx: RepoContext) {
 
     getById,
 
+    /** Players with exactly this display name (at most `limit`); names are not unique. */
+    async findByDisplayName(name: string, limit = 2): Promise<Player[]> {
+      const list = await k
+        .selectFrom('players')
+        .selectAll()
+        .where('display_name', '=', name)
+        .orderBy('id')
+        .limit(limit)
+        .execute();
+      return list.map(toPlayer);
+    },
+
     async getByEmail(email: string): Promise<Player | null> {
       const row = await k
         .selectFrom('players')

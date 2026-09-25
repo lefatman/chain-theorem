@@ -9,6 +9,7 @@ import { makeCtx, type Ctx } from './api/context.ts';
 import { authRoutes } from './api/auth.ts';
 import { accountRoutes, viewLoadouts } from './api/account.ts';
 import { battleRoutes } from './api/battles.ts';
+import { socialRoutes } from './api/social.ts';
 import { verifyTicket } from './auth/tickets.ts';
 import { getDb, releaseDb } from './db.ts';
 import type { Env } from './env.ts';
@@ -21,6 +22,7 @@ const router = new Router<Ctx>();
 authRoutes(router);
 accountRoutes(router);
 battleRoutes(router);
+socialRoutes(router);
 
 const FORMATS = new Set(Object.keys(engine.caps.FORMATS));
 

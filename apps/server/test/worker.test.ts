@@ -309,4 +309,26 @@ describe('Worker (M4)', () => {
     );
     expect(active.data.battles.map((x) => x.id)).toContain(ma.d.battleId);
   });
+
+  it('R-WORLD-004 friends: a mutual request by name makes friends; presence is visible only to friends', async () => {
+    const a = await signUp(env, 'Jo');
+    const b = await signUp(env, 'Kai');
+    const ask = await call<{ status: string }>('POST', '/api/friends', { to: 'Kai' }, a.cookie);
+    expect(ask.data.status).toBe('requested');
+    const incoming = await call<{ friends: { id: string; status: string }[] }>(
+      'GET',
+      '/api/friends',
+      undefined,
+      b.cookie,
+    );
+    expect(incoming.data.friends).toEqual([
+      expect.objectContaining({ id: a.id, status: 'incoming' }),
+    ]);
+    const back = await call<{ status: string }>('POST', '/api/friends', { to: a.id }, b.cookie);
+    expect(back.data.status).toBe('friends');
+    expect((await call('POST', '/api/friends', { to: 'Nobody Here' }, a.cookie)).status).toBe(404);
+    expect((await call('DELETE', `/api/friends/${b.id}`, undefined, a.cookie)).status).toBe(204);
+    const none = await call<{ friends: unknown[] }>('GET', '/api/friends', undefined, b.cookie);
+    expect(none.data.friends).toEqual([]);
+  });
 });
