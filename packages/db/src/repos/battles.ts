@@ -21,6 +21,8 @@ export interface Battle {
   startedAt: number;
   endedAt: number | null;
   logKey: string | null;
+  /** Listed for spectators while it runs (M7 7.2). */
+  listed: boolean;
 }
 
 export interface NewBattle {
@@ -33,6 +35,8 @@ export interface NewBattle {
   whiteId: string | null;
   blackId: string | null;
   startedAt?: number;
+  /** List the battle for spectators while it runs (M7 7.2); default false. */
+  listed?: boolean;
 }
 
 export interface BattleEnd {
@@ -59,6 +63,7 @@ export function toBattle(row: Selectable<BattlesTable>): Battle {
     startedAt: row.started_at,
     endedAt: row.ended_at,
     logKey: row.log_key,
+    listed: row.listed === 1,
   };
 }
 
@@ -102,6 +107,7 @@ export function battleRepo(ctx: RepoContext) {
         started_at: startedAt,
         ended_at: null,
         log_key: null,
+        listed: input.listed ? 1 : 0,
       };
       await k.insertInto('battles').values(row).execute();
       return toBattle(row);
@@ -124,6 +130,24 @@ export function battleRepo(ctx: RepoContext) {
         .selectFrom('battles')
         .selectAll()
         .where((eb) => eb.or([eb('white_id', '=', playerId), eb('black_id', '=', playerId)]))
+        .orderBy('started_at', 'desc')
+        .orderBy('id', 'desc')
+        .limit(Math.max(1, Math.min(100, Math.floor(limit))))
+        .execute();
+      return list.map(toBattle);
+    },
+
+    /**
+     * Battles listed for spectators that have no result yet and started at `since` or later, newest
+     * first (M7 7.2, `GET /api/battles/live`).
+     */
+    async listLive(since: number, limit = 20): Promise<Battle[]> {
+      const list = await k
+        .selectFrom('battles')
+        .selectAll()
+        .where('listed', '=', 1)
+        .where('result', 'is', null)
+        .where('started_at', '>=', since)
         .orderBy('started_at', 'desc')
         .orderBy('id', 'desc')
         .limit(Math.max(1, Math.min(100, Math.floor(limit))))

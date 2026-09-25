@@ -14,7 +14,7 @@ import {
   mTo,
   mPromo,
 } from '@chain-theorem/rules';
-import { type PieceKnowledge, silenced } from './knowledge.ts';
+import { type PieceKnowledge, silenced, traitEffects } from './knowledge.ts';
 
 export const WIN = 1_000_000;
 const TYPES: PieceType[] = ['pawn', 'knight', 'bishop', 'rook', 'queen', 'king'];
@@ -64,6 +64,10 @@ const PST: number[][] = [
 export interface SearchCtx {
   pos: Pos;
   elem: ElementId[];
+  /** Each piece's starting square (its identity's start, DD-22), for sends-home effects. */
+  start: number[];
+  /** 1 for a Stone piece whose Bulwark is already spent (public slice, 6.1). */
+  bulwarkSpent: Uint8Array;
   know: [Record<PieceType, PieceKnowledge>, Record<PieceType, PieceKnowledge>];
   abilityAware: boolean;
   /** Fraction of the captor's value charged for capturing a piece with unknown abilities. */
@@ -104,6 +108,9 @@ export interface Played {
   undo: ReturnType<Pos['make']>;
   killed: number;
   killedSq: number;
+  /** A captor pushed back or sent home by a known reaction (Frost Heave, Permafrost), or -1. */
+  pushed: number;
+  pushedTo: number;
   bias: number;
   obj: [number, number];
   terminal: number;
@@ -134,6 +141,8 @@ export function play(ctx: SearchCtx, m: number): Played {
     undo,
     killed: -1,
     killedSq: -1,
+    pushed: -1,
+    pushedTo: -1,
     bias: 0,
     obj: [ctx.objective[0], ctx.objective[1]],
     terminal: 0,
@@ -148,28 +157,58 @@ export function play(ctx: SearchCtx, m: number): Played {
     const vSide = pos.pside[victim] as 0 | 1;
     const vK = ctx.know[vSide][TYPES[victimType] as PieceType];
     const cK = ctx.know[mover as 0 | 1][TYPES[captorType] as PieceType];
+    const captorEl = ctx.elem[captor] ?? 'neutral';
+    const victimEl = ctx.elem[victim] ?? 'neutral';
     const sil =
-      ctx.silence === 'OFF'
-        ? { victim: false, captor: false }
-        : silenced(ctx.elem[captor] ?? 'neutral', ctx.elem[victim] ?? 'neutral');
+      ctx.silence === 'OFF' ? { victim: false, captor: false } : silenced(captorEl, victimEl);
+    const trait = traitEffects(captorEl, victimEl);
     const capturingSilenced = sil.captor && ctx.silence === 'ALL_TRIGGERS';
     const negated = !capturingSilenced && cK.capturing.negatesVictim;
-    const protectedSelf = !capturingSilenced && cK.capturing.protectsSelf;
+    // Always First (6.1): a Storm captor's own After-capturing guard resolves before retaliation.
+    const protectedSelf =
+      (!capturingSilenced && cK.capturing.protectsSelf) ||
+      (trait.stormFirst && !sil.captor && !trait.stillness && cK.captures.protectsSelf);
     const reactions = sil.victim || negated ? null : vK.captured;
-    if (reactions?.killsCaptor && captorType !== 5 && !protectedSelf) {
+    // Bulwark (6.1): a Stone captor's first effect capture fizzles.
+    const bulwark = trait.captorBulwark && ctx.bulwarkSpent[captor] !== 1;
+    if (reactions?.killsCaptor && captorType !== 5 && !protectedSelf && !bulwark) {
       out.killed = captor;
       out.killedSq = to;
       pos.board[to] = -1;
       pos.psq[captor] = -1;
       const promoted = mPromo(m) || captorType;
       if (promoted !== 0) ctx.objective[vSide] = (ctx.objective[vSide] ?? 0) + 1;
+    } else if ((reactions?.pushesCaptor || reactions?.sendsCaptorHome) && captorType !== 5) {
+      // Frost Heave / Permafrost: the capture stands, but the captor loses the ground it gained.
+      const home = ctx.start[captor] ?? -1;
+      let dest = -1;
+      if (reactions.sendsCaptorHome && home >= 0 && (pos.board[home] as number) < 0) dest = home;
+      else if (reactions.pushesCaptor && (pos.board[from] as number) < 0) dest = from;
+      if (dest >= 0) {
+        out.pushed = captor;
+        out.pushedTo = dest;
+        pos.board[to] = -1;
+        pos.board[dest] = captor;
+        pos.psq[captor] = dest;
+      }
     }
     if (reactions?.selfRevive) out.bias -= Math.round((VALUE[victimType] as number) * 0.6);
-    if (reactions?.killsOther) out.bias -= 70;
-    if (!sil.captor) {
+    // Buttress: the captor's CAPTURING guard shields a neighbour from Backdraft-style captures.
+    const guarded = !capturingSilenced && cK.capturing.protectsFriend;
+    if (reactions?.killsOther && !guarded) out.bias -= 70;
+    // Squall: the victim's side gets a free move (Riposte's recapture is a capture, not tempo).
+    if (reactions?.bonus && !reactions.recaptures) out.bias -= 15;
+    if (reactions?.movesEnemy) out.bias -= 25;
+    if (!capturingSilenced && cK.capturing.movesEnemy) out.bias += 30;
+    // Stillness negates the captor's After-capturing abilities; so does a Stonewall-style reaction,
+    // unless Always First resolves them before it.
+    const capturesNegated =
+      trait.stillness || (reactions?.negatesCaptor === true && !trait.stormFirst);
+    if (!sil.captor && !capturesNegated) {
       if (cK.captures.killsOther) out.bias += 70;
       if (cK.captures.reviveFriendly) out.bias += 60;
       if (cK.captures.bonus) out.bias += 20;
+      if (cK.captures.movesEnemy) out.bias += 25;
     }
     if (vK.uncertain) out.bias -= Math.round(ctx.risk * (VALUE[captorType] as number));
   }
@@ -187,6 +226,13 @@ export function unplay(ctx: SearchCtx, p: Played): void {
   if (p.killed >= 0) {
     pos.board[p.killedSq] = p.killed;
     pos.psq[p.killed] = p.killedSq;
+  }
+  if (p.pushed >= 0) {
+    // Back onto the capture square before the move itself is undone.
+    const to = mTo(p.undo.m);
+    pos.board[p.pushedTo] = -1;
+    pos.board[to] = p.pushed;
+    pos.psq[p.pushed] = to;
   }
   pos.unmake(p.undo);
   ctx.objective[0] = p.obj[0];

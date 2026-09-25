@@ -5,6 +5,7 @@
  */
 import { env, runInDurableObject } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
+import { abilities, items } from '@chain-theorem/content';
 import { scanPayload } from '@chain-theorem/content/scan';
 import type { GameState, Side } from '@chain-theorem/rules';
 import type { BattleRoom } from '../src/rooms/battle-room.ts';
@@ -62,8 +63,16 @@ describe('Worker (M4)', () => {
       undefined,
       a.cookie,
     );
-    expect(inv.data.items.map((x) => x.id)).toEqual(['dual_adepts_glove']);
-    expect(inv.data.cards.map((x) => x.id).sort()).toEqual(['hit_and_run', 'last_word', 'scout']);
+    // 7.5: a new account starts with every non-retired level-1 module (M7 added Squall).
+    const starter = <T extends { id: string; minLevel: number; retired?: boolean }>(list: T[]) =>
+      list
+        .filter((x) => !x.retired && x.minLevel <= 1)
+        .map((x) => x.id)
+        .sort();
+    expect(starter([...items])).toEqual(['dual_adepts_glove']);
+    expect(starter([...abilities])).toEqual(['hit_and_run', 'last_word', 'scout', 'squall']);
+    expect(inv.data.items.map((x) => x.id).sort()).toEqual(starter([...items]));
+    expect(inv.data.cards.map((x) => x.id).sort()).toEqual(starter([...abilities]));
     const exported = await call<{ player: Record<string, unknown> }>(
       'GET',
       '/api/me/export',

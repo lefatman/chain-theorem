@@ -23,6 +23,7 @@ import {
 } from './billing.ts';
 import type { Inventory } from './inventory.ts';
 import { guildRemovalStatements } from './guilds.ts';
+import { tournamentRemovalStatements } from './tournaments.ts';
 import { toRatedGame, type RatedGame } from './ranked.ts';
 
 export interface Player {
@@ -46,6 +47,20 @@ export interface Player {
   suspendedUntil: number | null;
   /** Server-wide chat ban until this instant (epoch ms); null or past: may chat. */
   chatBanUntil: number | null;
+  /**
+   * Others may watch this player's public battles (M7 7.2): the player's own choice, or null for
+   * the default (on for adults, off under 18; see `spectatingAllowed`).
+   */
+  spectate: boolean | null;
+}
+
+/**
+ * Whether others may watch `p`'s public battles at `now` (M7 7.2): the player's own setting, else on
+ * for adults and off for accounts under 18 (R-SEC-011 spirit), so the default changes by itself on
+ * the 18th birthday.
+ */
+export function spectatingAllowed(p: Pick<Player, 'spectate' | 'adultFrom'>, now: number): boolean {
+  return p.spectate ?? now >= p.adultFrom;
 }
 
 export interface NewPlayer {
@@ -120,6 +135,18 @@ export interface PlayerExport {
    * context, so the reported player never learns who reported them (DD in spec 18).
    */
   reportsAbout: { id: string; reason: string; status: string; createdAt: number }[];
+  /** Tournaments the player registered in (M7 7.1): when, and the final place and points. */
+  tournaments: {
+    tournamentId: string;
+    name: string;
+    format: string;
+    system: string;
+    status: string;
+    startsAt: number;
+    registeredAt: number;
+    place: number | null;
+    points: number | null;
+  }[];
 }
 
 export function normalizeEmail(email: string): string {
@@ -144,6 +171,7 @@ export function toPlayer(row: Selectable<PlayersTable>): Player {
     suspendedAt: row.suspended_at ?? null,
     suspendedUntil: row.suspended_until ?? null,
     chatBanUntil: row.chat_ban_until ?? null,
+    spectate: row.spectate === null || row.spectate === undefined ? null : row.spectate === 1,
   };
 }
 
@@ -232,6 +260,19 @@ export function playerRepo(ctx: RepoContext) {
         .where('email', '=', normalizeEmail(email))
         .executeTakeFirst();
       return row ? toPlayer(row) : null;
+    },
+
+    /**
+     * Sets whether others may watch this player's public battles (M7 7.2); null restores the
+     * default by age. False when the player does not exist.
+     */
+    async setSpectate(id: string, value: boolean | null): Promise<boolean> {
+      const r = await k
+        .updateTable('players')
+        .set({ spectate: value === null ? null : value ? 1 : 0 })
+        .where('id', '=', id)
+        .executeTakeFirst();
+      return rows(r.numUpdatedRows) === 1;
     },
 
     async rename(id: string, displayName: string): Promise<boolean> {
@@ -452,6 +493,24 @@ export function playerRepo(ctx: RepoContext) {
           .orderBy('id')
           .execute(),
       ]);
+      const entries = await k
+        .selectFrom('tournament_entries')
+        .innerJoin('tournaments', 'tournaments.id', 'tournament_entries.tournament_id')
+        .select([
+          'tournament_entries.tournament_id',
+          'tournament_entries.registered_at',
+          'tournament_entries.place',
+          'tournament_entries.points',
+          'tournaments.name',
+          'tournaments.format',
+          'tournaments.system',
+          'tournaments.status',
+          'tournaments.starts_at',
+        ])
+        .where('tournament_entries.player_id', '=', id)
+        .orderBy('tournament_entries.registered_at')
+        .orderBy('tournament_entries.tournament_id')
+        .execute();
       const battleIds = battles.map((b) => b.id);
       const wagers =
         battleIds.length === 0
@@ -562,6 +621,17 @@ export function playerRepo(ctx: RepoContext) {
           status: r.status,
           createdAt: r.created_at,
         })),
+        tournaments: entries.map((e) => ({
+          tournamentId: e.tournament_id,
+          name: e.name,
+          format: e.format,
+          system: e.system,
+          status: e.status,
+          startsAt: e.starts_at,
+          registeredAt: e.registered_at,
+          place: e.place,
+          points: e.points === null ? null : Number(e.points),
+        })),
       };
     },
 
@@ -646,6 +716,8 @@ export function playerRepo(ctx: RepoContext) {
         k.deleteFrom('reports').where('target_id', '=', id).compile(),
         k.updateTable('reports').set({ reporter_id: null }).where('reporter_id', '=', id).compile(),
         k.updateTable('reports').set({ resolved_by: null }).where('resolved_by', '=', id).compile(),
+        // M7 7.1: tournament entries go (an open event's count drops); winner and creator clear.
+        ...tournamentRemovalStatements(k, id),
         k.deleteFrom('players').where('id', '=', id).compile(),
       ];
       const counts = await ctx.atomic(statements);

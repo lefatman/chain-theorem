@@ -58,6 +58,11 @@ export interface BattleSnapshot {
   connection?: 'connecting' | 'open' | 'reconnecting' | 'closed';
   /** Online: the last message the server rejected (shown briefly). */
   notice?: string | null;
+  /**
+   * Spectating (M7 7.2): a read-only view of a public battle, `delay` plies behind the live
+   * position, with the number of spectators watching. `pub` is the spectator projection.
+   */
+  spectate?: { delay: number; watchers: number };
 }
 
 /** One committed action's projected events, for step-by-step animation (11.2). */

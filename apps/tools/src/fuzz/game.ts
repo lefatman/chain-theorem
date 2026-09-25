@@ -2,7 +2,8 @@
  * One fuzzed battle (M2 done-when, R-SEC-001, R-TEST-001 replay layer): random valid loadouts,
  * random legal moves and random prompt answers until the battle ends or hits the ply cap. Checks:
  * no crash, bounded chains (event count per action, depth <= 1), identical replay (events and final
- * hash), and projection safety (no unrevealed opponent id in any projected payload).
+ * hash), and projection safety (no unrevealed opponent id in any projected payload, and nothing a
+ * spectator may not know in the spectator projection and events, M7 7.2).
  */
 import type {
   ActionInput,
@@ -13,7 +14,7 @@ import type {
   Loadout,
 } from '@chain-theorem/rules';
 import { fnv1a64 } from '@chain-theorem/rules';
-import { scanPayload } from '@chain-theorem/content/scan';
+import { scanPayload, scanSpectatorPayload } from '@chain-theorem/content/scan';
 import { Rng } from '../lib/rng.ts';
 import { randomLoadout } from '../lib/loadouts.ts';
 
@@ -93,6 +94,11 @@ export function fuzzGame(engine: Engine, seed: number, opts: FuzzOptions): FuzzG
           scanPayload(engine.projectEvents(state, events, viewer), state, viewer);
         if (leak) return `${label}: R-SEC-001 leak to ${viewer}: ${leak}`;
       }
+      // M7 7.2: spectators see only what both players know (R-INFO-005).
+      const spec =
+        scanSpectatorPayload(engine.projectSpectator(state), state) ??
+        scanSpectatorPayload(engine.projectSpectatorEvents(state, events), state);
+      if (spec) return `${label}: R-SEC-001 leak to a spectator: ${spec}`;
     }
     return null;
   };

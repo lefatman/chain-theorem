@@ -85,6 +85,16 @@ const ITEMS_7_2: { id: string; slotCost: number; minLevel: number; capacity?: nu
   { id: 'scouts_lens', slotCost: 1, minLevel: 3 },
 ];
 
+/**
+ * M7 7.3 items (Storm, Stone and Frost rollout, 6.5): utility items, so 1 slot each (7.2); their
+ * levels are PLAYTEST values like the others (DD-05).
+ */
+const ITEMS_M7: { id: string; slotCost: number; minLevel: number; capacity?: number }[] = [
+  { id: 'mooring_chain', slotCost: 1, minLevel: 8 },
+  { id: 'mainspring', slotCost: 1, minLevel: 11 },
+];
+const ALL_ITEMS = [...ITEMS_7_2, ...ITEMS_M7];
+
 /** Spec 5.7 starter catalogue: level requirements (DD-05); every starter ability costs 1 slot. */
 const ABILITIES_5_7: { id: string; minLevel: number }[] = [
   { id: 'scout', minLevel: 1 },
@@ -102,6 +112,26 @@ const ABILITIES_5_7: { id: string; minLevel: number }[] = [
   { id: 'stalwart', minLevel: 16 },
   { id: 'veil', minLevel: 18 },
 ];
+
+/**
+ * M7 7.3 affinity abilities, four per new element (6.5), spread over levels 1-20 (PLAYTEST, DD-05);
+ * each costs 1 ability slot like the starter set.
+ */
+const ABILITIES_M7: { id: string; minLevel: number; affinity: ElementId }[] = [
+  { id: 'squall', minLevel: 1, affinity: 'storm' },
+  { id: 'afterimage', minLevel: 5, affinity: 'storm' },
+  { id: 'pawn_storm', minLevel: 7, affinity: 'storm' },
+  { id: 'slipstream', minLevel: 12, affinity: 'storm' },
+  { id: 'buttress', minLevel: 2, affinity: 'stone' },
+  { id: 'stonewall', minLevel: 6, affinity: 'stone' },
+  { id: 'phalanx', minLevel: 10, affinity: 'stone' },
+  { id: 'rebuild', minLevel: 17, affinity: 'stone' },
+  { id: 'frost_heave', minLevel: 3, affinity: 'frost' },
+  { id: 'snowdrift', minLevel: 9, affinity: 'frost' },
+  { id: 'snowbound', minLevel: 14, affinity: 'frost' },
+  { id: 'permafrost', minLevel: 20, affinity: 'frost' },
+];
+const ALL_ABILITIES = [...ABILITIES_5_7, ...ABILITIES_M7];
 
 /** A loadout holding only `id`, with what the item needs to be valid (6.4, DD-29). */
 function itemLoadout(id: string): Loadout {
@@ -195,9 +225,9 @@ describe('R-LOAD-001 item slots by level', () => {
 // ---- R-LOAD-002 -----------------------------------------------------------------------------------
 
 describe('R-LOAD-002 item catalogue and level requirements (DD-05)', () => {
-  it('R-LOAD-002 DD-01 DD-05 the catalogue holds the 11 items of spec 7.2 with their slot costs, capacities and levels', () => {
-    expect(registry.items.map((i) => i.id).sort()).toEqual(ITEMS_7_2.map((i) => i.id).sort());
-    for (const row of ITEMS_7_2) {
+  it('R-LOAD-002 DD-01 DD-05 the catalogue holds the 11 items of spec 7.2 and the 2 M7 items with their slot costs, capacities and levels', () => {
+    expect(registry.items.map((i) => i.id).sort()).toEqual(ALL_ITEMS.map((i) => i.id).sort());
+    for (const row of ALL_ITEMS) {
       const def = must(itemById.get(row.id), row.id);
       expect(
         { slotCost: def.slotCost, minLevel: def.minLevel, capacity: def.capacity },
@@ -209,7 +239,7 @@ describe('R-LOAD-002 item catalogue and level requirements (DD-05)', () => {
     }
   });
 
-  it.each(ITEMS_7_2)(
+  it.each(ALL_ITEMS)(
     'R-LOAD-002 R-LOAD-004 DD-05 $id validates at level $minLevel and is rejected one level below (rule 2)',
     ({ id, minLevel }) => {
       const at = engine.validateLoadout(itemLoadout(id), { level: minLevel });
@@ -228,16 +258,34 @@ describe('R-LOAD-002 item catalogue and level requirements (DD-05)', () => {
 
   it('R-LOAD-002 R-ABIL-005 the 14 starter abilities have the spec 5.7 level requirements and cost 1 ability slot', () => {
     expect(registry.abilities.map((a) => a.id).sort()).toEqual(
-      ABILITIES_5_7.map((a) => a.id).sort(),
+      ALL_ABILITIES.map((a) => a.id).sort(),
     );
-    for (const row of ABILITIES_5_7) {
+    for (const row of ALL_ABILITIES) {
       const def = must(abilityById.get(row.id), row.id);
       expect(def.minLevel, row.id).toBe(row.minLevel);
       expect(def.slotCost, row.id).toBe(1);
     }
   });
 
-  it.each(ABILITIES_5_7)(
+  it('R-LOAD-002 R-ABIL-005 R-ELEM-001 6.5: Storm, Stone and Frost each have at least four affinity abilities (with attuned versions) spread over levels 1-20', () => {
+    for (const el of ['storm', 'stone', 'frost'] as const) {
+      const own = registry.abilities.filter((a) => a.affinity === el && !a.retired);
+      expect(own.map((a) => a.id).sort(), el).toEqual(
+        ABILITIES_M7.filter((a) => a.affinity === el)
+          .map((a) => a.id)
+          .sort(),
+      );
+      expect(own.length, el).toBeGreaterThanOrEqual(4);
+      for (const a of own) expect(a.attuned, a.id).toBeDefined();
+    }
+    const levels = ABILITIES_M7.map((a) => a.minLevel);
+    expect(Math.min(...levels)).toBe(1);
+    expect(Math.max(...levels)).toBe(20);
+    const categories = new Set(ABILITIES_M7.map((a) => must(abilityById.get(a.id), a.id).category));
+    expect([...categories].sort()).toEqual(['CAPTURED', 'CAPTURES', 'CAPTURING']);
+  });
+
+  it.each(ALL_ABILITIES)(
     'R-LOAD-002 R-LOAD-004 DD-05 ability $id validates at level $minLevel and is rejected one level below (rule 2)',
     ({ id, minLevel }) => {
       const loadout = lo({ sets: [[id]] });
@@ -648,16 +696,22 @@ describe('R-LOAD-004 loadout validation rules 1-7', () => {
     expect(errs(v([], []))).toEqual([{ rule: 6, code: 'elements_count' }]);
   });
 
-  it('R-LOAD-004 R-ELEM-001 DD-23 disabled elements are rejected: MVP content ships Ember, Tide and Grove; neutral is test-only', () => {
+  it('R-LOAD-004 R-ELEM-001 DD-23 disabled elements are rejected: M7 enables all six elements (6.5); neutral is test-only', () => {
     const codes = (elements: ElementId[], items: string[] = []) =>
       engine.validateLoadout(lo({ elements, items }), { level: 30 }).errors.map((e) => e.code);
-    for (const el of ['ember', 'tide', 'grove'] as ElementId[]) expect(codes([el]), el).toEqual([]);
-    for (const el of ['storm', 'stone', 'frost', 'neutral'] as ElementId[])
-      expect(codes([el]), el).toEqual(['element_disabled']);
-    expect(codes(['ember', 'frost'], ['blended_family'])).toEqual(['element_disabled']);
-    // The rollout (6.5) is config, not code: enabling Storm needs no engine change.
-    const m7 = makeEngine({ ENABLED_ELEMENTS: [...CAPS.ENABLED_ELEMENTS, 'storm'] });
-    expect(m7.validateLoadout(lo({ elements: ['storm'] }), { level: 30 }).errors).toEqual([]);
+    const six: ElementId[] = ['ember', 'tide', 'grove', 'storm', 'stone', 'frost'];
+    expect([...CAPS.ENABLED_ELEMENTS]).toEqual(six);
+    for (const el of six) expect(codes([el]), el).toEqual([]);
+    expect(codes(['neutral'])).toEqual(['element_disabled']);
+    expect(codes(['ember', 'frost'], ['blended_family'])).toEqual([]);
+    expect(codes(['storm', 'neutral'], ['blended_family'])).toEqual(['element_disabled']);
+    // The rollout (6.5) is config, not code: the MVP's three-element config still rejects the rest.
+    const mvp = makeEngine({ ENABLED_ELEMENTS: ['ember', 'tide', 'grove'] });
+    for (const el of ['storm', 'stone', 'frost'] as ElementId[])
+      expect(
+        mvp.validateLoadout(lo({ elements: [el] }), { level: 30 }).errors.map((e) => e.code),
+        el,
+      ).toEqual(['element_disabled']);
   });
 
   it('R-LOAD-004 rule 7: every equipped item and ability must be owned', () => {
@@ -731,11 +785,27 @@ describe('R-LOAD-004 loadout validation rules 1-7', () => {
         none.errors.map((e) => e.code),
         id,
       ).toEqual(['item_param']);
-      const storm = engine.validateLoadout(
+      // 'neutral' is never enabled (DD-23); Storm, Stone and Frost are since M7 (6.5).
+      const neutral = engine.validateLoadout(
+        lo({ items: [id], itemParams: { [id]: { element: 'neutral' } } }),
+        { level: 30 },
+      );
+      expect(neutral.ok, id).toBe(false);
+      expect(
+        neutral.errors.map((e) => e.code),
+        id,
+      ).toEqual(['item_param']);
+      for (const element of ['storm', 'stone', 'frost'] as const) {
+        const ok = engine.validateLoadout(lo({ items: [id], itemParams: { [id]: { element } } }), {
+          level: 30,
+        });
+        expect(ok.errors, `${id} ${element}`).toEqual([]);
+      }
+      const mvp = makeEngine({ ENABLED_ELEMENTS: ['ember', 'tide', 'grove'] });
+      const storm = mvp.validateLoadout(
         lo({ items: [id], itemParams: { [id]: { element: 'storm' } } }),
         { level: 30 },
       );
-      expect(storm.ok, id).toBe(false);
       expect(
         storm.errors.map((e) => e.code),
         id,

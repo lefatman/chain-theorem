@@ -7,7 +7,7 @@
  */
 import { LESSONS } from './lessons.ts';
 import { NPCS } from './npcs.ts';
-import { KEY_ITEMS, QUESTS } from './quests.ts';
+import { HIGHCAIRN_QUESTS, KEY_ITEMS, QUESTS } from './quests.ts';
 import { parseZone } from './geometry.ts';
 import type {
   KeyItemDef,
@@ -31,7 +31,7 @@ export const world: WorldRegistry = {
   zones: ZONES,
   npcs: NPCS,
   lessons: LESSONS,
-  quests: QUESTS,
+  quests: [...QUESTS, ...HIGHCAIRN_QUESTS],
   keyItems: KEY_ITEMS,
   start: { zone: START_ZONE },
 };

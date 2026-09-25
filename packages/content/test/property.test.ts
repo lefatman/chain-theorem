@@ -106,7 +106,8 @@ const specSlots = (level: number): number => Math.min(6, 1 + Math.floor(level / 
 /**
  * Spec 7.2 item table: capacity N costs N - 1 slots (Dual Adept's Glove 1 slot, DD-01), every other
  * item costs 1 slot; Schedule gives six sets, Blended Family two elements; Attunement Charm and
- * Masquerade Mask take an element parameter (DD-29).
+ * Masquerade Mask take an element parameter (DD-29). The M7 7.3 items (Mooring Chain, Mainspring)
+ * follow the same catalogue rule: utility items cost 1 slot.
  */
 const SPEC_ITEMS: Record<
   string,
@@ -123,6 +124,8 @@ const SPEC_ITEMS: Record<
   resonance_crystal: { cost: 1 },
   attunement_charm: { cost: 1, param: true },
   scouts_lens: { cost: 1 },
+  mooring_chain: { cost: 1 },
+  mainspring: { cost: 1 },
 };
 const specItem = (id: string) => {
   const s = SPEC_ITEMS[id];

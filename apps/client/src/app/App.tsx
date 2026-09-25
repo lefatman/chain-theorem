@@ -23,6 +23,14 @@ const LeaderboardsScreen = lazy(() =>
 const GuildScreen = lazy(() =>
   import('../ui/GuildScreen.tsx').then((m) => ({ default: m.GuildScreen })),
 );
+// M7 7.1 tournaments: the list, a Swiss standings table or an elimination bracket, your game.
+const TournamentsScreen = lazy(() =>
+  import('../ui/TournamentsScreen.tsx').then((m) => ({ default: m.TournamentsScreen })),
+);
+// M7 7.2 spectating: the Watch screen and its spectator view load on demand.
+const WatchScreen = lazy(() =>
+  import('../ui/WatchScreen.tsx').then((m) => ({ default: m.WatchScreen })),
+);
 
 // Dev-only Scenario Lab: this branch is removed from production builds (BUILD_PROMPT M3).
 const ScenarioLab = import.meta.env.DEV
@@ -70,6 +78,12 @@ export function App() {
       break;
     case 'guild':
       screen = <GuildScreen />;
+      break;
+    case 'tournaments':
+      screen = <TournamentsScreen />;
+      break;
+    case 'watch':
+      screen = <WatchScreen />;
       break;
     case 'lab':
       screen = ScenarioLab ? <ScenarioLab /> : <Title />;

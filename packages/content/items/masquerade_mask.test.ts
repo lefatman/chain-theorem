@@ -31,6 +31,11 @@ function maskReveals(events: readonly BattleEvent[], side: 'white' | 'black') {
   );
 }
 
+/** The Mask dropped: the true elements were revealed (the item may already be known, e.g. Last Word). */
+function maskDrops(events: readonly BattleEvent[], side: 'white' | 'black') {
+  return eventsOf(events, 'Revealed').filter((e) => e.side === side && e.info.kind === 'elements');
+}
+
 // Knight c3 takes the pawn d5.
 const KNIGHT_FEN = '4k3/8/8/3p4/8/2N5/8/4K3 w - - 0 1';
 
@@ -265,6 +270,113 @@ describe('masquerade mask (R-LOAD-002)', () => {
     expect(eventsOf(r.events, 'AbilityTriggered').map((e) => e.ability)).toEqual(['cleave']);
     expect(maskReveals(r.events, 'white')).toEqual([]);
     expect(r.engine.project(r.state, 'black').armies.white.elements).toEqual(['grove']);
+  });
+
+  // ---- M7 7.3: the Storm, Stone and Frost traits (6.1) under the Mask ----------------------------
+
+  it('R-LOAD-002 DD-44 R-ELEM-001 Bulwark: a Stone piece’s fizzle drops a Mask showing another element', () => {
+    const r = scenario({
+      fen: KNIGHT_FEN,
+      white: masked(['stone'], 'ember'),
+      black: { elements: ['grove'], abilities: ['poisoned_meat'] },
+      moves: ['c3d5'],
+    });
+    expect(eventsOf(r.events, 'EffectFizzled')).toEqual([
+      expect.objectContaining({ ability: 'poisoned_meat', reason: 'bulwark' }),
+    ]);
+    expect(maskReveals(r.events, 'white')).toHaveLength(1);
+    expect(r.engine.project(r.state, 'black').armies.white.elements).toEqual(['stone']);
+  });
+
+  it('R-LOAD-002 DD-44 R-ELEM-001 shown Stone: an effect capture of a piece with no spent Bulwark drops the Mask', () => {
+    const r = scenario({
+      fen: KNIGHT_FEN,
+      white: masked(['tide'], 'stone'),
+      black: { elements: ['storm'], abilities: ['poisoned_meat'] },
+      moves: ['c3d5'],
+    });
+    expect(eventsOf(r.events, 'Captured').map((e) => e.by)).toEqual(['move', 'effect']);
+    expect(maskReveals(r.events, 'white')).toHaveLength(1);
+    expect(r.engine.project(r.state, 'black').armies.white.elements).toEqual(['tide']);
+  });
+
+  it('R-LOAD-002 DD-44 R-ELEM-001 Stillness: negating the captor’s After-capturing ability drops a Mask showing another element', () => {
+    const r = scenario({
+      fen: '4k3/8/2n5/8/3P4/8/8/4K3 b - - 0 1',
+      white: masked(['frost'], 'ember'),
+      black: { elements: ['grove'], abilities: ['cleave'] },
+      moves: ['c6d4'],
+    });
+    expect(eventsOf(r.events, 'AbilityNegated')).toEqual([
+      expect.objectContaining({
+        ability: 'cleave',
+        source: expect.objectContaining({ id: 'stillness' }),
+      }),
+    ]);
+    expect(maskReveals(r.events, 'white')).toHaveLength(1);
+  });
+
+  it('R-LOAD-002 DD-44 R-ELEM-001 shown Frost: the captor’s After-capturing ability firing drops the Mask', () => {
+    const r = scenario({
+      fen: '4k3/8/2n5/8/3P4/8/8/4K3 b - - 0 1',
+      white: masked(['tide'], 'frost'),
+      black: { elements: ['storm'], abilities: ['hit_and_run'] },
+      moves: ['c6d4'],
+    });
+    expect(eventsOf(r.events, 'AbilityTriggered').map((e) => e.ability)).toEqual(['hit_and_run']);
+    expect(maskReveals(r.events, 'white')).toHaveLength(1);
+  });
+
+  it('R-LOAD-002 DD-44 R-ELEM-001 Always First: a Storm captor resolving first drops the Mask, even with its abilities Veiled', () => {
+    const r = scenario({
+      fen: KNIGHT_FEN,
+      white: masked(['storm'], 'grove', { abilities: ['veil', 'hit_and_run'] }),
+      black: { elements: ['ember'], abilities: ['poisoned_meat'] },
+      moves: ['c3d5'],
+    });
+    const pub = eventsOf(r.engine.projectEvents(r.state, r.events, 'black'), 'AbilityTriggered');
+    // Black sees an unnamed white activation before its own Poisoned Meat.
+    expect(pub.map((e) => [e.side, e.ability])).toEqual([
+      ['white', null],
+      ['black', 'poisoned_meat'],
+    ]);
+    expect(maskReveals(r.events, 'white')).toHaveLength(1);
+    expect(maskDrops(r.events, 'white')).toHaveLength(1);
+  });
+
+  it('R-LOAD-002 DD-44 R-ELEM-001 shown Storm: a captor resolving after a non-Storm victim drops the Mask; after a Storm victim it holds', () => {
+    const drops = scenario({
+      fen: KNIGHT_FEN,
+      white: masked(['tide'], 'storm', { abilities: ['cleave'] }),
+      black: { elements: ['tide'], abilities: ['last_word'] },
+      moves: ['c3d5'],
+    });
+    expect(eventsOf(drops.events, 'AbilityTriggered').map((e) => e.ability)).toEqual([
+      'last_word',
+      'cleave',
+    ]);
+    // Attuned Last Word already named the Mask; the drop shows the true element.
+    expect(maskDrops(drops.events, 'white')).toEqual([
+      expect.objectContaining({ info: { kind: 'elements', elements: ['tide'] } }),
+    ]);
+    const holds = scenario({
+      fen: KNIGHT_FEN,
+      white: masked(['storm'], 'storm', { abilities: ['cleave'] }),
+      black: { elements: ['storm'], abilities: ['last_word'] },
+      moves: ['c3d5'],
+    });
+    expect(maskDrops(holds.events, 'white')).toEqual([]);
+  });
+
+  it('R-LOAD-002 DD-44 the capture bookkeeping is cleared when the turn passes, so it never changes the repetition hash', () => {
+    const r = scenario({
+      fen: KNIGHT_FEN,
+      white: masked(['tide'], 'grove', { abilities: ['veil', 'cleave'] }),
+      black: { elements: ['tide'] },
+      moves: ['c3d5'],
+    });
+    expect(maskReveals(r.events, 'white')).toEqual([]);
+    expect((r.state.slices[ID] as { cap: unknown }).cap).toBeNull();
   });
 
   it('R-LOAD-002 DD-26 R-INFO-005 R-SEC-001 a masked promotion does not leak the true element through projected events', () => {

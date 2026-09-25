@@ -79,7 +79,7 @@ describe('elements (R-ELEM-001 to R-ELEM-004)', () => {
     for (const t of registry.traits) expect(abilityIds).not.toContain(t.id);
   });
 
-  it('R-ELEM-001 DD-23 the engine runs battles with all six elements (and neutral); real loadouts are limited to the enabled MVP elements', () => {
+  it('R-ELEM-001 DD-23 the engine runs battles with all six elements (and neutral); real loadouts may use all six since M7 (6.5), never neutral', () => {
     for (const element of ALL) {
       const s = setup({ white: { elements: [element] }, black: { elements: [element] } });
       expect(
@@ -91,10 +91,8 @@ describe('elements (R-ELEM-001 to R-ELEM-004)', () => {
       setup({})
         .engine.validateLoadout({ elements, items: [], sets: [[]] }, { level: 30 })
         .errors.map((e) => e.code);
-    for (const element of ['ember', 'tide', 'grove'] as const)
-      expect(codes([element]), element).toEqual([]);
-    for (const element of ['storm', 'stone', 'frost', 'neutral'] as const)
-      expect(codes([element]), element).toContain('element_disabled');
+    for (const element of SIX) expect(codes([element]), element).toEqual([]);
+    expect(codes(['neutral'])).toContain('element_disabled');
   });
 
   it('R-ELEM-002 R-ELEM-001 the silence table over every captor and victim element (neutral has no relationships)', () => {

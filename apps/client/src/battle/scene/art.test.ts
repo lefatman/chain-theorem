@@ -177,6 +177,87 @@ describe('creature sprites (R-ART-001, R-ART-002)', () => {
   });
 });
 
+/**
+ * Rough colour-vision-deficiency simulations (Machado, Oliveira and Fernandes 2009, severity 1,
+ * applied to sRGB values) plus plain luminance: enough to check that an element cue does not rest
+ * on hue alone.
+ */
+const VISION: Record<string, readonly number[]> = {
+  protanopia: [0.152, 1.053, -0.205, 0.115, 0.786, 0.099, -0.004, -0.048, 1.052],
+  deuteranopia: [0.367, 0.861, -0.228, 0.28, 0.673, 0.047, -0.012, 0.043, 0.969],
+  tritanopia: [1.256, -0.077, -0.179, -0.078, 0.931, 0.148, 0.005, 0.691, 0.304],
+  grayscale: [0.2126, 0.7152, 0.0722, 0.2126, 0.7152, 0.0722, 0.2126, 0.7152, 0.0722],
+};
+
+function seen(rgb: number, m: readonly number[]): [number, number, number] {
+  const c = [(rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255];
+  const at = (i: number) =>
+    Math.max(
+      0,
+      Math.min(
+        255,
+        (m[i] ?? 0) * (c[0] ?? 0) + (m[i + 1] ?? 0) * (c[1] ?? 0) + (m[i + 2] ?? 0) * (c[2] ?? 0),
+      ),
+    );
+  return [at(0), at(3), at(6)];
+}
+
+/** Pixels that differ (shape, or a clearly different seen colour) between two front sprites. */
+function seenDifference(type: PieceType, a: ElementId, b: ElementId, m: readonly number[]): number {
+  const ga = creatureGrid(type, a, 'front', 'idle0');
+  const gb = creatureGrid(type, b, 'front', 'idle0');
+  const pa = creaturePalette(a);
+  const pb = creaturePalette(b);
+  let n = 0;
+  for (let i = 0; i < ga.px.length; i++) {
+    const ma = ga.px[i] ?? 0;
+    const mb = gb.px[i] ?? 0;
+    if (ma === M.EMPTY && mb === M.EMPTY) continue;
+    if (ma === M.EMPTY || mb === M.EMPTY) {
+      n++;
+      continue;
+    }
+    const ca = seen(pa[ma] ?? 0, m);
+    const cb = seen(pb[mb] ?? 0, m);
+    if (Math.hypot(ca[0] - cb[0], ca[1] - cb[1], ca[2] - cb[2]) > 40) n++;
+  }
+  return n;
+}
+
+describe('the Storm, Stone and Frost creatures (M7 7.3, R-ART-001, R-ART-002)', () => {
+  const NEW: ElementId[] = ['storm', 'stone', 'frost'];
+
+  it('R-ART-002 each wears its own chest emblem on its front sprites only, painted inside the body', () => {
+    for (const type of PIECE_TYPES) {
+      const neutral = creatureGrid(type, 'neutral', 'front', 'idle0').mask();
+      const emblems = NEW.map((el) => {
+        const g = creatureGrid(type, el, 'front', 'idle0');
+        // The emblem never changes the outline: same mask as the element-free training dummy's,
+        // apart from the element's own crest and tail motifs.
+        expect(iou(g.mask(), neutral), `${type}/${el}`).toBeGreaterThan(0.6);
+        return g.px.map((v) => (v === M.ACC_SH || v === M.MOTIF ? 1 : 0)).join('');
+      });
+      expect(new Set(emblems).size, type).toBe(3);
+    }
+  });
+
+  it('R-ART-002 colour is never the only element cue: under protanopia, deuteranopia and tritanopia simulations and in grayscale, each new creature differs from every other element’s creature of the same type', () => {
+    for (const [vision, m] of Object.entries(VISION)) {
+      for (const type of PIECE_TYPES) {
+        for (const a of NEW) {
+          for (const b of ELEMENTS) {
+            if (a === b) continue;
+            expect(
+              seenDifference(type, a, b, m),
+              `${vision} ${type} ${a}/${b}`,
+            ).toBeGreaterThanOrEqual(24);
+          }
+        }
+      }
+    }
+  });
+});
+
 describe('board icons (R-ART-002: colour is never the only signal)', () => {
   it('R-ART-002 every element icon has its own shape', () => {
     const masks = ALL_ELEMENTS.map((el) => elementIconGrid(el).mask());

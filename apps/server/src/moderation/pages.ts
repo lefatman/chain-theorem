@@ -35,6 +35,8 @@ export const NOTICES: Record<string, string> = {
   unsuspended: 'Suspension lifted.',
   chat_banned: 'Chat ban set.',
   chat_unbanned: 'Chat ban lifted.',
+  tournament_created: 'Tournament created; registration is open until its start.',
+  tournament_cancelled: 'Tournament cancelled.',
 };
 
 export function htmlResponse(html: string, status = 200): Response {
@@ -51,7 +53,7 @@ export function htmlResponse(html: string, status = 200): Response {
   });
 }
 
-function page(title: string, body: string, notice?: string): string {
+export function page(title: string, body: string, notice?: string): string {
   const note = notice && NOTICES[notice];
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>
 :root{color-scheme:light dark;--bg:#fff;--fg:#1b1b1b;--mute:#666;--line:#ccc;--bad:#b3261e;--ok:#1b6e2e;--field:#f4f4f4}
@@ -69,7 +71,7 @@ button.danger{border-color:var(--bad);color:var(--bad)}.row{display:flex;flex-wr
 dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;margin:0}dt{color:var(--mute)}dd{margin:0;overflow-wrap:anywhere}
 table{border-collapse:collapse;width:100%;display:block;overflow-x:auto}td,th{border-bottom:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
 code,pre{font-size:.9em;overflow-wrap:anywhere;white-space:pre-wrap}
-</style></head><body><nav aria-label="Admin"><a href="/admin">Reports queue</a><a href="/admin/players">Player lookup</a><a href="/admin/cost">Cost dashboard</a><a href="/">Back to the game</a></nav><main>
+</style></head><body><nav aria-label="Admin"><a href="/admin">Reports queue</a><a href="/admin/players">Player lookup</a><a href="/admin/tournaments">Tournaments</a><a href="/admin/cost">Cost dashboard</a><a href="/">Back to the game</a></nav><main>
 ${note ? `<p class="notice" role="status">${esc(note)}</p>` : ''}${body}</main></body></html>`;
 }
 
@@ -169,6 +171,10 @@ export function errorPage(status: number, code: string): Response {
     not_open: 'That report is already closed.',
     bad_target: 'You cannot do that to your own account.',
     bad_request: 'Please check the form.',
+    bad_format: 'That format cannot be used for tournaments.',
+    bad_start: 'The start must be in the future.',
+    closed: 'That tournament is already over.',
+    try_again: 'The tournament could not be created; try again.',
   };
   return htmlResponse(page('Admin', `<h1>Admin</h1><p>${esc(text[code] ?? code)}</p>`), status);
 }

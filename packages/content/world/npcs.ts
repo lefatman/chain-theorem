@@ -1,7 +1,8 @@
 /**
  * Overworld NPCs (10.3, 10.5, 9.4): Academy tutors (lessons), quest givers, route trainers with
  * legal loadouts at their level (R-LOAD-004: fixed, or `{ buildSeed }` through `npcBuild`), and
- * townsfolk. Names are original (R-ART-003; `world.test.ts` keeps a deny-list guard).
+ * townsfolk; M7 7.3 adds the Highcairn Pass trainers of Storm, Stone and Frost. Names are original
+ * (R-ART-003; `world.test.ts` keeps a deny-list guard).
  *
  * Trainer rewards are bonuses on a win: story trainers (`once`) pay out on the first win only;
  * practice trainers on every win. Battle XP by format and result (`battleXp`) comes on top.
@@ -224,6 +225,153 @@ export const NPCS: readonly NpcDef[] = [
     lines: [
       'The meadow grass is thick with wild creatures. Walk the paths if you want peace and quiet.',
       'Every Academy graduate receives a Hush Candle. Wild creatures keep their distance from its soft light.',
+    ],
+    role: { kind: 'talk' },
+  },
+
+  // ---- Highcairn Pass (M7 7.3: Storm, Stone and Frost) ----------------------------------------
+  {
+    id: 'pathfinder_maud',
+    name: 'Pathfinder Maud',
+    look: { variant: 2, element: 'stone' },
+    lines: [
+      'Welcome to Highcairn Pass, {name}. Up here three new elements live: Storm, Stone and Frost.',
+      'Storm is speed: its pieces’ abilities resolve before anyone else’s in the same chain. Stone is protection: the first effect capture aimed at each Stone piece fizzles. Frost is control: a piece that captures a Frost piece loses its After-capturing abilities.',
+      'They form a triangle of their own. Storm beats Frost, Frost beats Stone, and Stone beats Storm. Against Ember, Tide or Grove, nobody is silenced.',
+      'Three trainers guard the pass, one for each element. Beat them all, stand by the summit cairn, and come back to me.',
+    ],
+    role: { kind: 'quest', quest: 'highcairn_climb' },
+  },
+  {
+    id: 'stormcaller_imre',
+    name: 'Stormcaller Imre',
+    look: { variant: 3, element: 'storm' },
+    lines: [
+      'Feel that wind? My pieces strike first and keep moving. Vanguard, three big captures to win!',
+      'Watch the order of the log: my Storm abilities always go before yours.',
+    ],
+    role: {
+      kind: 'trainer',
+      tier: 'trainer',
+      format: 'vanguard',
+      level: 6,
+      loadout: {
+        elements: ['storm'],
+        items: ['triple_adepts_gloves'],
+        sets: [['afterimage', 'squall', 'last_word']],
+      },
+      reward: {
+        xp: 140,
+        coins: 60,
+        cards: [
+          { id: 'squall', qty: 1 },
+          { id: 'pawn_storm', qty: 1 },
+        ],
+      },
+      once: true,
+    },
+  },
+  {
+    id: 'mason_hedda',
+    name: 'Mason Hedda',
+    look: { variant: 12, element: 'stone' },
+    lines: [
+      'I build walls for a living, and I battle the same way. Your tricks will break on my stones.',
+      'Remember: the first effect capture against each of my Stone pieces simply fizzles.',
+    ],
+    role: {
+      kind: 'trainer',
+      tier: 'trainer',
+      format: 'vanguard',
+      level: 8,
+      loadout: {
+        elements: ['stone'],
+        items: ['triple_adepts_gloves'],
+        sets: [['buttress', 'stonewall', 'poisoned_meat']],
+      },
+      reward: {
+        xp: 170,
+        coins: 70,
+        cards: [
+          { id: 'buttress', qty: 1 },
+          { id: 'stonewall', qty: 1 },
+        ],
+      },
+      once: true,
+    },
+  },
+  {
+    id: 'rimeguard_osk',
+    name: 'Rimeguard Osk',
+    look: { variant: 7, element: 'frost' },
+    lines: [
+      'You climbed all the way to the cairn. Good. Now let the frost push you back down.',
+      'Capture one of my Frost pieces and your piece’s After-capturing abilities freeze. Some of mine shove you right back where you came from.',
+    ],
+    role: {
+      kind: 'trainer',
+      tier: 'trainer',
+      format: 'vanguard',
+      level: 10,
+      loadout: {
+        elements: ['frost'],
+        items: ['triple_adepts_gloves', 'resonance_crystal'],
+        sets: [['frost_heave', 'snowdrift', 'pierce']],
+      },
+      reward: {
+        xp: 200,
+        coins: 80,
+        cards: [
+          { id: 'frost_heave', qty: 1 },
+          { id: 'snowdrift', qty: 1 },
+        ],
+      },
+      once: true,
+    },
+  },
+  {
+    id: 'cragwalker_bev',
+    name: 'Cragwalker Bev',
+    look: { variant: 14, element: 'stone' },
+    lines: ['I battle every traveller who comes up the pass. First Blood, as often as you like!'],
+    role: {
+      kind: 'trainer',
+      tier: 'trainer',
+      format: 'first_blood',
+      level: 7,
+      loadout: { buildSeed: 4 },
+      reward: { xp: 20, coins: 10 },
+      once: false,
+    },
+  },
+  {
+    id: 'surveyor_ib',
+    name: 'Surveyor Ib',
+    look: { variant: 1, element: 'storm' },
+    lines: [
+      'I map the pass. Storm, Stone or Frost: which element suits you, {name}?',
+      'Show me you can win with Storm abilities alone, and I will give you a spring that keeps them going.',
+    ],
+    role: { kind: 'quest', quest: 'highcairn_trial' },
+  },
+  {
+    id: 'goatherd_luz',
+    name: 'Goatherd Luz',
+    look: { variant: 10, element: 'frost' },
+    lines: [
+      'My goats never slip on the scree. Wish I could say the same for me.',
+      'A Blended Family can mix the triangles: Storm pawns with Stone rooks, say. The two elements just have to differ.',
+      'Frost Heave, Snowdrift, Permafrost: Frost cards push pieces around. The capture still happens; the captor just loses its footing.',
+    ],
+    role: { kind: 'talk' },
+  },
+  {
+    id: 'hermit_tarn',
+    name: 'Hermit Tarn',
+    look: { variant: 6, element: 'neutral' },
+    lines: [
+      'Storm lightning, falling stone, creeping frost. I have watched them all from this pond.',
+      'If a Frost trainer keeps pushing your pieces around, carry a Mooring Chain. The first push against you simply fails.',
     ],
     role: { kind: 'talk' },
   },

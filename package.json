@@ -9,7 +9,7 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "check": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm content:validate && pnpm deps:check",
+    "check": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm content:validate && pnpm deps:check && pnpm req:coverage",
     "typecheck": "pnpm -r --parallel --if-present typecheck",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
@@ -29,6 +29,7 @@
     "measure:client": "tsx scripts/measure-client.ts",
     "test:load": "tsx apps/tools/src/load/cli.ts",
     "test:firstwin": "tsx apps/tools/src/firstwin/cli.ts",
+    "tournament:local": "tsx apps/tools/src/tournament/cli.ts",
     "sim": "tsx apps/tools/src/sim/cli.ts",
     "seed": "tsx apps/tools/src/seed/cli.ts",
     "db:migrate": "tsx apps/tools/src/db/migrate.ts",

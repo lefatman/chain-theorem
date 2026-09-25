@@ -2243,3 +2243,172 @@ table.board tr.own th,
 .guild-invite input {
   width: 12em;
 }
+
+/* ---- spectating (M7 7.2) ------------------------------------------------------------------------ */
+.watch .row {
+  justify-content: space-between;
+}
+.watch h3 {
+  margin: 0;
+}
+.live-list {
+  list-style: none;
+  margin: 0.5em 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.live-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'players watch' 'meta watch';
+  gap: 2px 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.live-players {
+  grid-area: players;
+  overflow-wrap: anywhere;
+}
+.live-meta {
+  grid-area: meta;
+  font-size: 0.9em;
+}
+.live-list li button {
+  grid-area: watch;
+}
+.spectate-title {
+  margin: 0 0 4px;
+  font-size: 1.05em;
+  color: var(--accent);
+}
+.spectate-delay {
+  margin: 0;
+}
+.chip.veiled {
+  border: 1px dashed var(--muted);
+}
+.deductions {
+  margin: 0.2em 0 0;
+  padding-left: 1.2em;
+}
+@media (max-width: 760px) {
+  .live-list li {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'players' 'meta' 'watch';
+  }
+  .live-list li button {
+    justify-self: start;
+  }
+}
+
+/* ---- M7 7.1 tournaments (10.4) ---------------------------------------------------------------- */
+.tournament-list,
+.entrant-list,
+.prize-list,
+.pairings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.tournament-card {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  display: grid;
+  gap: 0.3em;
+  min-width: 0;
+}
+.tournament-card h3 {
+  margin: 0;
+  font-size: 1.05em;
+  overflow-wrap: anywhere;
+}
+.tournament-card p {
+  margin: 0;
+}
+.tournament-you p {
+  margin: 0 0 0.4em;
+}
+.entrant-list {
+  grid-template-columns: repeat(auto-fill, minmax(10em, 1fr));
+}
+.entrant-list li,
+.pairings li {
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  overflow-wrap: anywhere;
+}
+.entrant-list li.own,
+.pairings li.own {
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+.board-no {
+  color: var(--muted);
+}
+details.round {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: 0 0 6px;
+}
+details.round summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+details.round .pairings {
+  margin-top: 6px;
+}
+/* The knockout bracket: rounds side by side on wide screens, stacked on narrow ones (360 px). */
+.bracket {
+  display: grid;
+  grid-auto-flow: row;
+  gap: 10px;
+}
+@media (min-width: 720px) {
+  .bracket {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(12em, 1fr);
+    overflow-x: auto;
+  }
+}
+.bracket-round h4 {
+  margin: 0 0 6px;
+  color: var(--accent);
+}
+.bracket-round ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  height: calc(100% - 2em);
+  align-content: space-around;
+}
+.match {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: var(--panel-2);
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.match.tbd {
+  color: var(--muted);
+  font-style: italic;
+}
+/* The player going through: bold text plus the "advances" label, never colour alone. */
+.match .seat.through {
+  font-weight: 700;
+}
+.match .seat.own {
+  box-shadow: inset 3px 0 0 var(--accent);
+  padding-left: 6px;
+}

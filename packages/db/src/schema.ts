@@ -48,6 +48,11 @@ export interface PlayersTable {
   suspended_until: number | null;
   /** Server-wide chat ban until this instant (0006); NULL or past: may chat. */
   chat_ban_until: number | null;
+  /**
+   * Others may watch this player's public battles (0008, M7 7.2): 1 or 0 as the player chose, NULL
+   * for the default (on for adults, off under 18, R-SEC-011).
+   */
+  spectate: number | null;
 }
 
 export interface SessionsTable {
@@ -129,6 +134,8 @@ export interface BattlesTable {
   ended_at: number | null;
   /** R2 key of the archived event log. */
   log_key: string | null;
+  /** 1 when listed for spectators (0008, M7 7.2); 0 otherwise. */
+  listed: Generated<number>;
 }
 
 export interface WagersTable {
@@ -357,6 +364,44 @@ export interface BlocksTable {
   created_at: number;
 }
 
+/** A tournament (0007, M7 7.1): listing and history; the TournamentRoom holds the live state. */
+export interface TournamentsTable {
+  id: string;
+  name: string;
+  format: string;
+  /** Slot bracket: '1-2' | '3-4' | '5-6'. */
+  bracket: string;
+  /** CHECK: 'swiss' | 'se'. */
+  system: string;
+  /** CHECK: 'open' | 'running' | 'finished' | 'cancelled'. */
+  status: Generated<string>;
+  starts_at: number;
+  max_players: number;
+  /** Registered players; CHECK 0 <= players <= max_players. */
+  players: Generated<number>;
+  /** Planned rounds (0 before the start). */
+  rounds: Generated<number>;
+  /** The round being played (0 before the start). */
+  round: Generated<number>;
+  /** The admin who created it; NULL for a scheduled event or once that account is deleted. */
+  created_by: string | null;
+  /** UNIQUE: `daily:<system>:<format>:<bracket>:<date>` for a scheduled event, else NULL. */
+  schedule_key: string | null;
+  created_at: number;
+  started_at: number | null;
+  finished_at: number | null;
+  winner_id: string | null;
+}
+
+/** A player registered in a tournament (0007); place and points once it is finished. */
+export interface TournamentEntriesTable {
+  tournament_id: string;
+  player_id: string;
+  registered_at: number;
+  place: number | null;
+  points: number | null;
+}
+
 export interface Schema {
   schema_migrations: SchemaMigrationsTable;
   players: PlayersTable;
@@ -389,6 +434,8 @@ export interface Schema {
   reports: ReportsTable;
   mutes: MutesTable;
   blocks: BlocksTable;
+  tournaments: TournamentsTable;
+  tournament_entries: TournamentEntriesTable;
 }
 
 /** Every table of spec 13.3 plus the auth and reward tables, in creation order. */
@@ -423,4 +470,6 @@ export const TABLES = [
   'reports',
   'mutes',
   'blocks',
+  'tournaments',
+  'tournament_entries',
 ] as const satisfies readonly (keyof Schema)[];

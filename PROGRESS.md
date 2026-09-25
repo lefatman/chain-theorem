@@ -7,19 +7,12 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
 
 (Top of file. Updated whenever a session ends mid-step.)
 
-- Current step: M7 (tournaments, spectating, content).
-- Done so far: M0, M1, M2 (23 review findings fixed, DD-41..DD-55, 100k fuzz re-run green), M3
-  (board scene, overlay, AI, simulator, Scenario Lab, e2e, budgets all passing), Playtest Gate 1
-  report (designer questions open; the build continues per BUILD_PROMPT 6), M4 (online battles).
-- M5 complete: world content (4 zones, 18 NPCs, 7 lessons, 3 quests), the pure zone core, the
-  ZoneRoom host with world battles and idempotent rewards, parties, the Metrics cost dashboard, the
-  overworld client; `pnpm test:load` and `pnpm test:firstwin` are the done-when, both in CI.
-- M6 complete: trading and wagers with escrow, ranked queues with Glicko-2, leaderboards, guilds
-  with guild chat, billing (fake provider end to end, Paddle behind keys), trial and entitlement,
-  report, mute, block, suspensions and chat bans with a minimal admin console (`/admin`).
-- Next: M7 7.1 TournamentRoom (Swiss and single elimination), 7.2 delayed public-projection
-  spectating, 7.3 Storm, Stone and Frost (18 creatures, at least 4 abilities each), another zone
-  with NPC trainers, balance passes.
+- Current step: release (spec 17.3 checklist and the final report).
+- Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
+  delayed public-projection spectating (2 plies behind; spectators learn only what both players
+  know), Storm, Stone and Frost with 12 abilities, 2 items, 18 creatures and Highcairn Pass.
+- Open for the designer: balance targets partly missed (`docs/BALANCE_M7.md` section 5, five
+  questions), Playtest Gate 1 questions, review of spec section 18 (DD-01..DD-95).
 - The `TODO` strings in `apps/tools/src/content/new.ts` are scaffold template text for new modules,
   not open work.
 
@@ -99,9 +92,9 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 
 ## M7 — Tournaments, spectating, content
 
-- [ ] 7.1 TournamentRoom: Swiss and single elimination.
-- [ ] 7.2 Delayed public-projection spectating.
-- [ ] 7.3 Storm, Stone, Frost + 18 creatures; another zone with NPC trainers; more abilities and items.
+- [x] 7.1 TournamentRoom: Swiss and single elimination.
+- [x] 7.2 Delayed public-projection spectating.
+- [x] 7.3 Storm, Stone, Frost + 18 creatures; another zone with NPC trainers; more abilities and items (balance targets partly missed: designer questions in `docs/BALANCE_M7.md`).
 - Done when: the first public tournament completes (locally, with test accounts).
 
 ## Release checklist (spec 17.3)
@@ -126,6 +119,18 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-09-25 M7 done-when: `pnpm tournament:local` completes an 8-player Swiss tournament (4 rounds,
+  Bot 7 won 4/4, 3 prizes granted once each, 32 s) and `--format se` a knockout (Bot 1 won, 4 prizes,
+  23 s) through the real Worker with bot clients; `e2e-online/tournament.spec.ts` runs a tournament
+  through the UI in two browsers. Suites on the integrated tree: `pnpm check` 1,468 unit tests and
+  `req:coverage` 83/83 IDs; `pnpm test:perft` 30/30; `pnpm test:fuzz` 500 games, players and
+  spectators scanned, 0 failures; a 20,000-game fuzz (seeds 501–20,500) 0 failures, all projection-
+  scanned; `pnpm test:db` 202 (+94 pg-only); `pnpm test:db:pg` 296/296; `pnpm test:workers` 63/63;
+  `pnpm test:e2e` 19/19; `pnpm test:e2e:online` 9/9; `pnpm test:load` $0.0305 / $0.0149;
+  `pnpm test:firstwin` 14.7 minutes. Balance (`pnpm sim`, `docs/BALANCE_M7.md`): White 50.0% /
+  52.5% and Full Battle surprise losses 0.5% met; advantaged element 64% / 73%, First Blood surprise
+  losses and Focused builds missed (designer questions).
 
 - 2026-09-25 M6 done-when: concurrency tests show no item duplication (`pnpm test:db:pg` 271/271:
   parallel two-way trades, escrows and settlements, rewards racing trades on the same rows, guild

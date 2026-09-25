@@ -380,12 +380,12 @@
       "columns": 8,
       "firstgid": 1,
       "image": "../../../../assets/world/tiles.png",
-      "imageheight": 80,
+      "imageheight": 96,
       "imagewidth": 128,
       "margin": 0,
       "name": "overworld",
       "spacing": 0,
-      "tilecount": 40,
+      "tilecount": 44,
       "tileheight": 16,
       "tiles": [
         {
@@ -704,6 +704,38 @@
           "id": 39,
           "properties": [
             { "name": "kind", "type": "string", "value": "reeds" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 40,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "snow" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 41,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "scree" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 42,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "frost_grass" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": true }
+          ]
+        },
+        {
+          "id": 43,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "pine" },
             { "name": "solid", "type": "bool", "value": true },
             { "name": "wild", "type": "bool", "value": false }
           ]

@@ -168,6 +168,12 @@ export function OnlineScreen() {
           Explore towns and routes, meet players, learn at the Chess Academy.
         </span>
       </section>
+      <section aria-label="Spectating">
+        <button onClick={() => go('watch')}>Watch live battles</button>{' '}
+        <span class="muted small-text">
+          Ranked, tournament and challenge-zone battles, shown a few moves behind.
+        </span>
+      </section>
       {active.length > 0 && (
         <section aria-label="Battles in progress">
           <h3>Battles in progress</h3>
@@ -185,6 +191,12 @@ export function OnlineScreen() {
           ))}
         </section>
       )}
+      <section aria-label="Tournaments">
+        <button onClick={() => go('tournaments')}>Tournaments</button>{' '}
+        <span class="muted small-text">
+          Scheduled Swiss and knockout events for your slot bracket, with prizes.
+        </span>
+      </section>
       {challenge && code && (
         <section aria-label="Challenge">
           <h3>Challenge from {challenge.from.name}</h3>

@@ -27,6 +27,7 @@ import { socialRepo } from './repos/social.ts';
 import { billingRepo } from './repos/billing.ts';
 import { safetyRepo } from './repos/safety.ts';
 import { moderationRepo } from './repos/moderation.ts';
+import { tournamentRepo } from './repos/tournaments.ts';
 
 export interface CreateDbOptions {
   /** Clock for created/updated timestamps (epoch ms). Defaults to `Date.now`. */
@@ -113,6 +114,8 @@ export function createDb(
     safety: safetyRepo(ctx),
     /** M6 6.4: reports, suspensions, chat bans, player lookup (the admin console). */
     moderation: moderationRepo(ctx),
+    /** M7 7.1: tournament listing and history rows (the TournamentRoom holds the live state). */
+    tournaments: tournamentRepo(ctx),
     /** Closes the pool or database handle. */
     async destroy(): Promise<void> {
       await kysely.destroy();

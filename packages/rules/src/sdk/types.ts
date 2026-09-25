@@ -295,6 +295,12 @@ export interface RuleHooks {
     init(ctx: ReadCtx): unknown;
     /** What a viewer may see; omit to keep the slice private (never projected). */
     project?(value: unknown, viewer: Side, ctx: ReadCtx): unknown;
+    /**
+     * What a spectator may see (M7 7.2, R-INFO-005): only facts both players know, such as Hot
+     * Foot's burning squares. Omit to keep the slice from spectators (the safe default); it is
+     * never derived from `project`.
+     */
+    spectate?(value: unknown, ctx: ReadCtx): unknown;
     /** Include in the repetition hash (default true). */
     hash?: boolean;
   };

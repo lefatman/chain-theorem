@@ -5,6 +5,7 @@
  */
 import { z } from 'zod';
 import { Format, Uci } from './battle.ts';
+import { TournamentNotice } from './tournament.ts';
 
 export const Dir = z.enum(['n', 's', 'e', 'w']);
 export type Dir = z.infer<typeof Dir>;
@@ -146,6 +147,8 @@ export const ServerZone = {
     cards: z.array(z.object({ id: Id, qty: z.number().int().min(1) })).max(32),
     invalid: z.array(Name).max(5),
   }),
+  /** M7 7.1: a tournament round was paired, your game is ready, or it ended (R-WORLD-004). */
+  tourney: TournamentNotice,
   err: z.object({ code: z.string().max(32), msg: z.string().max(200).optional() }),
 };
 export type ServerZoneMap = typeof ServerZone;

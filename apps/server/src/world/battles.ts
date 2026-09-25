@@ -37,7 +37,12 @@ export type BattleOrigin =
    * An item wager battle negotiated in a TradeSession (M6 6.1, 9.5 R-FMT-006): both stakes are in
    * escrow under `wagerId`; the end settles them once (`world/wager.ts`). PvP only, never ranked.
    */
-  | { kind: 'wager'; wagerId: string };
+  | { kind: 'wager'; wagerId: string }
+  /**
+   * A game of a tournament round (M7 7.1, 10.4 R-WORLD-004): `settleBattle` reports the result to
+   * the TournamentRoom (idempotent per battle). PvP only, unrated, never a wager.
+   */
+  | { kind: 'tournament'; tournamentId: string; round: number };
 
 /**
  * A battle started outside the zone core (M6 6.4): an item wager, a queue, ranked or challenge-link

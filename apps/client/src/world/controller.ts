@@ -161,6 +161,24 @@ export type ToastInput =
   { kind: 'reward'; reward: Reward } | { kind: 'info' | 'error'; text: string };
 export type Toast = ToastInput & { id: number };
 
+/** A tournament notice (M7 7.1) as one line; the Tournaments screen has the details. */
+export function tourneyText(n: Data<'tourney'>): string {
+  switch (n.kind) {
+    case 'paired':
+      return n.opponent
+        ? `${n.name}: round ${n.round ?? ''} is paired, you play ${n.opponent}. Open Online play, then Tournaments.`
+        : `${n.name}: round ${n.round ?? ''} is paired; you have a bye.`;
+    case 'game':
+      return `${n.name}: your round ${n.round ?? ''} game against ${n.opponent ?? '?'} is ready. Open Online play, then Tournaments, within a minute.`;
+    case 'finished':
+      return n.place
+        ? `${n.name} is over: you finished in place ${n.place}.`
+        : `${n.name} is over.`;
+    case 'cancelled':
+      return `${n.name} was cancelled.`;
+  }
+}
+
 export type Connection = 'connecting' | 'open' | 'reconnecting' | 'warping' | 'closed';
 
 /** The subset of WebSocket this controller uses (tests pass a fake). */
@@ -597,6 +615,10 @@ export class WorldController {
           ...this.wagerResults.value.filter((w) => w.id !== msg.d.id),
           msg.d,
         ];
+        break;
+      case 'tourney':
+        // M7 7.1: a tournament round was paired, your game is ready, or the event ended.
+        this.toast({ kind: 'info', text: tourneyText(msg.d) });
         break;
       case 'err': {
         const d = msg.d;

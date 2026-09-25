@@ -19,6 +19,9 @@
  *   _  wooden floor    c  chessboard floor I  inner wall       B  bookshelf     T  desk
  *   u  rug             M  doormat          K  knight statue    A  blackboard    p  potted plant
  *   g  meadow grass    q  mushrooms
+ * Highland (Highcairn Pass, M7 7.3):
+ *   s  snow            v  scree            '  frost grass (wild, 10.2)
+ *   Y  pine on snow    O  rock on snow     U  rock on scree    k  signpost on scree
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -67,6 +70,13 @@ const LEGEND: Record<string, [ground: string, deco?: string]> = {
   p: ['floor', 'plant'],
   g: ['meadow_grass'],
   q: ['mushrooms'],
+  s: ['snow'],
+  v: ['scree'],
+  "'": ['frost_grass'],
+  Y: ['snow', 'pine'],
+  O: ['snow', 'rock'],
+  U: ['scree', 'rock'],
+  k: ['scree', 'signpost'],
 };
 
 type ObjSpec =
@@ -301,10 +311,10 @@ const MEADOW_ROWS = [
   '#.=' + F(11) + '.==.' + F(10) + '.=.#',
   '#.=.' + F(10) + '.==.' + F(11) + '=.#',
   '#.=.' + F(9) + '..==.' + F(10) + '.=.#',
-  '#.=..' + F(7) + '...==...' + F(7) + '..=.#',
-  '#.=.....t......==.....,......=.#',
-  '#.' + '='.repeat(28) + '.#',
-  '#.=..,.........==.........t..=.#',
+  '#n=..' + F(7) + '...==...' + F(7) + '..=.#',
+  '=.=.....t......==.....,......=.#',
+  '==' + '='.repeat(28) + '.#',
+  '=.=..,.........==.........t..=.#',
   '#.=..' + F(8) + '..==..' + F(8) + '..=.#',
   '#.=.' + F(10) + '.==.' + F(10) + '.=.#',
   '#.=' + F(11) + '.==.' + F(10) + '.=.#',
@@ -324,6 +334,16 @@ const THISTLE_MEADOW: ZoneLayout = {
   objects: [
     { type: 'spawn', x: 15, y: 20, dir: 'n' },
     ...edgeWarps([14, 15, 16], 23, 'route_1', [10, 11, 12], 1, 's'),
+    // M7 7.3: the west gate to Highcairn Pass.
+    ...[10, 11, 12].map((y): ObjSpec => ({
+      type: 'warp',
+      x: 0,
+      y,
+      to: 'highcairn_pass',
+      toX: 28,
+      toY: y + 1,
+      dir: 'w',
+    })),
     { type: 'npc', x: 15, y: 1, npc: 'meadowkeeper_sef', dir: 's' },
     { type: 'npc', x: 30, y: 12, npc: 'botanist_ilse', dir: 'w' },
     {
@@ -332,11 +352,92 @@ const THISTLE_MEADOW: ZoneLayout = {
       y: 22,
       text: 'Thistle Meadow. The grass here is thick with wild creatures. Paths ring every field, so you choose when to battle.',
     },
+    {
+      type: 'sign',
+      x: 1,
+      y: 9,
+      text: 'West: Highcairn Pass. Storm, Stone and Frost creatures live on its slopes; the trainers there will show you how they fight.',
+    },
     { type: 'area', name: 'meadow_heart', x: 14, y: 10, w: 4, h: 3 },
   ],
 };
 
-export const LAYOUTS: readonly ZoneLayout[] = [ACADEMY_HALL, ACADEMY_TOWN, ROUTE_1, THISTLE_MEADOW];
+// ---- Highcairn Pass (route, M7 7.3: Storm, Stone and Frost) ------------------------------------
+
+/** `n` tiles of frost grass. */
+const Q = (n: number) => "'".repeat(n);
+const HIGHCAIRN_ROWS = [
+  'Y'.repeat(30),
+  'Y' + 's'.repeat(11) + 'v'.repeat(6) + 's'.repeat(11) + 'Y',
+  'Yss' + Q(7) + 'ssvvUUvvss' + Q(7) + 'ssY',
+  'Yss' + Q(7) + 'ssvkvvvvss' + Q(7) + 'ssY',
+  'Ysss' + Q(5) + 'sssvv==vvsss' + Q(5) + 'sssY',
+  'YsO' + 's'.repeat(11) + '==' + 's'.repeat(11) + 'OsY',
+  'YsY' + 's'.repeat(11) + '==' + 's'.repeat(11) + 'YsY',
+  'UUvvUvvvUUvvvv==vvvvUUvvvUvvUU',
+  'UvvvvvvUvvvvvv==vvvvvvvvvvvvvU',
+  'UvvUvvvvvvvUvv==vvvvvvUvvvvvvU',
+  'Uvvvvvvvvvvvvv==vvvvvvvvvvvvvU',
+  'o.............==............==',
+  'o.' + '='.repeat(28),
+  'o......,......==.........n..==',
+  '#.............==.............#',
+  '#.' + F(8) + '....==...' + F(8) + '..#',
+  '#.' + F(8) + '....==...' + F(8) + '..#',
+  '#..' + F(6) + '.....==....' + F(7) + '..#',
+  '#..' + F(6) + '.....==....' + F(7) + '..#',
+  '#...' + F(4) + '..~~~.==...' + F(6) + '....#',
+  '#.b....,..~~~~..,....*...b...#',
+  '#..t.....e~~~e........*.....b#',
+  '##....*..............,......##',
+  '#'.repeat(30),
+];
+
+const HIGHCAIRN_PASS: ZoneLayout = {
+  id: 'highcairn_pass',
+  rows: HIGHCAIRN_ROWS,
+  objects: [
+    { type: 'spawn', x: 27, y: 12, dir: 'w' },
+    ...[11, 12, 13].map((y): ObjSpec => ({
+      type: 'warp',
+      x: 29,
+      y,
+      to: 'thistle_meadow',
+      toX: 1,
+      toY: y - 1,
+      dir: 'e',
+    })),
+    { type: 'npc', x: 26, y: 11, npc: 'pathfinder_maud', dir: 's' },
+    { type: 'npc', x: 7, y: 13, npc: 'stormcaller_imre', dir: 'n' },
+    { type: 'npc', x: 16, y: 9, npc: 'mason_hedda', dir: 'w' },
+    { type: 'npc', x: 17, y: 2, npc: 'rimeguard_osk', dir: 'w' },
+    { type: 'npc', x: 21, y: 13, npc: 'cragwalker_bev', dir: 'n' },
+    { type: 'npc', x: 3, y: 11, npc: 'surveyor_ib', dir: 's' },
+    { type: 'npc', x: 16, y: 17, npc: 'goatherd_luz', dir: 'w' },
+    { type: 'npc', x: 4, y: 21, npc: 'hermit_tarn', dir: 'n' },
+    {
+      type: 'sign',
+      x: 25,
+      y: 13,
+      text: 'Highcairn Pass. North: the scree slopes and the snowfields up to the summit cairn. South: the windy grass of the lower pass. East: Thistle Meadow.',
+    },
+    {
+      type: 'sign',
+      x: 13,
+      y: 3,
+      text: 'The Highcairn. Storm beats Frost, Frost beats Stone, Stone beats Storm. Every traveller adds a stone.',
+    },
+    { type: 'area', name: 'summit', x: 12, y: 1, w: 6, h: 3 },
+  ],
+};
+
+export const LAYOUTS: readonly ZoneLayout[] = [
+  ACADEMY_HALL,
+  ACADEMY_TOWN,
+  ROUTE_1,
+  THISTLE_MEADOW,
+  HIGHCAIRN_PASS,
+];
 
 // ---- Tiled JSON --------------------------------------------------------------------------------
 
@@ -457,7 +558,9 @@ export function buildMap(z: ZoneLayout): TiledMap {
   });
   // Every signpost tile carries a sign object and every outdoor sign stands on a signpost.
   const posts = new Set<string>();
-  z.rows.forEach((row, y) => [...row].forEach((ch, x) => ch === 'n' && posts.add(`${x},${y}`)));
+  z.rows.forEach((row, y) =>
+    [...row].forEach((ch, x) => LEGEND[ch]?.[1] === 'signpost' && posts.add(`${x},${y}`)),
+  );
   for (const o of z.objects) if (o.type === 'sign') posts.delete(`${o.x},${o.y}`);
   if (posts.size > 0)
     throw new Error(`${z.id}: signposts without a sign object: ${[...posts].join(' ')}`);

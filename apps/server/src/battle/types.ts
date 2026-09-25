@@ -2,7 +2,13 @@
  * Types of the pure battle core (M4 4.2): what the BattleRoom Durable Object passes in, persists and
  * sends. Everything here is plain JSON data so a hibernated or evicted room resumes from storage.
  */
-import type { Bucket, Clocks, Msg, ServerBattleMap } from '@chain-theorem/protocol';
+import type {
+  Bucket,
+  Clocks,
+  Msg,
+  ServerBattleMap,
+  ServerSpectateMap,
+} from '@chain-theorem/protocol';
 import type {
   ActionInput,
   BattleEvent,
@@ -41,10 +47,18 @@ export interface BattleInit {
   black: SeatInit;
   /** Custom start position (NPC puzzles, tests). Standard start when omitted. */
   fen?: string;
+  /**
+   * The battle is public (M7 7.2): spectators see it `delay` plies behind the live position.
+   * Omitted: nobody can watch (NPC, lesson, wild and private battles, or a player opted out).
+   */
+  spectate?: { delay: number };
 }
 
 /** A message for one side, exactly as it goes on the wire after `JSON.stringify`. */
 export type ServerMsg = Msg<ServerBattleMap>;
+
+/** A message for spectators (M7 7.2), exactly as it goes on the wire. */
+export type SpectatorMsg = Msg<ServerSpectateMap>;
 
 export interface Outgoing {
   to: Side;
@@ -72,6 +86,40 @@ export interface LogRecord {
   events: BattleEvent[];
   /** What each side was sent for these events: `projectEvents` against the state after the step. */
   seen: Record<Side, PublicEvent[]>;
+  /**
+   * What spectators see of these events (public battles only, M7 7.2): `projectSpectatorEvents`
+   * against the state after the step, sent once the record leaves the delay window.
+   */
+  spec?: PublicEvent[];
+}
+
+/** A log record inside the spectator delay window (M7 7.2). */
+export interface SpectatePending {
+  /** Log record index. */
+  n: number;
+  /** Live ply after the record. */
+  ply: number;
+  /** `projectSpectator` output after the record. */
+  public: Record<string, unknown>;
+  /** Clocks after the record, not running (a spectator view is not live). */
+  clocks: Clocks;
+}
+
+/**
+ * Spectating state of a public battle (M7 7.2, spec 10.4). Spectators see log records up to
+ * `delay` plies behind the live ply (every record once the battle ends); the start record at once.
+ */
+export interface SpectateState {
+  delay: number;
+  /** Log records shown so far: 0 .. released - 1. */
+  released: number;
+  /** Full-log index after the last shown record (spectators' `hello.from` on a reconnect). */
+  to: number;
+  /** Spectator projection after the last shown record. */
+  public: Record<string, unknown> | null;
+  clocks: Clocks | null;
+  /** Records not shown yet, oldest first. */
+  pending: SpectatePending[];
 }
 
 export interface SideConn {
@@ -131,6 +179,8 @@ export interface BattleSnapshot {
   /** Number of log records and of full events so far (checked on restore). */
   records: number;
   events: number;
+  /** Public battles only (M7 7.2): what spectators have been shown and what is still delayed. */
+  spectate?: SpectateState;
 }
 
 /** What the host needs for the `battles` row, rewards and telemetry. */
@@ -174,6 +224,8 @@ export type Effect =
 export interface Outbox {
   /** Messages in send order; each goes only to the socket(s) of its side. */
   send: Outgoing[];
+  /** Messages for every spectator socket that said `hello`, in order (M7 7.2; public battles). */
+  spectate?: SpectatorMsg[];
   effects: Effect[];
   /**
    * The snapshot changed in a way that must survive eviction: store `snapshot()` (atomically with

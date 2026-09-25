@@ -53,12 +53,13 @@ describe('world registry', () => {
     expect(validateWorld(world)).toEqual([]);
   });
 
-  it('R-WORLD-001 the vertical slice: the Chess Academy (start), its town, one route with a challenge zone, a wild patch', () => {
+  it('R-WORLD-001 the vertical slice: the Chess Academy (start), its town, one route with a challenge zone, a wild patch, and the M7 highland route', () => {
     expect(world.zones.map((z) => [z.id, z.kind])).toEqual([
       ['academy_hall', 'interior'],
       ['academy_town', 'town'],
       ['route_1', 'route'],
       ['thistle_meadow', 'wild'],
+      ['highcairn_pass', 'route'],
     ]);
     expect(world.start.zone).toBe('academy_hall');
     expect(zoneGeometry('route_1').challenge).toHaveLength(1);
@@ -75,7 +76,7 @@ describe('world registry', () => {
     expect(() => zoneGeometry('nowhere')).toThrow(/unknown zone/);
   });
 
-  it('R-WORLD-001 warps connect both ways: Academy <-> Rookhaven <-> route <-> meadow', () => {
+  it('R-WORLD-001 warps connect both ways: Academy <-> Rookhaven <-> route <-> meadow <-> Highcairn Pass', () => {
     const edges = new Set<string>();
     for (const z of world.zones) {
       for (const wp of zoneGeometry(z.id).warps) {
@@ -97,6 +98,8 @@ describe('world registry', () => {
         'route_1>academy_town',
         'route_1>thistle_meadow',
         'thistle_meadow>route_1',
+        'thistle_meadow>highcairn_pass',
+        'highcairn_pass>thistle_meadow',
       ].sort(),
     );
   });
@@ -398,11 +401,17 @@ describe('quests (R-WORLD-005)', () => {
   });
 
   it('R-WORLD-005 rewards are early-level items and cards, and the line ends with a key item that lowers the encounter rate', () => {
+    // The M5 slice (the Academy line, its lessons and the trainers of the first four zones) rewards
+    // early-level modules; Highcairn Pass (M7) has its own band, checked below.
+    const m5 = new Set(['academy_hall', 'academy_town', 'route_1', 'thistle_meadow']);
     const rewards = [
-      ...world.quests.map((q) => q.reward),
+      ...world.quests.filter((q) => q.id.startsWith('academy_')).map((q) => q.reward),
       ...world.lessons.map((l) => l.reward),
-      ...world.npcs.flatMap((n) => (n.role.kind === 'trainer' ? [n.role.reward] : [])),
+      ...world.npcs.flatMap((n) =>
+        n.role.kind === 'trainer' && m5.has(npcLocation(n.id)?.zone ?? '') ? [n.role.reward] : [],
+      ),
     ];
+    expect(rewards.length).toBeGreaterThan(10);
     for (const r of rewards) {
       for (const i of r.items ?? [])
         expect(itemById.get(i.id)?.minLevel, i.id).toBeLessThanOrEqual(6);
@@ -413,6 +422,131 @@ describe('quests (R-WORLD-005)', () => {
     expect(trial?.reward.keyItems).toEqual(['hush_candle']);
     expect(keyItemById.get('hush_candle')?.encounterRate).toBeLessThan(1);
     expect(world.quests.every((q) => q.reward.xp > 0)).toBe(true);
+  });
+});
+
+describe('Highcairn Pass (M7 7.3: Storm, Stone and Frost)', () => {
+  const NEW = ['storm', 'stone', 'frost'] as const;
+  const zone = zoneById.get('highcairn_pass') as ZoneDef;
+
+  it('R-WORLD-001 R-WORLD-002 a highland route west of Thistle Meadow with snow, scree, frost grass and a summit area', () => {
+    expect(zone.kind).toBe('route');
+    const g = zoneGeometry('highcairn_pass');
+    const kinds = new Set(g.kinds.flat());
+    for (const k of ['snow', 'scree', 'frost_grass', 'pine']) expect(kinds.has(k), k).toBe(true);
+    expect(g.areas.map((a) => a.name)).toContain('summit');
+    // Both frost grass and tall grass are wild (10.2); paths reach every NPC without them.
+    const wild = g.wild.reduce((n, v) => n + v, 0);
+    expect(wild).toBeGreaterThan(50);
+    expect(TILES.find((t) => t.kind === 'frost_grass')).toMatchObject({ wild: true, solid: false });
+    expect(TILES.find((t) => t.kind === 'pine')).toMatchObject({ solid: true, layer: 'deco' });
+  });
+
+  it('R-WORLD-002 R-ELEM-001 the wild patches hold Storm, Stone and Frost creatures, a step up from the meadow', () => {
+    const elements = new Set(zone.encounters.map((e) => e.element));
+    for (const el of NEW) expect(elements.has(el), el).toBe(true);
+    // Every named entry is one of its element's creatures (6.5: six creatures per element).
+    for (const e of zone.encounters) {
+      if (e.element === undefined) continue;
+      expect(NEW as readonly string[]).toContain(e.element);
+    }
+    const meadow = zoneById.get('thistle_meadow') as ZoneDef;
+    const low = (z: ZoneDef) => Math.min(...z.encounters.map((e) => e.levels[0]));
+    expect(low(zone)).toBeGreaterThan(low(meadow));
+  });
+
+  it('R-LOAD-004 R-FMT-005 four trainers: one story trainer per new element with a fixed loadout of that element, and a practice trainer', () => {
+    const here = world.npcs.filter(
+      (n) => n.role.kind === 'trainer' && npcLocation(n.id)?.zone === 'highcairn_pass',
+    );
+    expect(here).toHaveLength(4);
+    const story = here.filter((n) => n.role.kind === 'trainer' && n.role.once);
+    const practice = here.filter((n) => n.role.kind === 'trainer' && !n.role.once);
+    expect(practice).toHaveLength(1);
+    expect(
+      story
+        .map((n) =>
+          n.role.kind === 'trainer' && !('buildSeed' in n.role.loadout)
+            ? n.role.loadout.elements[0]
+            : null,
+        )
+        .sort(),
+    ).toEqual(['frost', 'stone', 'storm']);
+    for (const n of story) {
+      if (n.role.kind !== 'trainer' || 'buildSeed' in n.role.loadout) continue;
+      const el = n.role.loadout.elements[0];
+      const own = n.role.loadout.sets.flat().filter((id) => abilityById.get(id)?.affinity === el);
+      expect(own.length, n.id).toBeGreaterThanOrEqual(2);
+      expect(engine.validateLoadout(n.role.loadout, { level: n.role.level }).errors).toEqual([]);
+      // Their rewards are their own element's cards.
+      for (const c of n.role.reward.cards ?? [])
+        expect(abilityById.get(c.id)?.affinity, `${n.id} ${c.id}`).toBe(el);
+    }
+  });
+
+  it('R-WORLD-005 the quest line introduces the new elements: talk, defeat the three trainers, reach the summit; rewards are new cards and the M7 items', () => {
+    const climb = questById.get('highcairn_climb') as QuestDef;
+    const trial = questById.get('highcairn_trial') as QuestDef;
+    expect(climb.requires).toEqual(['academy_first_road']);
+    expect(trial.requires).toEqual(['highcairn_climb']);
+    expect(
+      climb.steps.map((s) =>
+        s.kind === 'talk' || s.kind === 'defeat' ? `${s.kind}:${s.npc}` : s.kind,
+      ),
+    ).toEqual([
+      'talk:pathfinder_maud',
+      'defeat:stormcaller_imre',
+      'defeat:mason_hedda',
+      'reach',
+      'defeat:rimeguard_osk',
+      'talk:pathfinder_maud',
+    ]);
+    expect(trial.steps.find((s) => s.kind === 'win')).toMatchObject({
+      constraint: { onlyAffinity: 'storm' },
+    });
+    const maud = npcById.get('pathfinder_maud');
+    expect(maud?.lines.join(' ')).toMatch(
+      /Storm beats Frost, Frost beats Stone, and Stone beats Storm/,
+    );
+    // Every card the pass hands out (quests and trainers) is a Storm, Stone or Frost card, and the
+    // whole new catalogue is covered except Rebuild, Snowbound and Permafrost (levels 14-20).
+    const cards = new Set<string>();
+    const items = new Set<string>();
+    for (const r of [
+      climb.reward,
+      trial.reward,
+      ...world.npcs.flatMap((n) =>
+        n.role.kind === 'trainer' && npcLocation(n.id)?.zone === 'highcairn_pass'
+          ? [n.role.reward]
+          : [],
+      ),
+    ]) {
+      for (const c of r.cards ?? []) cards.add(c.id);
+      for (const i of r.items ?? []) items.add(i.id);
+    }
+    for (const c of cards) expect(NEW as readonly string[]).toContain(abilityById.get(c)?.affinity);
+    expect(cards.size).toBeGreaterThanOrEqual(9);
+    expect([...items].sort()).toEqual(['mainspring', 'mooring_chain']);
+    // Rewards stay within reach of the pass's level band (trainers 6-10).
+    for (const c of cards) expect(abilityById.get(c)?.minLevel, c).toBeLessThanOrEqual(12);
+    for (const i of items) expect(itemById.get(i)?.minLevel, i).toBeLessThanOrEqual(12);
+    // The Storm-only win is reachable with the cards Stormcaller Imre hands out.
+    const stormOnly: Loadout = {
+      elements: ['storm'],
+      items: ['dual_adepts_glove'],
+      sets: [['squall', 'pawn_storm']],
+    };
+    expect(engine.validateLoadout(stormOnly, { level: 7 }).errors).toEqual([]);
+  });
+
+  it('R-WORLD-001 R-WORLD-003 the Chess Academy is unchanged: the first-win path still starts there and Highcairn is reached only through the meadow', () => {
+    expect(world.start.zone).toBe('academy_hall');
+    const into = world.zones.flatMap((z) =>
+      zoneGeometry(z.id)
+        .warps.filter((w) => w.to === 'highcairn_pass')
+        .map(() => z.id),
+    );
+    expect(new Set(into)).toEqual(new Set(['thistle_meadow']));
   });
 });
 

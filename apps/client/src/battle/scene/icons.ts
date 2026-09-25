@@ -102,13 +102,14 @@ const UI_KEY: Record<string, number> = { o: M.OUT, g: M.GOLD, w: M.WHITE, e: M.E
  * Pips under a piece (R-ART-002 "Revealed abilities"). Opponent pieces: one filled pip per
  * revealed ability of that piece type, plus a square pip when the type is known to carry Veil.
  * Own pieces: every ability of the type; filled when the opponent knows it, hollow while hidden.
+ * A spectator's board (M7 7.2) carries no sets, so both armies show what their opponent knows.
  * Reads only the projection (R-INFO-005).
  */
 export function pipKinds(pub: PublicState, p: PublicPiece, viewer: Side): PipKind[] {
   const army = pub.armies[p.side];
   const revealed = army.revealed.abilities[p.type] ?? [];
-  if (p.side === viewer) {
-    const own = army.sets?.[p.type] ?? [];
+  if (p.side === viewer && army.sets) {
+    const own = army.sets[p.type] ?? [];
     return own.map((id) => (revealed.includes(id) ? 'known' : 'hidden'));
   }
   const kinds: PipKind[] = revealed.map(() => 'known');

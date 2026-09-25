@@ -1,7 +1,7 @@
 /**
  * Collections (7.5): new accounts start with every level-1 module (Dual Adept's Glove, Hit and Run,
- * Last Word, Scout), enough for a legal level-1 loadout; rewards (M5) grow it. Ownership feeds
- * R-LOAD-004 rule 7.
+ * Last Word, Scout, and since M7 Squall), enough for a legal level-1 loadout; rewards (M5) grow it.
+ * Ownership feeds R-LOAD-004 rule 7.
  */
 import { abilities, items } from '@chain-theorem/content';
 import type { Db } from '@chain-theorem/db';

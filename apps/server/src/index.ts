@@ -9,6 +9,7 @@ import { makeCtx, type Ctx } from './api/context.ts';
 import { authRoutes } from './api/auth.ts';
 import { accountRoutes, viewLoadouts } from './api/account.ts';
 import { battleRoutes } from './api/battles.ts';
+import { spectateRoutes } from './api/spectate.ts';
 import { socialRoutes } from './api/social.ts';
 import { worldRoutes, zoneSocket } from './api/world.ts';
 import { guildRoutes } from './api/guilds.ts';
@@ -16,6 +17,7 @@ import { rankedRoutes, rankedSocket } from './api/ranked.ts';
 import { tradeRoutes } from './api/trades.ts';
 import { safetyRoutes } from './api/safety.ts';
 import { adminRoutes } from './api/admin.ts';
+import { tournamentRoutes } from './api/tournaments.ts';
 import { isSuspended } from './moderation/sanctions.ts';
 import { refusePlay } from './billing/gate.ts';
 import { billingRoutes } from './billing/routes.ts';
@@ -30,11 +32,13 @@ export { Metrics } from './rooms/metrics.ts';
 export { ZoneRoom } from './rooms/zone-room.ts';
 export { GuildRoom } from './rooms/guild-room.ts';
 export { TradeSession } from './rooms/trade-session.ts';
+export { TournamentRoom } from './rooms/tournament-room.ts';
 
 const router = new Router<Ctx>();
 authRoutes(router);
 accountRoutes(router);
 battleRoutes(router);
+spectateRoutes(router);
 socialRoutes(router);
 worldRoutes(router);
 rankedRoutes(router);
@@ -43,6 +47,7 @@ tradeRoutes(router);
 billingRoutes(router);
 safetyRoutes(router);
 adminRoutes(router);
+tournamentRoutes(router);
 
 const FORMATS = new Set(Object.keys(engine.caps.FORMATS));
 
@@ -79,7 +84,8 @@ async function refuseSuspended(env: Env, playerId: string, now: number): Promise
 
 /**
  * `/ws/battle/:id?t=`, `/ws/queue/:format/:loadoutId?t=`, `/ws/ranked/:format/:loadoutId?t=` (M6),
- * `/ws/zone/:zone?t=` and `/ws/trade/:id?t=`: check the ticket, then hand over.
+ * `/ws/zone/:zone?t=`, `/ws/trade/:id?t=` and `/ws/spectate/:id?t=` (M7): check the ticket, then hand
+ * over.
  */
 async function socket(req: Request, env: Env): Promise<Response> {
   if (req.headers.get('upgrade') !== 'websocket') return json({ error: 'expected_websocket' }, 426);
@@ -97,6 +103,18 @@ async function socket(req: Request, env: Env): Promise<Response> {
     headers.set('x-player-id', player);
     const stub = env.BATTLE_ROOM.get(env.BATTLE_ROOM.idFromName(battleId));
     return stub.fetch(new Request('https://room/ws', { headers }));
+  }
+  if (parts[1] === 'spectate' && parts.length === 3) {
+    // M7 7.2: a read-only spectator socket (R-SEC-006: the ticket is bound to the player and battle).
+    const battleId = parts[2] as string;
+    const player = await verifyTicket(env.AUTH_SECRET, token, `spectate:${battleId}`, now);
+    if (!player) return json({ error: 'bad_ticket' }, 403);
+    const refused = await refuseSuspended(env, player, now);
+    if (refused) return refused;
+    const headers = new Headers(req.headers);
+    headers.set('x-player-id', player);
+    const stub = env.BATTLE_ROOM.get(env.BATTLE_ROOM.idFromName(battleId));
+    return stub.fetch(new Request('https://room/spectate', { headers }));
   }
   if (parts[1] === 'trade' && parts.length === 3) {
     // M6 6.1: a trade or wager session (R-SEC-006: the ticket is bound to the player and trade).

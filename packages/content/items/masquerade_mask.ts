@@ -12,10 +12,29 @@
  *   shown element is not Grove (Overabundance shows in the public remaining count);
  * - a Tide piece moving through its own pieces, or giving check through them, while the shown
  *   element is not Tide (Flow).
+ *
+ * M7 7.3 extends the list to the Storm, Stone and Frost traits (6.1), both when the true trait shows
+ * and when a shown trait visibly fails to act:
+ * - Bulwark (Stone): an effect capture of the wearer's piece fizzles with `bulwark` while the shown
+ *   element is not Stone; or, shown Stone, an effect capture removes a wearer's piece whose Bulwark
+ *   was never spent (the spent list is public);
+ * - Stillness (Frost): an opponent's After-capturing ability is negated by Stillness while the shown
+ *   element is not Frost; or, shown Frost, an opponent's After-capturing ability triggers for a
+ *   capture of the wearer's piece;
+ * - Always First (Storm): the wearer's captor's After-capturing abilities resolve before the victim's
+ *   When-captured ones while the shown element is not Storm; or, shown Storm, they resolve after
+ *   those of a non-Storm victim. The order is public even for unnamed (Veiled) activations.
  */
 import { defineItem } from '@chain-theorem/rules/sdk';
-import type { BattleEvent, ElementId, PieceType, Side } from '@chain-theorem/rules';
+import type { BattleEvent, ElementId, PieceId, PieceType, Side } from '@chain-theorem/rules';
 import type { MutCtx, PieceView } from '@chain-theorem/rules/sdk';
+
+/** The move capture whose reactions are resolving: who triggered first (Always First, 6.1). */
+export interface MaskCapture {
+  captor: PieceId;
+  victim: PieceId;
+  seen: 'none' | 'captor' | 'victim';
+}
 
 export interface MaskState {
   active: Record<Side, boolean>;
@@ -24,6 +43,8 @@ export interface MaskState {
    * only if the activation reveal that follows it is not hidden (Veil). Cleared by the next event.
    */
   pending: { side: Side; pieceType: PieceType; ability: string; odd: boolean } | null;
+  /** The current move capture (reset when the turn passes, so it never enters the repetition hash). */
+  cap: MaskCapture | null;
 }
 const ID = 'masquerade_mask';
 
@@ -99,6 +120,30 @@ function exposes(ctx: MutCtx, owner: Side, shown: ElementId, ev: BattleEvent): b
       const path = between(ev.from, ev.to);
       return path !== null && path.length > 0 && throughOwn(ctx, piece, path);
     }
+    case 'EffectFizzled':
+      // Bulwark (Stone) answered an effect capture of the wearer's piece.
+      return (
+        ev.reason === 'bulwark' &&
+        ev.target !== undefined &&
+        ctx.piece(ev.target).side === owner &&
+        shown !== 'stone'
+      );
+    case 'Captured':
+      // Shown Stone, but an effect capture removed a piece whose Bulwark was never spent.
+      return (
+        ev.by === 'effect' &&
+        ev.victimSide === owner &&
+        shown === 'stone' &&
+        ctx.piece(ev.victim).element !== 'stone'
+      );
+    case 'AbilityNegated':
+      // Stillness (Frost) negated the opponent's After-capturing ability on a wearer's victim.
+      return (
+        ev.side !== owner &&
+        ev.source.kind === 'trait' &&
+        ev.source.id === 'stillness' &&
+        shown !== 'frost'
+      );
     case 'Check': {
       if (ev.side === owner || shown === 'tide') return false;
       for (const p of ctx.pieces(owner)) {
@@ -113,10 +158,45 @@ function exposes(ctx: MutCtx, owner: Side, shown: ElementId, ev: BattleEvent): b
   }
 }
 
+/**
+ * Track the move capture whose reactions are resolving and report an Always First (Storm) or
+ * Stillness (Frost) observation the shown element cannot explain (M7 7.3).
+ */
+function captureOrder(
+  ctx: MutCtx,
+  owner: Side,
+  shown: ElementId,
+  cap: MaskCapture | null,
+  ev: BattleEvent,
+): { cap: MaskCapture | null; observed: boolean } {
+  if (ev.k === 'TurnPassed') return { cap: null, observed: false };
+  if (ev.k === 'Captured' && ev.by === 'move' && ev.captor !== null)
+    return { cap: { captor: ev.captor, victim: ev.victim, seen: 'none' }, observed: false };
+  if (ev.k !== 'AbilityTriggered' || !cap) return { cap, observed: false };
+  const captor = ctx.piece(cap.captor);
+  const victim = ctx.piece(cap.victim);
+  let observed = false;
+  let seen = cap.seen;
+  if (ev.piece === cap.victim && ev.category === 'CAPTURED') {
+    // The wearer's captor resolved first: only Always First does that.
+    if (seen === 'captor' && captor.side === owner && shown !== 'storm') observed = true;
+    if (seen === 'none') seen = 'victim';
+  } else if (ev.piece === cap.captor && ev.category === 'CAPTURES') {
+    // Shown Storm, yet a non-Storm victim's When-captured abilities resolved first.
+    if (seen === 'victim' && captor.side === owner && shown === 'storm')
+      observed ||= victim.element !== 'storm';
+    // Shown Frost, yet the opponent's After-capturing ability was not negated by Stillness.
+    if (captor.side !== owner && victim.side === owner && shown === 'frost')
+      observed ||= victim.element !== 'frost';
+    if (seen === 'none') seen = 'captor';
+  }
+  return { cap: seen === cap.seen ? cap : { ...cap, seen }, observed };
+}
+
 export default defineItem({
   id: ID,
   name: 'Masquerade Mask',
-  version: 3,
+  version: 4,
   slotCost: 1,
   minLevel: 14,
   param: { element: 'required' },
@@ -130,6 +210,7 @@ export default defineItem({
           black: ctx.hasItem('black', ID) && ctx.itemParam('black', ID)?.element !== undefined,
         },
         pending: null,
+        cap: null,
       }),
     },
     revealFilter: {
@@ -147,7 +228,9 @@ export default defineItem({
       if (!s.active[owner]) return;
       const shown = ctx.itemParam(owner, ID)?.element;
       if (!shown) return;
-      let drop = false;
+      // The order of activations is public even when they are unnamed (Always First, Stillness).
+      const order = captureOrder(ctx, owner, shown, s.cap, ev);
+      let drop = order.observed;
       let pending: MaskState['pending'] = null;
       const p = s.pending;
       if (
@@ -158,20 +241,25 @@ export default defineItem({
         ev.info.pieceType === p.pieceType &&
         ev.info.ability === p.ability
       ) {
-        drop = p.odd;
+        drop ||= p.odd;
       } else if (ev.k === 'AbilityTriggered' && ev.side === owner && ev.ability !== null) {
         // The flag is public only once the opponent can name the ability (8.2, DD-28).
         const odd = exposes(ctx, owner, shown, ev);
-        if (named(ctx, owner, ev.pieceType, ev.ability)) drop = odd;
+        if (named(ctx, owner, ev.pieceType, ev.ability)) drop ||= odd;
         else if (odd) pending = { side: owner, pieceType: ev.pieceType, ability: ev.ability, odd };
       } else {
-        drop = exposes(ctx, owner, shown, ev);
+        drop ||= exposes(ctx, owner, shown, ev);
       }
       if (!drop) {
-        if (pending !== p) ctx.setSlice<MaskState>({ ...s, pending });
+        if (pending !== p || order.cap !== s.cap)
+          ctx.setSlice<MaskState>({ ...s, pending, cap: order.cap });
         return;
       }
-      ctx.setSlice<MaskState>({ active: { ...s.active, [owner]: false }, pending: null });
+      ctx.setSlice<MaskState>({
+        active: { ...s.active, [owner]: false },
+        pending: null,
+        cap: null,
+      });
       ctx.revealSelf('observed');
       const els = ctx.state.armies[owner].loadout.elements;
       ctx.reveal(owner, { kind: 'elements', elements: [...els] }, 'observed');

@@ -15,6 +15,7 @@ import {
   type BattleEvent,
   type ChoiceOption,
   type Engine,
+  type ElementId,
   type FormatId,
   type GameState,
   type Side,
@@ -1335,13 +1336,32 @@ const POOL = [
   'rebirth',
   'stalwart',
   'veil',
+  // M7 7.3: Storm, Stone and Frost affinity abilities.
+  'squall',
+  'afterimage',
+  'pawn_storm',
+  'slipstream',
+  'buttress',
+  'stonewall',
+  'phalanx',
+  'rebuild',
+  'frost_heave',
+  'snowdrift',
+  'snowbound',
+  'permafrost',
 ] as const;
 
 const armyArb = fc.record({
   abilities: fc.subarray([...POOL], { maxLength: 5 }),
-  element: fc.constantFrom('neutral', 'ember', 'tide', 'grove') as fc.Arbitrary<
-    'neutral' | 'ember' | 'tide' | 'grove'
-  >,
+  element: fc.constantFrom<ElementId>(
+    'neutral',
+    'ember',
+    'tide',
+    'grove',
+    'storm',
+    'stone',
+    'frost',
+  ),
 });
 
 /** Invariants that must hold after every action of any battle. */

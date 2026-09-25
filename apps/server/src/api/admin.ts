@@ -13,10 +13,14 @@
  * | `POST /api/admin/players/:id/unsuspend`            | —               | `{ player }`                    |
  * | `POST /api/admin/players/:id/chat-ban`             | `Sanction`      | `{ player }` (`hours` required) |
  * | `POST /api/admin/players/:id/chat-unban`           | —               | `{ player }`                    |
+ * | `GET /api/admin/tournaments`                       | —               | `{ tournaments }` (M7 7.1)      |
+ * | `POST /api/admin/tournaments`                      | `CreateTournament` | `{ tournament }`             |
+ * | `POST /api/admin/tournaments/:id/cancel`           | —               | `{ tournament }`; 409 `closed`  |
  * | `GET /admin`, `/admin/players?q=`, `/admin/players/:id` | —          | the pages                       |
+ * | `GET /admin/tournaments`, `POST /admin/tournaments`, `POST /admin/tournaments/:id/cancel` | form | M7 7.1 |
  * | `POST /admin/reports/:id`, `/admin/players/:id/...` | form           | 303 back to the page            |
  */
-import { ResolveReport, Sanction } from '@chain-theorem/protocol';
+import { CreateTournament, ResolveReport, Sanction } from '@chain-theorem/protocol';
 import { HttpError, body, json, type Router } from '../http.ts';
 import {
   chatBan,
@@ -37,6 +41,8 @@ import {
   playerPage,
   searchPage,
 } from '../moderation/pages.ts';
+import { createFromForm, tournamentsPage } from '../moderation/tournaments.ts';
+import { adminList, cancelTournament, createTournament } from './tournaments.ts';
 import type { Ctx } from './context.ts';
 
 async function adminCtx(ctx: Ctx): Promise<AdminCtx> {
@@ -131,6 +137,49 @@ export function adminRoutes(r: Router<Ctx>): void {
     await liftChatBan(c, id);
     return json({ player: await playerFacts(ctx.db, id, ctx.now) });
   });
+
+  // ---- Tournaments (M7 7.1; audited admin.tournament_create / admin.tournament_cancel) ---------------
+  r.add('GET', '/api/admin/tournaments', async (_req, ctx) => {
+    await adminCtx(ctx);
+    return json({ tournaments: await adminList(ctx.db) });
+  });
+
+  r.add('POST', '/api/admin/tournaments', async (req, ctx) => {
+    const c = await adminCtx(ctx);
+    const input = await body(req, CreateTournament);
+    return json({ tournament: await createTournament(ctx.env, ctx.db, input, c.admin, ctx.now) });
+  });
+
+  r.add('POST', '/api/admin/tournaments/:id/cancel', async (_req, ctx, params) => {
+    const c = await adminCtx(ctx);
+    return json({
+      tournament: await cancelTournament(ctx.env, ctx.db, params.id ?? '', c.admin, ctx.now),
+    });
+  });
+
+  r.add('GET', '/admin/tournaments', async (req, ctx) =>
+    htmlPage(async () => {
+      await adminCtx(ctx);
+      const done = new URL(req.url).searchParams.get('done') ?? undefined;
+      return htmlResponse(tournamentsPage(await adminList(ctx.db), done));
+    }),
+  );
+
+  r.add('POST', '/admin/tournaments', async (req, ctx) =>
+    htmlPage(async () => {
+      const c = await adminCtx(ctx);
+      await createTournament(ctx.env, ctx.db, createFromForm(await form(req)), c.admin, ctx.now);
+      return see('/admin/tournaments?done=tournament_created');
+    }),
+  );
+
+  r.add('POST', '/admin/tournaments/:id/cancel', async (_req, ctx, params) =>
+    htmlPage(async () => {
+      const c = await adminCtx(ctx);
+      await cancelTournament(ctx.env, ctx.db, params.id ?? '', c.admin, ctx.now);
+      return see('/admin/tournaments?done=tournament_cancelled');
+    }),
+  );
 
   // ---- Pages --------------------------------------------------------------------------------------
   r.add('GET', '/admin', async (req, ctx) =>

@@ -74,6 +74,11 @@ export const TILES: readonly TileDef[] = [
   g('meadow_grass'),
   g('mushrooms'),
   g('reeds', true),
+  // Row 5: the highland of Highcairn Pass (M7 7.3: Storm, Stone and Frost).
+  g('snow'),
+  g('scree'),
+  g('frost_grass', false, true),
+  d('pine'),
 ];
 
 /** Tile id (0-based, as in the tileset) by kind. */

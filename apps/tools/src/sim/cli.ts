@@ -5,6 +5,7 @@
  *
  *   pnpm sim [--games N] [--format first_blood|vanguard|full] [--tier wild|trainer|elite]
  *            [--nodes K] [--workers W] [--suite elements|archetypes|all] [--seed S]
+ *            [--elements ember,tide,...] (default: every enabled element, CAPS.ENABLED_ELEMENTS)
  */
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
@@ -15,6 +16,7 @@ import { beats, type ElementId, type FormatId, type Side } from '@chain-theorem/
 import type { Tier } from '@chain-theorem/ai';
 import {
   ARCHETYPES,
+  archetypeElements,
   assertValid,
   buildLoadout,
   elementLoadout,
@@ -79,7 +81,10 @@ if (!isMainThread) {
   setPool(options.pool);
   const jobs: Job[] = [];
   let seed = seed0;
-  const els = CAPS.ENABLED_ELEMENTS as readonly ElementId[];
+  const only = arg('elements', '');
+  const els = (CAPS.ENABLED_ELEMENTS as readonly ElementId[]).filter(
+    (e) => only === '' || only.split(',').includes(e),
+  );
   if (suite === 'all' || suite === 'elements') {
     for (const a of els) {
       for (const b of els) {
@@ -114,8 +119,7 @@ if (!isMainThread) {
         if (bi <= ai) continue;
         for (let i = 0; i < games; i++) {
           const aWhite = i % 2 === 0;
-          const e1 = els[i % els.length] as ElementId;
-          const e2 = els[(i + 1) % els.length] as ElementId;
+          const [e1, e2] = archetypeElements(els, i);
           const la = assertValid(buildLoadout(a, e1, e2), 25);
           const lb = assertValid(buildLoadout(b, e1, e2), 25);
           jobs.push({
@@ -283,7 +287,7 @@ if (!isMainThread) {
   );
   const md = lines.join('\n');
   mkdirSync('reports/sim', { recursive: true });
-  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}`;
+  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}${only ? `-${els.join('_')}` : ''}`;
   writeFileSync(`reports/sim/${tag}.md`, md + '\n');
   writeFileSync(
     `reports/sim/${tag}.json`,

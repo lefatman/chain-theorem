@@ -13,3 +13,5 @@ export * from './trade.ts';
 export * from './social.ts';
 export * from './billing.ts';
 export * from './moderation.ts';
+export * from './spectate.ts';
+export * from './tournament.ts';

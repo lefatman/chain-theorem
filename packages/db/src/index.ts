@@ -43,6 +43,7 @@ export type { ConsumedLoginToken, LoginTokenRepo } from './repos/login-tokens.ts
 export type { OauthAccount, OauthAccountRepo } from './repos/oauth.ts';
 export {
   normalizeEmail,
+  spectatingAllowed,
   type NewPlayer,
   type Player,
   type PlayerExport,
@@ -127,3 +128,13 @@ export {
   type ReportReasonName,
   type ReportStatus,
 } from './repos/moderation.ts';
+export {
+  TOURNAMENT_STATUSES,
+  type AddEntryResult,
+  type NewTournament,
+  type Tournament,
+  type TournamentEntry,
+  type TournamentPatch,
+  type TournamentRepo,
+  type TournamentStatusName,
+} from './repos/tournaments.ts';

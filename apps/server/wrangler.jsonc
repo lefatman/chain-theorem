@@ -22,6 +22,7 @@
       { "name": "METRICS", "class_name": "Metrics" },
       { "name": "TRADE_SESSION", "class_name": "TradeSession" },
       { "name": "GUILD_ROOM", "class_name": "GuildRoom" },
+      { "name": "TOURNAMENT_ROOM", "class_name": "TournamentRoom" },
     ],
   },
   "migrations": [
@@ -29,6 +30,7 @@
     { "tag": "v2", "new_sqlite_classes": ["ZoneRoom", "Metrics"] },
     { "tag": "v3", "new_sqlite_classes": ["TradeSession"] },
     { "tag": "v4", "new_sqlite_classes": ["GuildRoom"] },
+    { "tag": "v5", "new_sqlite_classes": ["TournamentRoom"] },
   ],
   // Local and test database (13.6): D1 (SQLite). Production uses PostgreSQL through Hyperdrive.
   "d1_databases": [
@@ -62,6 +64,7 @@
           { "name": "METRICS", "class_name": "Metrics" },
           { "name": "TRADE_SESSION", "class_name": "TradeSession" },
           { "name": "GUILD_ROOM", "class_name": "GuildRoom" },
+          { "name": "TOURNAMENT_ROOM", "class_name": "TournamentRoom" },
         ],
       },
       // Telemetry (14.2): Workers Analytics Engine; the cost dashboard reads the METRICS rollups.

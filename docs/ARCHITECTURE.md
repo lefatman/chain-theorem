@@ -160,6 +160,10 @@ export interface Engine {
   applyAction(state: GameState, input: ActionInput): ApplyResult;
   project(state: GameState, viewer: Side): PublicState;
   projectEvents(state: GameState, events: BattleEvent[], viewer: Side): PublicEvent[];
+  // M7 7.2 spectators: public information only (2.5); same shape as PublicState with viewer
+  // 'spectator', no loadout or sets on either army, legal [] and a pending choice without request.
+  projectSpectator(state: GameState): SpectatorState;
+  projectSpectatorEvents(state: GameState, events: BattleEvent[]): PublicEvent[];
   preview(pub: PublicState, own: Loadout, move: Move): Preview;
   stateHash(state: GameState): string; // 16 hex chars; Zobrist board + FNV-1a extras
   validateLoadout(loadout: Loadout, player: PlayerFacts): LoadoutValidation;
@@ -240,6 +244,31 @@ export type FizzleReason =
   string value equals an unrevealed opponent ability or item id, if a name appears on a piece type it
   was not revealed for, if a hidden activation carries its category or attunement, or if a masked
   element or an opponent's pending burn is visible (`apps/tools/src/fuzz/game.ts`).
+- **Spectators (M7 7.2, spec 10.4).** `projectSpectator(state)` and
+  `projectSpectatorEvents(state, events)` give a spectator exactly the information both players
+  have. The rule: about each army `S`, a spectator learns what `S`'s opponent knows, nothing
+  more. `S`'s owner knows all of `S` and every `Revealed` event goes to both players, so
+  `reveals[S]` is common knowledge and the result is the intersection of the two players'
+  knowledge (a Scout or Scout's Lens reveal is public once made; the victim knows its own set and
+  sees the reveal). Internally the viewer `'spectator'` is resolved
+  per owner (`knowerOf(owner, 'spectator') = opposite(owner)`) in `knownAbility`, `knownItem`,
+  `displayElement` and every event rule above. So a spectator gets: the whole board; each army's
+  level, displayed element(s) (a Masquerade Mask as the opponent sees it, pieces, army and
+  promotions alike), consumed slots and reveal log; usage counters only for abilities that army's
+  opponent can name; `pending` with the chooser only; `legal: []`; no `loadout` or `sets` on either
+  army. Events: activations, silences and negations of abilities the owner's opponent cannot name
+  are unnamed (no category or attunement), their fizzles and spent charges are dropped, every
+  `ChoiceMade` is dropped, sources the source owner's opponent cannot name are `{ kind: 'hidden' }`.
+  Slices reach spectators only through the module's own `stateSlice.spectate(value, ctx)` (never
+  derived from `project`; omitted means hidden): Hot Foot shows its burning squares (6.1, public)
+  and never a pending burn; Bulwark's spent list is public; the Mask, Crystal and Overabundance
+  slices are private. `scanSpectatorPayload(payload, state)` (`packages/content/src/scan.ts`) is the
+  R-SEC-001 check for anything a spectator receives: no id of either army that its opponent has not
+  seen (unless the other army revealed the same id), every named ability, item and source pinned to
+  its owner's reveal log (per piece type), no loadout, legal move, prompt request, `ChoiceMade`,
+  unnamed fizzle or charge, private slice or pending burn, and masked elements shown as masked. The
+  fuzzer runs it on every scanned game; the property tests check that a spectator never learns
+  more than either player (`packages/content/test/spectator.test.ts`).
 
 ### 2.6 The five-phase pipeline and suspended actions (5.3, 5.4)
 
@@ -347,7 +376,8 @@ each sorted by `priority` then `id`. Item and ability hooks run only for the sid
 export interface RuleHooks {
   priority?: number;
   // init runs once at battle start for every registry module (owner null); project omitted = private.
-  stateSlice: { id: string; init(ctx: ReadCtx): unknown; project?(v: unknown, viewer: Side, ctx: ReadCtx): unknown; hash?: boolean };
+  // spectate (M7 7.2): what a spectator sees, facts both players know; omitted = hidden from spectators.
+  stateSlice: { id: string; init(ctx: ReadCtx): unknown; project?(v: unknown, viewer: Side, ctx: ReadCtx): unknown; spectate?(v: unknown, ctx: ReadCtx): unknown; hash?: boolean };
   onBattleStart(ctx: SetupCtx): void;
   moveFilter: {
     passThrough?(ctx: ReadCtx, piece: PieceView): boolean;          // Flow
@@ -455,33 +485,39 @@ Deterministic when given a node budget (the simulator and tests), time-bounded o
 Envelope `{ t: string, s?: number, d?: unknown }`; every message has a Zod schema; invalid messages
 are dropped and counted.
 
-| Direction       | t                               | d                                                              |
-| --------------- | ------------------------------- | -------------------------------------------------------------- |
-| client → zone   | `step`                          | `{ dir: 'n' \| 's' \| 'e' \| 'w' }`                            |
-| client → zone   | `chat`                          | `{ ch: 'zone' \| 'party' \| 'guild' \| 'whisper', text, to? }` |
-| client → zone   | `chal`, `chalReply`, `interact` | challenge, accept or decline, talk to NPC                      |
-| zone → client   | `zsnap`                         | `{ zone, channel, you, players[], npcs[], challengeZone }`     |
-| zone → client   | `zstep`                         | `{ p, x, y, dir }`                                             |
-| zone → client   | `zjoin`, `zleave`, `zbattle`    | presence changes, battling marker                              |
-| zone → client   | `chatmsg`                       | `{ ch, from, name, text, filtered }`                           |
-| zone → client   | `enc`                           | `{ battleId, token }`                                          |
-| client → battle | `hello`                         | `{ from }` last event index seen (reconnect replay)            |
-| client → battle | `mv`                            | `{ move: 'e2e4', choices? }`                                   |
-| client → battle | `ch`                            | `{ promptId, option }`                                         |
-| client → battle | `resign`, `draw`, `drawReply`   | conduct                                                        |
-| battle → client | `bstart`                        | `{ public, you }`                                              |
-| battle → client | `bev`                           | `{ from, events, clocks }`                                     |
-| battle → client | `prompt`                        | `{ promptId, options, deadline }`                              |
-| battle → client | `bend`                          | `{ result, reason, rewards }`                                  |
-| battle → client | `err`, `drawOffer`, `clock`     | errors, draw offers, clock sync                                |
+| Direction       | t                               | d                                                                                                                    |
+| --------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| client → zone   | `step`                          | `{ dir: 'n' \| 's' \| 'e' \| 'w' }`                                                                                  |
+| client → zone   | `chat`                          | `{ ch: 'zone' \| 'party' \| 'guild' \| 'whisper', text, to? }`                                                       |
+| client → zone   | `chal`, `chalReply`, `interact` | challenge, accept or decline, talk to NPC                                                                            |
+| zone → client   | `zsnap`                         | `{ zone, channel, you, players[], npcs[], challengeZone }`                                                           |
+| zone → client   | `zstep`                         | `{ p, x, y, dir }`                                                                                                   |
+| zone → client   | `zjoin`, `zleave`, `zbattle`    | presence changes, battling marker                                                                                    |
+| zone → client   | `chatmsg`                       | `{ ch, from, name, text, filtered }`                                                                                 |
+| zone → client   | `enc`                           | `{ battleId, token }`                                                                                                |
+| zone → client   | `tourney`                       | `{ id, name, kind: 'paired' \| 'game' \| 'finished' \| 'cancelled', round?, opponent?, startsAt?, place? }` (M7 7.1) |
+| client → battle | `hello`                         | `{ from }` last event index seen (reconnect replay)                                                                  |
+| client → battle | `mv`                            | `{ move: 'e2e4', choices? }`                                                                                         |
+| client → battle | `ch`                            | `{ promptId, option }`                                                                                               |
+| client → battle | `resign`, `draw`, `drawReply`   | conduct                                                                                                              |
+| battle → client | `bstart`                        | `{ public, you }`                                                                                                    |
+| battle → client | `bev`                           | `{ from, events, clocks }`                                                                                           |
+| battle → client | `prompt`                        | `{ promptId, options, deadline }`                                                                                    |
+| battle → client | `bend`                          | `{ result, reason, rewards }`                                                                                        |
+| battle → client | `err`, `drawOffer`, `clock`     | errors, draw offers, clock sync                                                                                      |
+| battle → client | `watchers`                      | `{ count }` spectators of a public battle (M7 7.2)                                                                   |
+| client → watch  | `hello`                         | `{ from }` the only spectator message (M7 7.2, `spectate.ts`)                                                        |
+| watch → client  | `sstart`                        | `{ public, players, delay, eventCount, clocks, watchers }`                                                           |
+| watch → client  | `sev`                           | `{ from, to, events, public, clocks }` (delayed)                                                                     |
+| watch → client  | `send`, `watchers`, `err`       | result once all is shown, spectator count, `not_public`                                                              |
 
 ## 6. Server (`apps/server`, 12.2, R-TECH-002)
 
 Worker routes: `/api/auth/*` (magic link, OAuth, sign-out), `/api/me`, `/api/loadouts`, `/api/inventory`,
 `/api/battles` (challenge links, NPC battles), `/api/queue`, `/api/trades`, `/api/guilds`,
 `/api/leaderboards`, `/api/tournaments`, `/api/billing/*` (checkout, webhook), `/api/admin/*`,
-`/ws/zone/:zone`, `/ws/battle/:id`, `/ws/queue/:format` (WebSocket upgrades need a 60-second signed
-token bound to the player and room, R-SEC-006), and static assets.
+`/ws/zone/:zone`, `/ws/battle/:id`, `/ws/queue/:format`, `/ws/spectate/:id` (WebSocket upgrades need a
+60-second signed token bound to the player and room, R-SEC-006), and static assets.
 
 REST contract (M4; JSON bodies validated with `@chain-theorem/protocol` schemas; errors are
 `{ error: code }` with a 4xx status; state-changing requests must come from the app's own origin):
@@ -630,16 +666,84 @@ a full channel answers 409). Messages are `ClientZone` / `ServerZone` (`packages
 New accounts start at level 1 with the starter collection: Dual Adept's Glove, Hit and Run, Last
 Word and Scout (every level-1 module); M5 rewards grow it.
 
-| Durable Object   | One per                  | Holds                                                             | Time                                                         |
-| ---------------- | ------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------------ |
-| `BattleRoom`     | battle                   | GameState, full event log, clocks, sockets (hibernation), prompts | alarm: flag fall, prompt timeout, disconnect grace, NPC move |
-| `ZoneRoom`       | zone channel             | tile positions, zone chat, encounter rolls, challenge-zone state  | none (event-driven)                                          |
-| `Matchmaker`     | queue (format x bracket) | waiting players, pairing                                          | alarm: widen search                                          |
-| `Metrics`        | deployment (`global`)    | hourly usage rollups for the cost dashboard (14.2, DD-81)         | none                                                         |
-| `TradeSession`   | trade or wager session   | both offers, revision, marks, confirmations, wager attempt state  | alarm: invitation lapse, idle expiry, wager watchdog         |
-| `GuildRoom`      | guild                    | roster cache, guild chat                                          | none                                                         |
-| `TradeSession`   | trade                    | both offers, confirmations                                        | alarm: expiry                                                |
-| `TournamentRoom` | tournament               | bracket, pairings, results                                        | alarm: round start                                           |
+M7 spectating (7.2, spec 10.4; `api/spectate.ts`, `battle/spectate.ts`, `rooms/battle-room.ts`,
+migration `0008_spectate`; schemas in `packages/protocol/src/spectate.ts`; PLAYTEST values in
+`SPECTATE`: `delayPlies` 2, `maxPerRoom` 50, `listLimit` 20, `listMaxAgeMs` 6 h). Public kinds:
+ranked, tournament (origin kind `tournament`) and challenge-zone battles (`challenge` with `auto`);
+NPC, lesson, wild, trainer, consent challenges, challenge links, casual queue pairings and wagers
+are never listed. A public battle is listed (`battles.listed = 1`) and made spectatable only when
+both players allow it at battle start (`players.spectate`: the player's choice, NULL for the default:
+on for adults, off under 18, R-SEC-011). A block in either direction between the viewer and a player
+hides the battle from that viewer (not listed, 404).
+
+| Method and path                  | Body                      | Answer                                                                                                               |
+| -------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/battles/live`          | —                         | `LiveBattles { battles: { id, format, kind, bracket?, tournament?, white, black, spectators, startedAt }[], delay }` |
+| `POST /api/battles/:id/spectate` | —                         | `SpectateTicket { battleId, token, url: /ws/spectate/:id?t= }` (60 s, `spectate:<id>`); 404, 409 `full`              |
+| `GET /api/settings/spectate`     | —                         | `SpectateSetting { allow, custom, byDefault }`                                                                       |
+| `PUT /api/settings/spectate`     | `{ allow: bool \| null }` | `SpectateSetting` (null: back to the default); applies to battles that start later                                   |
+
+The spectator socket is read-only: only `hello {from}` is accepted; everything else is dropped and
+counted with the same token bucket as a player (`LIMITS.battle`, kept in the socket attachment so it
+survives hibernation) and a socket that keeps offending is closed (1008). The core keeps a
+`spectate` block in its snapshot: every log record of a public battle also stores `spec` (its events
+projected with `projectSpectatorEvents` against the state after it), and its `projectSpectator`
+view waits in `spectate.pending` until the live ply is `delayPlies` past it; the start record goes at
+once and everything goes when the battle ends (then `send`). Released views go as `sev` to every
+spectator socket that said hello (`Outbox.spectate`); `spectatorHello(from)` answers one socket with
+the delayed position and the released events since `from`. The delay is counted in plies rather than
+seconds, so no extra alarm or timer is needed and a spectator can never see the position the player
+to move is thinking about; snapshot plus log records restore it after an eviction. Players and
+spectators get `watchers {count}` when the spectator count changes.
+
+M7 tournaments (7.1, spec 10.4, 9.3; `api/tournaments.ts`, `rooms/tournament-room.ts`, the pure
+`tournament/` core, `world/tournament.ts`, migration `0007_tournaments`; schemas in
+`packages/protocol/src/tournament.ts`; PLAYTEST values in `TOURNAMENTS`: formats full, vanguard and
+first_blood, `maxPlayers` 32 (at most 64), `minPlayers` 2, Swiss rounds ceil(log2 n) + 1 capped at a
+round robin, `breakMs` 60 s between a round's pairings and its battles, a bye is worth 1 point, a
+drawn knockout game sends Black through, one missed game withdraws a player, `watchdogMs` 5 min,
+prizes 250 XP + 200 coins, 150 + 100, 100 + 50 for places 1 to 3, a daily Full Battle Swiss per
+bracket at 19:00 UTC). Events run per format and slot bracket (the slots unlocked at the player's
+level, never the loadout). The TournamentRoom (one per event, named by its id) wraps the pure
+`TournamentCore` and holds the live state; the `tournaments` and `tournament_entries` rows are the
+listing and history. The start alarm drops entrants no longer eligible (bracket, suspension,
+deleted), cancels below `minPlayers`, seeds by the Glicko-2 rating of the format and bracket (1500
+unrated), and pairs round 1; each round's pairings are public for `breakMs`, then an alarm creates its
+BattleRooms (`t-<tournament>-<round>-<board>`, origin `{ kind: 'tournament', tournamentId, round }`,
+each player's fighting loadout); `settleBattle` reports each result to the room (`POST /result`,
+idempotent per battle); a lost report is recovered by the watchdog from the `battles` row and the R2
+archive. A side that never sent a frame before the battle ended by abandonment did not start it: a
+forfeit loss; both absent is a double loss. Swiss pairing: score groups (top half against bottom
+half), no repeat pairings where avoidable (a backtracking search with a step budget), colour
+preferences (two absolute wishes for the same colour are paired only when unavoidable), one bye per
+player at most (the lowest ranked); standings by points, Buchholz, Sonneborn-Berger, seed. Knockout:
+seeded bracket of the next power of two, byes to the top seeds, places 1, 2, 3, 3, 5 ...; a withdrawn
+player forfeits the next match without a battle. The end writes the row and places in one atomic list
+and grants the prizes once per player (`tournament:<id>:<player>`, R-SEC-003), retried by alarm until
+it succeeds. Players in the world get `tourney` notices through presence; the tournament page polls.
+
+| Method and path                                                                           | Body               | Answer                                                                                                                                                              |
+| ----------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/tournaments`                                                                    | —                  | `TournamentList { bracket, upcoming, live, finished }` (today's scheduled events created when listed)                                                               |
+| `GET /api/tournaments/:id`                                                                | —                  | `TournamentView`: entrants, standings, rounds and pairings, prizes, `you { registered, withdrawn, game, next, place, cannot }`, `rev`, `now`                        |
+| `POST /api/tournaments/:id/register`                                                      | —                  | `TournamentView`; 402/403 play gate; 409 `closed`, `full`, `already`, `wrong_bracket`                                                                               |
+| `DELETE /api/tournaments/:id/register`                                                    | —                  | `TournamentView`: off the list before the start, withdrawn after it; 404 `not_registered`                                                                           |
+| `POST /api/tournaments/:id/ticket`                                                        | —                  | `BattleTicket` for your game of the current round; 404 `no_game`                                                                                                    |
+| `GET /api/admin/tournaments`                                                              | —                  | `{ tournaments }` (ADMIN_EMAILS)                                                                                                                                    |
+| `POST /api/admin/tournaments`                                                             | `CreateTournament` | `{ tournament }`; `{ name?, format, bracket, system: 'swiss' \| 'se', startsAt? \| startInMs?, maxPlayers?, rounds?, breakMs? }`; audited `admin.tournament_create` |
+| `POST /api/admin/tournaments/:id/cancel`                                                  | —                  | `{ tournament }`; 409 `closed`; audited `admin.tournament_cancel`                                                                                                   |
+| `GET /admin/tournaments`, `POST /admin/tournaments`, `POST /admin/tournaments/:id/cancel` | form               | the console page: events with a cancel button and a create form (303 back)                                                                                          |
+
+| Durable Object   | One per                  | Holds                                                                                | Time                                                                      |
+| ---------------- | ------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `BattleRoom`     | battle                   | GameState, full event log, clocks, sockets (hibernation), prompts                    | alarm: flag fall, prompt timeout, disconnect grace, NPC move              |
+| `ZoneRoom`       | zone channel             | tile positions, zone chat, encounter rolls, challenge-zone state                     | none (event-driven)                                                       |
+| `Matchmaker`     | queue (format x bracket) | waiting players, pairing                                                             | alarm: widen search                                                       |
+| `Metrics`        | deployment (`global`)    | hourly usage rollups for the cost dashboard (14.2, DD-81)                            | none                                                                      |
+| `TradeSession`   | trade or wager session   | both offers, revision, marks, confirmations, wager attempt state                     | alarm: invitation lapse, idle expiry, wager watchdog                      |
+| `GuildRoom`      | guild                    | roster cache, guild chat                                                             | none                                                                      |
+| `TradeSession`   | trade                    | both offers, confirmations                                                           | alarm: expiry                                                             |
+| `TournamentRoom` | tournament               | TournamentCore snapshot: entrants, seeds, rounds, pairings, results, places (M7 7.1) | alarm: the start, each round after its break, watchdog, the end's retries |
 
 Every DO uses `ctx.acceptWebSocket` (Hibernation API) and `ctx.storage.setAlarm`; no `setInterval`, no
 game loop, no outbound sockets (R-COST-002). BattleRoom persists `GameState` and the event log in its own
@@ -717,23 +821,24 @@ export interface Db {
 export function migrate(db: Db): Promise<string[]>; // ids applied by this call; [] when up to date
 ```
 
-| Repository      | Methods (M4)                                                                                                                                                                                                                                                                |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `players`       | `create({ email, displayName, adultFrom })`, `getById`, `getByEmail`, `rename`, `addXp(id, delta, levelForXp?)`, `syncLevel(id, levelForXp)` (level only rises), `addXpStatement`, `exportData(id)`, `delete(id)` (R-SEC-010)                                               |
-| `sessions`      | `create(playerId, { ttlMs })` returns the raw 32-byte token once and stores its SHA-256, `getValid(token, now)`, `delete(token)`, `deleteForPlayer`, `deleteExpired(now)` (R-SEC-006)                                                                                       |
-| `loginTokens`   | `issue({ email, purpose, ttlMs, data? })` (magic link; hashed; `data` carries display name, `adultFrom` and a pending `oauth` identity), `consume(token, now, purpose?)` exactly once, `countIssuedSince(email, since)`, `deleteExpired(now)`                               |
-| `oauthAccounts` | `link(playerId, provider, providerUserId)` (false if already linked), `findPlayerId(provider, providerUserId)`, `listForPlayer`                                                                                                                                             |
-| `inventory`     | `list(playerId)`, `qty`, `grant(playerId, 'item' \| 'card', id, qty)`, `spend(...)` (conditional, boolean), `grantStatement`, `spendStatements` (for atomic lists)                                                                                                          |
-| `loadouts`      | `list(playerId)`, `get(playerId, id)`, `count`, `save(playerId, { id?, name, loadout, isValid })` (null if the id is not the player's), `setValid`, `delete(playerId, id)`                                                                                                  |
-| `battles`       | `create({ id?, format, whiteId, blackId })` (result null; `id` may be any 1..128 char string, e.g. `c-<code>`), `get`, `finish(id, { result, reason, endedAt, logKey })` (once), `finishStatement`, `listRecentForPlayer`, `listActiveForPlayer`                            |
-| `wagers`        | `create({ battleId, whiteStake, blackStake, status? })`, `get`, `getByBattle` (escrow and settlement: M6)                                                                                                                                                                   |
-| `rewards`       | `grant({ key, playerId, items?, cards?, xp?, coins?, keyItems?, flags? })` returns `granted` or `duplicate`, `grantStatements` (to compose with `finishStatement`), `get(key, playerId)`                                                                                    |
-| `world`         | `coins`, `addCoinsStatement`, `spendCoins` (conditional), `keyItems`, `keyItemStatement`, `flags`, `flagStatement`, `setFlag`, `quests`, `questStatement`, `setQuest`, `setPosition`, `setPresence`, `presence`, `filterChat`, `setFilterChat`, `setLevel` (migration 0002) |
-| `social`        | `requestFriend` (a mutual request makes friends), `removeFriend`, `areFriends`, `friendIds`, `friends` (with presence for friends), `createParty`, `joinParty` (race-safe cap of 4 by `CHECK (size <= 4)`), `leaveParty`, `party`, `partyOf`                                |
-| `ratings`       | `get(playerId, format, bracket)`, `listForPlayer`, `upsert(...)` (Glicko-2 update: M6)                                                                                                                                                                                      |
-| `audit`         | `append({ playerId, kind, payload })`, `appendStatement`, `listForPlayer`, `listKinds(playerId, kinds, since)` (M6 6.4)                                                                                                                                                     |
-| `safety`        | M6 6.4: `mute`, `unmute`, `mutes`, `mutedIds`, `block` (one atomic list with the friendship removal), `unblock`, `blocks`, `blockedIds`, `blockedEither(a, b)`, `blockedAmong(player, others)`                                                                              |
-| `moderation`    | M6 6.4: `fileReport` (per-day limit), `openReports` (oldest first), `countOpen`, `reportsAbout`, `reportCounts`, `resolveReport` (once), `suspend` (revokes sessions atomically), `liftSuspension`, `setChatBan`, `findPlayers`                                             |
+| Repository      | Methods (M4)                                                                                                                                                                                                                                                                                                                                                |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `players`       | `create({ email, displayName, adultFrom })`, `getById`, `getByEmail`, `rename`, `addXp(id, delta, levelForXp?)`, `syncLevel(id, levelForXp)` (level only rises), `addXpStatement`, `exportData(id)`, `delete(id)` (R-SEC-010), `setSpectate(id, allow \| null)` (M7 7.2; `spectatingAllowed(p, now)`)                                                       |
+| `sessions`      | `create(playerId, { ttlMs })` returns the raw 32-byte token once and stores its SHA-256, `getValid(token, now)`, `delete(token)`, `deleteForPlayer`, `deleteExpired(now)` (R-SEC-006)                                                                                                                                                                       |
+| `loginTokens`   | `issue({ email, purpose, ttlMs, data? })` (magic link; hashed; `data` carries display name, `adultFrom` and a pending `oauth` identity), `consume(token, now, purpose?)` exactly once, `countIssuedSince(email, since)`, `deleteExpired(now)`                                                                                                               |
+| `oauthAccounts` | `link(playerId, provider, providerUserId)` (false if already linked), `findPlayerId(provider, providerUserId)`, `listForPlayer`                                                                                                                                                                                                                             |
+| `inventory`     | `list(playerId)`, `qty`, `grant(playerId, 'item' \| 'card', id, qty)`, `spend(...)` (conditional, boolean), `grantStatement`, `spendStatements` (for atomic lists)                                                                                                                                                                                          |
+| `loadouts`      | `list(playerId)`, `get(playerId, id)`, `count`, `save(playerId, { id?, name, loadout, isValid })` (null if the id is not the player's), `setValid`, `delete(playerId, id)`                                                                                                                                                                                  |
+| `battles`       | `create({ id?, format, whiteId, blackId, listed? })` (result null; `id` may be any 1..128 char string, e.g. `c-<code>`), `get`, `finish(id, { result, reason, endedAt, logKey })` (once), `finishStatement`, `listRecentForPlayer`, `listActiveForPlayer`, `listLive(since, limit)` (M7 7.2)                                                                |
+| `wagers`        | `create({ battleId, whiteStake, blackStake, status? })`, `get`, `getByBattle` (escrow and settlement: M6)                                                                                                                                                                                                                                                   |
+| `rewards`       | `grant({ key, playerId, items?, cards?, xp?, coins?, keyItems?, flags? })` returns `granted` or `duplicate`, `grantStatements` (to compose with `finishStatement`), `get(key, playerId)`                                                                                                                                                                    |
+| `world`         | `coins`, `addCoinsStatement`, `spendCoins` (conditional), `keyItems`, `keyItemStatement`, `flags`, `flagStatement`, `setFlag`, `quests`, `questStatement`, `setQuest`, `setPosition`, `setPresence`, `presence`, `filterChat`, `setFilterChat`, `setLevel` (migration 0002)                                                                                 |
+| `social`        | `requestFriend` (a mutual request makes friends), `removeFriend`, `areFriends`, `friendIds`, `friends` (with presence for friends), `createParty`, `joinParty` (race-safe cap of 4 by `CHECK (size <= 4)`), `leaveParty`, `party`, `partyOf`                                                                                                                |
+| `ratings`       | `get(playerId, format, bracket)`, `listForPlayer`, `upsert(...)` (Glicko-2 update: M6)                                                                                                                                                                                                                                                                      |
+| `audit`         | `append({ playerId, kind, payload })`, `appendStatement`, `listForPlayer`, `listKinds(playerId, kinds, since)` (M6 6.4)                                                                                                                                                                                                                                     |
+| `safety`        | M6 6.4: `mute`, `unmute`, `mutes`, `mutedIds`, `block` (one atomic list with the friendship removal), `unblock`, `blocks`, `blockedIds`, `blockedEither(a, b)`, `blockedAmong(player, others)`                                                                                                                                                              |
+| `moderation`    | M6 6.4: `fileReport` (per-day limit), `openReports` (oldest first), `countOpen`, `reportsAbout`, `reportCounts`, `resolveReport` (once), `suspend` (revokes sessions atomically), `liftSuspension`, `setChatBan`, `findPlayers`                                                                                                                             |
+| `tournaments`   | M7 7.1: `create`, `createScheduled` (once per UNIQUE `schedule_key`), `get`, `byScheduleKeys`, `list(statuses, {limit, order})`, `update` (the room's summary), `addEntry` (entry + recount in one atomic list, CHECK `players <= max_players`), `removeEntry`, `entries`, `finish` (row and places, atomic), `registeredIn`, `idsForPlayer`, `removeEmpty` |
 
 Later milestones add repositories for guilds, trades, friends, quests, billing, social and tournaments; the
 guild, guild member, trade, friend and quest progress tables already exist.
@@ -788,6 +893,11 @@ connections per invocation, and Hyperdrive does the real pooling. Repositories n
   prompts, clocks, menus. All text-heavy UI lives in the DOM.
 - `src/lab/`: Scenario Lab (dev only, excluded from production builds by `import.meta.env.DEV`).
 - `src/world/` (M5): overworld scene from Tiled JSON, zone socket, chat, social panels.
+- M7 7.2 spectating: `ui/WatchScreen.tsx` (`#/watch`, lazy; the live list, the player's spectating
+  setting) and `battle/SpectatorView.tsx` with `battle/spectate.ts` (`SpectatorController`: a
+  read-only `BattleController` on the spectator socket that holds only spectator projections; the
+  same board scene with no input, both armies' public information, the delayed log with replay, a
+  "delayed by N plies" note, the result).
 - NPC search runs in a Web Worker in local play.
 
 ## 9. Data flow diagrams

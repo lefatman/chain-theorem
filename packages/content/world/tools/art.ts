@@ -99,6 +99,19 @@ const C = {
   meadowLight: hex('#a6dc86'),
   reed: hex('#5a8a3a'),
   reedDark: hex('#40682a'),
+  snow: hex('#e4ecf4'),
+  snowShade: hex('#c4d4e4'),
+  snowGlint: hex('#fbfdff'),
+  scree: hex('#a6988a'),
+  screeDark: hex('#827464'),
+  screeLight: hex('#c8bcac'),
+  frostBase: hex('#4e8c84'),
+  frost: hex('#3f7c76'),
+  frostDark: hex('#2c5c5a'),
+  frostTip: hex('#dcf2f8'),
+  pine: hex('#2e6a52'),
+  pineDark: hex('#1e4a3a'),
+  pineLight: hex('#4e8c6c'),
 } as const;
 
 class Tile {
@@ -587,6 +600,59 @@ const PAINTERS: Record<string, (t: Tile) => void> = {
       t.set(x + 1, y - 1, C.white);
       t.rect(x - 1, y, 2, 2, C.white);
     }
+  },
+  snow(t) {
+    t.fill(C.snow);
+    t.speckle(C.snowShade, 0.1);
+    t.speckle(C.snowGlint, 0.05, 1);
+  },
+  scree(t) {
+    t.fill(C.scree);
+    t.speckle(C.screeDark, 0.14);
+    t.speckle(C.screeLight, 0.08, 1);
+    // A few loose stones, lit from the top left.
+    for (const [x, y] of [
+      [3, 4],
+      [10, 2],
+      [6, 11],
+      [12, 12],
+    ] as const) {
+      t.rect(x, y, 2, 2, C.screeLight);
+      t.set(x + 1, y + 1, C.screeDark);
+    }
+  },
+  frost_grass(t) {
+    // Tall grass (10.2: encounters roll here) with rime on the blade tips.
+    t.fill(C.frostBase);
+    for (const [base, off] of [
+      [7, 0],
+      [15, 2],
+    ] as const) {
+      for (let x = 0; x < 16; x++) {
+        const h = [5, 3, 4, 2][(x + off) % 4] ?? 3;
+        for (let k = 0; k <= h; k++)
+          t.set(x, base - k, k === h ? C.frostTip : k < 2 ? C.frostDark : C.frost);
+      }
+    }
+  },
+  pine(t) {
+    // A snowy evergreen: three tiers over a short trunk, snow along each tier's top edge.
+    t.rect(7, 13, 2, 3, C.trunk);
+    t.rect(8, 13, 1, 3, C.trunkDark);
+    for (const [top, half] of [
+      [1, 3],
+      [5, 5],
+      [9, 7],
+    ] as const) {
+      for (let j = 0; j < 4; j++) {
+        const w = Math.min(half, 1 + j * 2);
+        for (let x = 8 - w; x < 8 + w; x++) t.set(x, top + j, x < 8 ? C.pine : C.pineDark);
+      }
+      for (let x = 7; x <= 8; x++) t.set(x, top, C.snowGlint);
+      t.set(8 - half, top + 3, C.snow);
+      t.set(7 + half, top + 3, C.snowShade);
+    }
+    t.outline(C.pineDark, (p) => p === C.pine || p === C.pineLight);
   },
   reeds(t) {
     water(t);

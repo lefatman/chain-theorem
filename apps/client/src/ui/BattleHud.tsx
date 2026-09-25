@@ -12,6 +12,7 @@ import type { BattleController } from '../battle/controller.ts';
 import { go } from '../app/router.ts';
 import { rematch } from './battleSession.ts';
 import { worldBattle } from '../world/session.ts';
+import { tournamentBattle } from '../state/tournament.ts';
 import { ElementBadge, PieceGlyph } from './bits.tsx';
 import { Clocks } from './Clocks.tsx';
 import { Dossier } from './Dossier.tsx';
@@ -110,6 +111,15 @@ export function BattleHud({ controller, compact, move, inspect, replay, onPrompt
             {worldBattle.value === controller ? (
               <button class="primary" onClick={() => go('world')}>
                 Return to the world
+              </button>
+            ) : tournamentBattle.value?.controller === controller ? (
+              <button
+                class="primary"
+                onClick={() =>
+                  go('tournaments', { id: tournamentBattle.value?.tournamentId ?? '' })
+                }
+              >
+                Back to the tournament
               </button>
             ) : s.connection === undefined ? (
               <>

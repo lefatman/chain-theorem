@@ -16,7 +16,13 @@ export default defineTrait({
   element: 'stone',
   version: 1,
   hooks: {
-    stateSlice: { id: ID, init: (): BulwarkState => ({ spent: [] }), project: (value) => value },
+    // Public: both players see the fizzle, so spectators may see the spent list too (M7 7.2).
+    stateSlice: {
+      id: ID,
+      init: (): BulwarkState => ({ spent: [] }),
+      project: (value) => value,
+      spectate: (value) => value,
+    },
     effectIntercept: (ctx, eff) => {
       if (eff.kind !== 'effectCapture' || eff.target.element !== 'stone') return 'allow';
       const s = ctx.slice<BulwarkState>(ID);

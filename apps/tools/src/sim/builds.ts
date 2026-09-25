@@ -99,6 +99,17 @@ export function buildLoadout(arch: Archetype, a: ElementId, b: ElementId, level 
   }
 }
 
+/**
+ * The element pair of an archetype suite's game `i`: pairs cycle through consecutive elements, and
+ * each pair plays two games in a row (the colours alternate by game), so every pair is played with
+ * both colour assignments. Cycling the pair every game tied each pair to one colour whenever the
+ * number of elements is even, as it is with six (M7 7.3, R-TEST-002).
+ */
+export function archetypeElements(els: readonly ElementId[], i: number): [ElementId, ElementId] {
+  const pair = Math.floor(i / 2);
+  return [els[pair % els.length] as ElementId, els[(pair + 1) % els.length] as ElementId];
+}
+
 /** Mono-element build used for element matchups (isolates the element relationship). */
 export function elementLoadout(element: ElementId): Loadout {
   return buildLoadout('focused', element, element);

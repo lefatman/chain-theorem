@@ -6,10 +6,13 @@ import type {
   AccessView,
   BattleTicket,
   BillingPlans,
+  LiveBattles,
   LoadoutBody,
   PlanId,
   ReportBody,
   SafetyLists,
+  SpectateSetting,
+  SpectateTicket,
   SubscriptionView,
   TradeAccess,
   TradeMode,
@@ -17,6 +20,7 @@ import type {
   WorldTicket,
 } from '@chain-theorem/protocol';
 import type { FormatId, Loadout, LoadoutError } from '@chain-theorem/rules';
+import type { TournamentList, TournamentView } from '@chain-theorem/protocol';
 import type {
   Bracket,
   GuildLeaderboard,
@@ -222,6 +226,23 @@ export const api = {
   block: (id: string) => call<SafetyLists>('POST', '/api/blocks', { id }),
   unblock: (id: string) => call<SafetyLists>('DELETE', `/api/blocks/${encodeURIComponent(id)}`),
   report: (body: ReportBody) => call<{ id: string }>('POST', '/api/reports', body),
+  // M7 7.2 spectating (10.4): public live battles, a 60 s spectator ticket, the opt-out setting.
+  liveBattles: () => call<LiveBattles>('GET', '/api/battles/live'),
+  spectateTicket: (battleId: string) =>
+    call<SpectateTicket>('POST', `/api/battles/${encodeURIComponent(battleId)}/spectate`),
+  spectateSetting: () => call<SpectateSetting>('GET', '/api/settings/spectate'),
+  setSpectateSetting: (allow: boolean | null) =>
+    call<SpectateSetting>('PUT', '/api/settings/spectate', { allow }),
+  // M7 7.1 tournaments (10.4): the list, one event's live state, register, withdraw, your game.
+  tournaments: () => call<TournamentList>('GET', '/api/tournaments'),
+  tournament: (id: string) =>
+    call<TournamentView>('GET', `/api/tournaments/${encodeURIComponent(id)}`),
+  registerTournament: (id: string) =>
+    call<TournamentView>('POST', `/api/tournaments/${encodeURIComponent(id)}/register`),
+  leaveTournament: (id: string) =>
+    call<TournamentView>('DELETE', `/api/tournaments/${encodeURIComponent(id)}/register`),
+  tournamentTicket: (id: string) =>
+    call<BattleTicket>('POST', `/api/tournaments/${encodeURIComponent(id)}/ticket`),
 };
 
 /** Absolute WebSocket URL for a server-relative socket path. */

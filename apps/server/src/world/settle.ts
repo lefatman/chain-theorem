@@ -14,6 +14,7 @@ import { battleGrants, seatResults, zoneOutcome } from './outcome.ts';
 import { grantOnce, offlineBattleEnd, syncLevel } from './progress.ts';
 import { callPlayer, tellZone } from './routing.ts';
 import { settleWager } from './wager.ts';
+import { gameOutcome, reportTournamentResult } from './tournament.ts';
 import { settleRanked } from '../rating/settle.ts';
 import { telemetrySink } from '../telemetry.ts';
 
@@ -67,6 +68,20 @@ export async function settleBattle(
   if (outsideZone(origin))
     for (const seat of seatResults(summary, archive))
       await tellZone(env, db, seat.playerId, summary.battleId, false);
+  // M7 7.1: a tournament game's result goes to its TournamentRoom, which records each battle once
+  // (R-WORLD-004); a lost call is recovered by the room's watchdog from the battle row and archive.
+  if (origin.kind === 'tournament') {
+    try {
+      await reportTournamentResult(
+        env,
+        origin.tournamentId,
+        summary.battleId,
+        gameOutcome(summary),
+      );
+    } catch (err) {
+      console.error(`battle ${summary.battleId}: tournament result failed: ${String(err)}`);
+    }
+  }
 }
 
 /** What the battle cost, for the cost dashboard (14.2). */

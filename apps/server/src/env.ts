@@ -14,6 +14,8 @@ export interface Env {
   TRADE_SESSION: DurableObjectNamespace;
   /** One per guild (M6, 12.2): roster cache and guild chat, named by the guild id. */
   GUILD_ROOM: DurableObjectNamespace;
+  /** One per tournament (M7 7.1, 12.2): registration, pairings, results; named by its id. */
+  TOURNAMENT_ROOM: DurableObjectNamespace;
   /** Workers Analytics Engine dataset (production); telemetry stays in METRICS without it. */
   TELEMETRY?: AnalyticsEngineDataset;
   /** Comma-separated emails allowed to open the cost dashboard (`/admin/cost`). */

@@ -9,6 +9,7 @@ import { HttpError, body, json, noContent, type Router } from '../http.ts';
 import { DATA_ROOM } from '../moderation/sanctions.ts';
 import { playerFacts } from './collection.ts';
 import { publicMe, sessionCookie, type Ctx } from './context.ts';
+import { forgetInTournaments } from '../world/tournament.ts';
 
 export interface LoadoutView {
   id: string;
@@ -79,7 +80,10 @@ export function accountRoutes(r: Router<Ctx>): void {
     const me = await dataSubject(req, ctx);
     // A deleted account is never billed again: end a live subscription first (M6 6.3).
     await cancelForDeletion(ctx, me);
+    // M7 7.1: the tournaments the player is in forget them too (their rooms hold names, R-SEC-010).
+    const tournaments = await ctx.db.tournaments.idsForPlayer(me.id);
     await ctx.db.players.delete(me.id);
+    await forgetInTournaments(ctx.env, tournaments, me.id);
     return noContent({ 'set-cookie': sessionCookie(ctx.env, '', 0) });
   });
 

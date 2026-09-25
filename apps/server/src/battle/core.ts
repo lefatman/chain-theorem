@@ -15,6 +15,10 @@
  *   prompt window (5.4) and the 60 s disconnect grace are deadlines checked on every input and at the
  *   alarm. A mid-action prompt is charged to the chooser's clock.
  * - R-FMT-005 (9.4): NPC seats answer inside the same call from their own projection only.
+ * - M7 7.2 (10.4): a public battle is also projected for spectators (`projectSpectator`, public
+ *   information only). Each record's spectator view waits until it is `delay` plies behind the live
+ *   ply (every record once the battle ends) and then goes to all spectators; `spectatorHello`
+ *   answers one spectator from the delayed position. Spectators never get a player's messages.
  */
 import {
   CHOICE_PROMPT_MS,
@@ -24,6 +28,7 @@ import {
 } from '@chain-theorem/content';
 import {
   BattleErr,
+  SpectateErr,
   type ClientBattleMap,
   ClientBattle,
   type Clocks,
@@ -64,6 +69,7 @@ import type {
   ServerMsg,
   SideConn,
   SideStats,
+  SpectatorMsg,
   Tier,
 } from './types.ts';
 
@@ -213,9 +219,15 @@ export class BattleCore {
       records: 0,
       events: 0,
     };
+    if (init.spectate) {
+      const delay = init.spectate.delay;
+      if (!Number.isInteger(delay) || delay < 0) throw new Error('BattleCore: bad spectate delay');
+      snap.spectate = { delay, released: 0, to: 0, public: null, clocks: null, pending: [] };
+    }
     const core = new BattleCore(snap, [], opts);
-    core.append('start', null, events, t);
+    const start = core.append('start', null, events, t);
     core.s.clocks.running = core.runningSide();
+    core.spectateRecord(start, t);
     core.npcTurns(t);
     core.out.save = true;
     return { core, out: core.flush() };
@@ -263,6 +275,11 @@ export class BattleCore {
 
   get battleId(): string {
     return this.s.battleId;
+  }
+
+  /** Spectators may watch this battle (M7 7.2): it was started public. */
+  get spectatable(): boolean {
+    return this.s.spectate !== undefined;
   }
 
   /**
@@ -582,6 +599,7 @@ export class BattleCore {
     s.clocks.running = this.runningSide();
     s.clocks.at = t;
     this.out.save = true;
+    this.spectateRecord(rec, t);
     const clocks = this.clocksAt(t);
     for (const side of SIDES) {
       if (!this.isLive(side)) continue;
@@ -635,6 +653,7 @@ export class BattleCore {
         black: this.engine.projectEvents(st, events, 'black'),
       },
     };
+    if (this.s.spectate) rec.spec = this.engine.projectSpectatorEvents(st, events);
     this.records.push(rec);
     this.s.records++;
     this.s.events += events.length;
@@ -696,6 +715,101 @@ export class BattleCore {
     const input: ActionInput = { kind: 'resign', side };
     const r = this.tryApply(input);
     if (r) this.commit(input, r, 'npc', t);
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Spectators (M7 7.2)
+
+  /**
+   * What one spectator gets after `hello {from}`: the delayed position (`sstart`), the spectator
+   * events it has not seen since full-log index `from` (`sev`), and the result once everything is
+   * shown. Reads only; spectators get nothing from a battle that is not public.
+   */
+  spectatorHello(from: number, watchers: number): SpectatorMsg[] {
+    const sp = this.s.spectate;
+    if (!sp?.public) return [{ t: 'err', d: { code: SpectateErr.not_public } }];
+    const start = Math.min(Math.max(0, from), sp.to);
+    const out: SpectatorMsg[] = [
+      {
+        t: 'sstart',
+        d: {
+          battleId: this.s.battleId,
+          format: this.s.format,
+          public: sp.public,
+          players: { white: this.tag('white'), black: this.tag('black') },
+          delay: sp.delay,
+          eventCount: sp.to,
+          clocks: sp.clocks,
+          watchers,
+        },
+      },
+      {
+        t: 'sev',
+        d: {
+          from: start,
+          to: sp.to,
+          events: this.spectatedSince(start).map(payload),
+          public: sp.public,
+          clocks: sp.clocks,
+        },
+      },
+    ];
+    const result = this.s.state.result;
+    if (result && sp.pending.length === 0) out.push({ t: 'send', d: { result: { ...result } } });
+    return out;
+  }
+
+  /** Queue a new record's spectator view, then show whatever has left the delay window. */
+  private spectateRecord(rec: LogRecord, t: number): void {
+    const sp = this.s.spectate;
+    if (!sp) return;
+    const st = this.s.state;
+    sp.pending.push({
+      n: rec.n,
+      ply: st.ply,
+      public: payload(this.engine.projectSpectator(st)),
+      clocks: { ...this.clocksAt(t), running: null },
+    });
+    const due = (p: { n: number; ply: number }) =>
+      p.n === 0 || st.result !== null || p.ply <= st.ply - sp.delay;
+    let shown = false;
+    for (let next = sp.pending[0]; next && due(next); next = sp.pending[0]) {
+      sp.pending.shift();
+      const r = this.records[next.n] as LogRecord;
+      const to = r.from + r.events.length;
+      (this.out.spectate ??= []).push({
+        t: 'sev',
+        d: {
+          from: r.from,
+          to,
+          events: (r.spec ?? []).map(payload),
+          public: next.public,
+          clocks: next.clocks,
+        },
+      });
+      sp.released = next.n + 1;
+      sp.to = to;
+      sp.public = next.public;
+      sp.clocks = next.clocks;
+      shown = true;
+    }
+    if (shown && st.result && sp.pending.length === 0)
+      (this.out.spectate ??= []).push({ t: 'send', d: { result: { ...st.result } } });
+    this.out.save = true;
+  }
+
+  /** Spectator events of the records already shown, from full-log index `from`. */
+  private spectatedSince(from: number): PublicEvent[] {
+    const sp = this.s.spectate;
+    if (!sp) return [];
+    const chunks: PublicEvent[][] = [];
+    for (let k = sp.released - 1; k >= 0; k--) {
+      const r = this.records[k] as LogRecord;
+      if (r.from + r.events.length <= from) break;
+      const spec = r.spec ?? [];
+      chunks.push(r.from >= from ? spec : spec.filter((e) => e.i >= from));
+    }
+    return chunks.reverse().flat();
   }
 
   // ---------------------------------------------------------------------------------------------

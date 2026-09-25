@@ -47,6 +47,8 @@ export default defineTrait({
           pending: v.pending.filter((p) => ctx.piece(p.piece).side === viewer),
         };
       },
+      // Spectators (M7 7.2) see what both players know: the burning squares, never a pending burn.
+      spectate: (value) => ({ burning: (value as HotFootState).burning, pending: [] }),
     },
     moveFilter: {
       blockedSquares: (ctx, piece) => {

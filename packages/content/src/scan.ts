@@ -123,3 +123,167 @@ export function scanPayload(payload: unknown, state: GameState, viewer: Side): s
   }
   return leak;
 }
+
+// ---- Spectators (M7 7.2) ------------------------------------------------------------------------
+
+const SIDES_: readonly Side[] = ['white', 'black'];
+const other = (s: Side): Side => (s === 'white' ? 'black' : 'white');
+
+/** Every ability and item id `side`'s opponent has seen revealed (on any piece type). */
+function revealedIds(state: GameState, side: Side): Set<string> {
+  const log = state.reveals[side];
+  const out = new Set<string>(log.items);
+  for (const list of Object.values(log.abilities)) for (const a of list ?? []) out.add(a);
+  return out;
+}
+
+/**
+ * Ids a spectator must never see as a bare string: an ability or item of either side that its
+ * opponent has not seen, unless the same id is revealed on the other side (then a string could name
+ * that one; the structural checks below still pin every named id to its owner's reveal log).
+ */
+export function spectatorHiddenIds(state: GameState): Set<string> {
+  const known = new Set<string>([...revealedIds(state, 'white'), ...revealedIds(state, 'black')]);
+  const hidden = new Set<string>();
+  for (const side of SIDES_) {
+    const { abilities, items } = unrevealedIds(state, other(side));
+    for (const id of [...abilities, ...items]) if (!known.has(id)) hidden.add(id);
+  }
+  return hidden;
+}
+
+function abilityKnown(state: GameState, side: Side, ability: string, type?: PieceType): boolean {
+  const log = state.reveals[side];
+  if (type) return log.abilities[type]?.includes(ability) ?? false;
+  return Object.values(log.abilities).some((l) => l?.includes(ability));
+}
+
+function checkSpectatorEvent(e: Record<string, unknown>, state: GameState): string | null {
+  const k = String(e.k);
+  if (k === 'ChoiceMade') return `event ${k} reached a spectator (a choice is its chooser's own)`;
+  const side = e.side as Side | undefined;
+  const ability = e.ability as string | null | undefined;
+  const pieceType = e.pieceType as PieceType | undefined;
+  if (side && typeof ability === 'string' && !abilityKnown(state, side, ability, pieceType))
+    return `event ${k} names ${ability} on ${side} ${pieceType ?? ''}, not known to both players`;
+  if (side && ability === null && (e.category != null || e.attuned != null))
+    return `event ${k} carries category or attuned for a hidden ability`;
+  if ((k === 'EffectFizzled' || k === 'ChargeSpent') && side && ability === null)
+    return `event ${k} of an unnamed ability reached a spectator`;
+  const src = e.source as { kind?: string; id?: string; side?: Side; piece?: number } | undefined;
+  if (src?.side && typeof src.id === 'string') {
+    if (src.kind === 'item' && !state.reveals[src.side].items.includes(src.id))
+      return `event ${k} source names unrevealed item ${src.id}`;
+    if (src.kind === 'ability') {
+      const type = src.piece !== undefined ? state.pieces[src.piece]?.type : undefined;
+      if (!abilityKnown(state, src.side, src.id, type))
+        return `event ${k} source names ${src.id}, not known to both players`;
+    }
+  }
+  if (k === 'Revealed' && side) {
+    // Whatever a reveal names is in the owner's reveal log from then on (both players saw it).
+    const info = e.info as {
+      pieceType?: PieceType;
+      ability?: string;
+      abilities?: string[];
+      item?: string;
+      items?: string[];
+    };
+    const log = state.reveals[side];
+    for (const id of [...(info.ability ? [info.ability] : []), ...(info.abilities ?? [])])
+      if (!abilityKnown(state, side, id, info.pieceType))
+        return `event Revealed carries ${id}, which is not in ${side}'s reveal log`;
+    for (const id of [...(info.item ? [info.item] : []), ...(info.items ?? [])])
+      if (!log.items.includes(id))
+        return `event Revealed carries ${id}, which is not in ${side}'s reveal log`;
+  }
+  if (k === 'Promoted' && side) {
+    const shown = maskShown(state, side);
+    if (shown && e.element !== shown)
+      return `event Promoted shows ${String(e.element)} under an active Mask showing ${shown}`;
+  }
+  return null;
+}
+
+/** The element `side`'s Masquerade Mask shows while it is up, else null. */
+function maskShown(state: GameState, side: Side): string | null {
+  const mask = state.slices.masquerade_mask as { active?: Record<Side, boolean> } | undefined;
+  const shown = state.armies[side].loadout.itemParams?.masquerade_mask?.element;
+  return mask?.active?.[side] && shown ? shown : null;
+}
+
+function checkSpectatorProjection(p: Record<string, unknown>, state: GameState): string | null {
+  const armies = p.armies as Record<Side, Record<string, unknown>> | undefined;
+  for (const side of SIDES_) {
+    const army = armies?.[side];
+    if (army && (army.loadout !== undefined || army.sets !== undefined))
+      return `$.armies.${side} carries its loadout`;
+    const shown = maskShown(state, side);
+    if (shown && Array.isArray(army?.elements) && army.elements.some((el) => el !== shown))
+      return `$.armies.${side}.elements shows the true element under an active Mask`;
+  }
+  const pieces = p.pieces as { id: number; side: Side; element: string }[] | undefined;
+  for (const piece of pieces ?? []) {
+    const shown = maskShown(state, piece.side);
+    if (shown && piece.element !== shown)
+      return `$.pieces[${piece.id}].element = ${piece.element} under an active Mask showing ${shown}`;
+  }
+  if (Array.isArray(p.legal) && p.legal.length > 0) return '$.legal is not empty';
+  const pending = p.pending as { request?: unknown } | null | undefined;
+  if (pending && pending.request != null) return '$.pending carries the request';
+  const slices = p.slices as Record<string, unknown> | undefined;
+  const burns = (slices?.hot_foot as { pending?: unknown[] } | undefined)?.pending;
+  if (burns && burns.length > 0) return '$.slices.hot_foot.pending shows a pending burn';
+  for (const id of ['masquerade_mask', 'resonance_crystal', 'overabundance'])
+    if (slices && id in slices) return `$.slices.${id} is private`;
+  const usage = p.usage as Record<string, number> | undefined;
+  for (const key of Object.keys(usage ?? {})) {
+    const [pid, ability] = key.split(':');
+    const piece = state.pieces[Number(pid)];
+    if (!piece || !ability || !abilityKnown(state, piece.side, ability, piece.type))
+      return `$.usage.${key} counts an ability not known to both players`;
+  }
+  return null;
+}
+
+/**
+ * R-SEC-001 / R-INFO-005 scan of anything a spectator receives (M7 7.2): a spectator projection,
+ * projected events, or a whole socket frame holding them. A spectator may see about each army only
+ * what that army's opponent knows. `state` is the full state the payload was projected from (or any
+ * later state of the same battle: knowledge only grows, so a later state never flags a clean
+ * payload). Returns the first leak found, or null.
+ */
+export function scanSpectatorPayload(payload: unknown, state: GameState): string | null {
+  const hidden = spectatorHiddenIds(state);
+  let leak: string | null = null;
+  const walk = (v: unknown, path: string): void => {
+    if (leak) return;
+    if (typeof v === 'string') {
+      if (hidden.has(v)) leak = `${path} = "${v}"`;
+      return;
+    }
+    if (Array.isArray(v)) {
+      v.forEach((x, i) => walk(x, `${path}[${i}]`));
+      return;
+    }
+    if (!v || typeof v !== 'object') return;
+    const o = v as Record<string, unknown>;
+    for (const [k, x] of Object.entries(o)) {
+      if (k.split(':').some((part) => hidden.has(part))) {
+        leak = `${path}.${k} (key)`;
+        return;
+      }
+      walk(x, `${path}.${k}`);
+    }
+    if (leak) return;
+    if (typeof o.k === 'string' && typeof o.i === 'number') {
+      const bad = checkSpectatorEvent(o, state);
+      if (bad) leak = `${path}: ${bad}`;
+    } else if (o.armies && o.pieces) {
+      const bad = checkSpectatorProjection(o, state);
+      if (bad) leak = `${path}: ${bad}`;
+    }
+  };
+  walk(JSON.parse(JSON.stringify(payload ?? null)) as unknown, '$');
+  return leak;
+}

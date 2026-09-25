@@ -139,7 +139,14 @@ describe('technical stack (spec 12)', () => {
     const bound = cfg.durable_objects.bindings.map((b) => b.class_name);
     const migrated = cfg.migrations.flatMap((m) => m.new_sqlite_classes);
     const index = readFileSync(join(root, 'apps/server/src/index.ts'), 'utf8');
-    for (const cls of ['BattleRoom', 'ZoneRoom', 'Matchmaker', 'GuildRoom', 'TradeSession']) {
+    for (const cls of [
+      'BattleRoom',
+      'ZoneRoom',
+      'Matchmaker',
+      'GuildRoom',
+      'TradeSession',
+      'TournamentRoom',
+    ]) {
       expect(bound).toContain(cls);
       expect(migrated).toContain(cls);
       expect(index).toMatch(new RegExp(`export \\{ ${cls} \\}`));

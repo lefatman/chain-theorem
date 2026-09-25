@@ -2,8 +2,8 @@
  * Test helpers for the battle core: a seeded RNG, random legal loadouts, client frames and the
  * R-SEC-001 message scanner. Test-only (imported by *.unit.test.ts files).
  */
-import { scanPayload } from '@chain-theorem/content/scan';
-import { ServerBattle } from '@chain-theorem/protocol';
+import { scanPayload, scanSpectatorPayload } from '@chain-theorem/content/scan';
+import { ServerBattle, ServerSpectate } from '@chain-theorem/protocol';
 import {
   type Engine,
   type GameState,
@@ -11,7 +11,7 @@ import {
   PIECE_TYPES,
   type Side,
 } from '@chain-theorem/rules';
-import type { ServerMsg } from './types.ts';
+import type { ServerMsg, SpectatorMsg } from './types.ts';
 
 /** mulberry32, as in apps/tools (apps are not importable from each other). */
 export class Rng {
@@ -125,4 +125,25 @@ export function checkMessage(to: Side, msg: ServerMsg, state: GameState): string
     if (c && ((c.white ?? 0) < 0 || (c.black ?? 0) < 0)) return `${wire.t}: negative clock`;
   }
   return null;
+}
+
+/**
+ * M7 7.2 check of one spectator message (R-SEC-001, R-INFO-005, R-NET-001): it matches its
+ * ServerSpectate schema, it is a spectator message (never a player seat's), any projection in it is
+ * the spectator projection, and the whole serialized message passes the spectator scan against
+ * `state`, the full state of the position it shows (or a later one).
+ */
+export function checkSpectatorMessage(
+  msg: SpectatorMsg | unknown,
+  state: GameState,
+): string | null {
+  const wire = JSON.parse(JSON.stringify(msg)) as { t: string; d: Record<string, unknown> };
+  const schema = ServerSpectate[wire.t as keyof typeof ServerSpectate];
+  if (!schema) return `not a spectator message: ${wire.t}`;
+  const parsed = schema.safeParse(wire.d);
+  if (!parsed.success) return `${wire.t} fails its schema: ${parsed.error.message}`;
+  const pub = wire.d.public as { viewer?: string; legal?: unknown[] } | undefined;
+  if (pub && pub.viewer !== 'spectator') return `${wire.t} carries the ${pub.viewer} projection`;
+  const leak = scanSpectatorPayload(wire, state);
+  return leak ? `${wire.t} to a spectator: ${leak}` : null;
 }

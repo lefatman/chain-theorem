@@ -21,7 +21,7 @@ import {
 } from '@chain-theorem/rules';
 import { sideKnowledge } from './knowledge.ts';
 import { type SearchCtx, VALUE, WIN, evalPos, negamax, play, quiesce, unplay } from './fast.ts';
-import type { Engine } from './types.ts';
+import type { EffectSpec, Engine } from './types.ts';
 
 export type Tier = 'wild' | 'trainer' | 'elite';
 
@@ -94,9 +94,15 @@ function makeCtx(
 ): SearchCtx {
   const pos = engine.position(state);
   const need = engine.caps.FORMATS[state.format]?.objective?.nonPawnCaptures ?? null;
+  // Bulwark's spent list is a public slice (6.1), so it is in the belief state too.
+  const spent = (state.slices.bulwark as { spent?: number[] } | undefined)?.spent ?? [];
+  const bulwarkSpent = new Uint8Array(state.pieces.length);
+  for (const id of spent) if (id >= 0 && id < bulwarkSpent.length) bulwarkSpent[id] = 1;
   return {
     pos,
     elem: state.pieces.map((p) => p.element),
+    start: state.pieces.map((p) => p.start),
+    bulwarkSpent,
     know: [
       sideKnowledge(engine, state, 'white', viewer),
       sideKnowledge(engine, state, 'black', viewer),
@@ -112,6 +118,23 @@ function makeCtx(
     now: budget.now,
     aborted: false,
   };
+}
+
+/**
+ * The fast-search context for `state` seen by `viewer` (unlimited budget): what the plies below the
+ * root search on. Exported for tests and tools that probe how known reactions are modelled.
+ */
+export function searchContext(
+  engine: Engine,
+  state: GameState,
+  viewer: Side,
+  tier: Tier = 'trainer',
+): SearchCtx {
+  return makeCtx(engine, state, viewer, TIERS[tier], {
+    maxNodes: Infinity,
+    deadline: Infinity,
+    now: null,
+  });
 }
 
 function terminalScore(state: GameState, me: Side): number | null {
@@ -258,6 +281,25 @@ export function evaluate(
 }
 
 /**
+ * The fixed square a chosen piece is moved to by `abilityId` (its starting square for a
+ * `move(chosen, start)` effect), or -1 when the destination is chosen later or is not fixed.
+ */
+function fixedDestination(engine: Engine, abilityId: string, start: number): number {
+  const def = engine.registry.abilities.find((a) => a.id === abilityId);
+  if (!def) return -1;
+  const find = (list: readonly EffectSpec[]): number => {
+    for (const e of list) {
+      if (e.op === 'move' && e.piece.t === 'chosen') return e.to.s === 'start' ? start : -1;
+      const inner = e.op === 'when' ? find(e.then) : e.op === 'atChainEnd' ? find(e.effects) : -1;
+      if (inner !== -1) return inner;
+    }
+    return -1;
+  };
+  const base = find(def.effects);
+  return base !== -1 ? base : def.attuned ? find(def.attuned.effects) : -1;
+}
+
+/**
  * Answer a mid-action prompt (5.4) from public information: bonus moves and squares by evaluation,
  * effect-capture targets by value. Ties go to the lowest option index (the default).
  *
@@ -306,12 +348,30 @@ export function chooseOption(
         break;
       case 'piece': {
         // Harm the most valuable enemy piece, shield the most valuable own piece; a piece that
-        // will be moved or revived scores level (its square prompt decides).
+        // will be moved or revived scores level (its square prompt decides), unless the ability
+        // sends it to a fixed square (Snowbound, Permafrost: its starting square). After the
+        // capture that is scored by placing the piece there; before it (a Capturing prompt, whose
+        // capture is still to come) sending the most valuable enemy piece home scores best.
         const p = belief.pieces[opt.piece];
         const v = p ? (VALUE[PIECE_TYPES.indexOf(p.type)] ?? 0) : 0;
         const mine = p?.side === me;
+        const home =
+          req.purpose === 'move' && p ? fixedDestination(engine, req.source.ability, p.start) : -1;
+        const beforeCapture =
+          engine.registry.abilities.find((a) => a.id === req.source.ability)?.category ===
+          'CAPTURING';
         if (req.purpose === 'protect') score = mine ? v : -v;
-        else if (req.purpose === 'move' || req.purpose === 'revive') score = 0;
+        else if (home >= 0 && beforeCapture) score = mine ? -v : v;
+        else if (home >= 0 && p && p.square >= 0 && (pos.board[home] as number) < 0) {
+          const from = p.square;
+          pos.board[from] = -1;
+          pos.board[home] = opt.piece;
+          pos.psq[opt.piece] = home;
+          score = settle(actor ^ 1);
+          pos.board[home] = -1;
+          pos.board[from] = opt.piece;
+          pos.psq[opt.piece] = from;
+        } else if (req.purpose === 'move' || req.purpose === 'revive') score = 0;
         else score = mine ? -v : v;
         break;
       }
@@ -354,4 +414,5 @@ export function chooseOption(
   return best;
 }
 
-export { WIN };
+export { WIN, play, unplay };
+export type { SearchCtx, Played } from './fast.ts';

@@ -36,8 +36,9 @@ export const CAPS = {
   MAX_CHAIN_DEPTH: 3,
   // R-ELEM-002 tuning knob: 'ALL_TRIGGERS' (default) | 'REACTIONS_ONLY' | 'OFF'.
   SILENCE_SCOPE: 'ALL_TRIGGERS',
-  // 6.5: MVP ships Ember, Tide and Grove; Storm, Stone and Frost follow in M7.
-  ENABLED_ELEMENTS: ['ember', 'tide', 'grove'],
+  // 6.5 (COMMITTED rollout): the MVP shipped Ember, Tide and Grove; M7 7.3 adds Storm, Stone and
+  // Frost, each with six creatures and at least four affinity abilities.
+  ENABLED_ELEMENTS: ['ember', 'tide', 'grove', 'storm', 'stone', 'frost'],
   FORMATS,
   MAX_EVENTS_PER_ACTION: 512,
 } as const satisfies Caps;
@@ -52,6 +53,22 @@ export const CHOICE_PROMPT_MS = 15_000;
 export const DISCONNECT_GRACE_MS = 60_000;
 /** Draw offers: at most one per this many moves (9.2). */
 export const DRAW_OFFER_EVERY_MOVES = 10;
+
+/**
+ * Spectating (10.4 "delayed, public-projection-only view of live battles"; M7 7.2). PLAYTEST values.
+ * The delay is counted in plies, not seconds: spectators see a battle up to `delayPlies` behind the
+ * live position (everything once it ends), so no timer or extra alarm is needed.
+ */
+export const SPECTATE = {
+  /** Spectators see the position this many plies behind the live one. */
+  delayPlies: 2,
+  /** Spectator sockets per battle room; more are refused. */
+  maxPerRoom: 50,
+  /** Live battles listed by `GET /api/battles/live`. */
+  listLimit: 20,
+  /** A listed battle that started longer ago than this is not listed (a stale row). */
+  listMaxAgeMs: 6 * 60 * 60 * 1000,
+};
 
 /**
  * Ranked play (9.3 R-FMT-004, 15 R-SEC-008; M6 6.2). PLAYTEST values. Brackets come from the item
@@ -117,4 +134,48 @@ export const SAFETY = {
   maxMutes: 200,
   /** Players one player may block. */
   maxBlocks: 200,
+};
+
+/**
+ * Tournaments (10.4 R-WORLD-004, 9.3 R-FMT-004; M7 7.1). PLAYTEST values. Events run per format
+ * and slot bracket (the slots UNLOCKED at the player's level, never the loadout); one
+ * TournamentRoom per event holds registration, pairings and results.
+ */
+export const TOURNAMENTS = {
+  /** Formats an event may use (9.1: Full Battle is the tournament format; admins may pick others). */
+  formats: ['full', 'vanguard', 'first_blood'] as readonly string[],
+  /** Field size when the admin gives none, and the largest allowed. */
+  maxPlayers: 32,
+  maxPlayersLimit: 64,
+  /** Fewer registered players than this at the start cancels the event. */
+  minPlayers: 2,
+  /** Swiss rounds: ceil(log2(players)) + this, at most a full round robin. */
+  extraSwissRounds: 1,
+  /** Pause between a round's pairings being published and its battles starting. */
+  breakMs: 60_000,
+  /** Points for a Swiss bye (at most one per player). */
+  byePoints: 1,
+  /** A drawn single-elimination game: this colour advances (draw odds for the second mover). */
+  seDrawAdvances: 'black' as 'white' | 'black',
+  /** A player who does not start this many games is withdrawn from later rounds. */
+  withdrawAfterNoShows: 1,
+  /** A live round re-reads its unfinished battles from the database this often (a lost result). */
+  watchdogMs: 5 * 60_000,
+  /** A failed prize grant is retried after this long (grants are idempotent, R-SEC-003). */
+  prizeRetryMs: 60_000,
+  /** Prizes by final place, granted once under `tournament:<id>:<player>`. */
+  prizes: [
+    { place: 1, xp: 250, coins: 200 },
+    { place: 2, xp: 150, coins: 100 },
+    { place: 3, xp: 100, coins: 50 },
+  ] as readonly { place: number; xp: number; coins: number }[],
+  /** Scheduled events: one per slot bracket each day at `hourUtc` (created when first listed). */
+  schedule: [{ system: 'swiss', format: 'full', hourUtc: 19, maxPlayers: 32 }] as readonly {
+    system: 'swiss' | 'se';
+    format: string;
+    hourUtc: number;
+    maxPlayers: number;
+  }[],
+  /** How far ahead a scheduled event is listed (and open for registration). */
+  scheduleAheadMs: 24 * 60 * 60 * 1000,
 };

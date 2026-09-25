@@ -89,6 +89,7 @@ export function zoneOutcome(
     case 'pvp':
     case 'ranked':
     case 'wager':
+    case 'tournament':
       return null;
   }
 }
@@ -122,9 +123,10 @@ export function totalReward(list: readonly Reward[]): Reward {
  * - trainer: battle XP, plus the trainer's reward on a win (a story trainer's once per player, under
  *   its own key, with the defeated flag);
  * - lesson: nothing here: the lesson's reward is granted when the lesson completes (DD-73);
- * - PvP (ranked and wager battles too) and online-screen NPC battles: battle XP by format, result
- *   and the opponent's level; a ranked battle's rating update is separate (`rating/settle.ts`), a
- *   wager's stakes are settled by `world/wager.ts`.
+ * - PvP (ranked, wager and tournament battles too) and online-screen NPC battles: battle XP by
+ *   format, result and the opponent's level; a ranked battle's rating update is separate
+ *   (`rating/settle.ts`), a wager's stakes are settled by `world/wager.ts`, a tournament game's
+ *   result goes to its TournamentRoom (`world/tournament.ts`), whose prizes are granted at the end.
  */
 export function battleGrants(
   origin: BattleOrigin,
@@ -169,6 +171,7 @@ export function battleGrants(
     case 'pvp':
     case 'ranked':
     case 'wager':
+    case 'tournament':
       return [
         {
           key,

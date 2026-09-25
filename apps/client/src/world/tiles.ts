@@ -186,6 +186,20 @@ const C = {
   neutral: gba(0x9098a8),
   neutralDk: gba(0x707888),
   neutralLt: gba(0xb8c0d0),
+  // Highcairn Pass (M7 7.3): snow, scree, frosted grass and snowy pines.
+  snow: gba(0xe4ecf4),
+  snowDk: gba(0xc4d4e4),
+  snowLt: gba(0xfbfdff),
+  scree: gba(0xa6988a),
+  screeDk: gba(0x827464),
+  screeLt: gba(0xc8bcac),
+  frostBase: gba(0x3c7c74),
+  frost: gba(0x4e8c84),
+  frostDk: gba(0x2c5c5a),
+  frostLt: gba(0xdcf2f8),
+  pine: gba(0x2e6a52),
+  pineDk: gba(0x1e4a3a),
+  pineOut: gba(0x103020),
 };
 
 /** Roof colour schemes (one per building, picked from its position). */
@@ -216,6 +230,8 @@ interface Style {
   base?: string;
   /** Kinds this one joins up with (edges, rails). Default: itself. */
   family?: readonly string[];
+  /** Wild grass that already draws its own blades (no blade overlay on wild tiles, 10.2). */
+  tall?: true;
   paint(t: Tile16, v: number, a: Around, roof: number): void;
 }
 
@@ -245,7 +261,15 @@ function grass(t: Tile16, v: number): void {
 }
 
 /** The wild-grass blade pattern (10.2): clearly visible so players see where encounters happen. */
-function blades(t: Tile16): void {
+function blades(
+  t: Tile16,
+  ink: { l: number; g: number; G: number; d: number } = {
+    l: C.tallLt,
+    g: C.tall,
+    G: C.tallBase,
+    d: C.tallDk,
+  },
+): void {
   for (const [x, y] of [
     [1, 1],
     [9, 1],
@@ -253,13 +277,28 @@ function blades(t: Tile16): void {
     [13, 9],
   ] as [number, number][]) {
     // A clump of pointed blades over a dark root line.
-    t.stamp(x - 1, y, ['.l.l.', 'lglgl', 'gGgGg', 'gGgGg', 'GdGdG', 'ddddd'], {
-      l: C.tallLt,
-      g: C.tall,
-      G: C.tallBase,
-      d: C.tallDk,
-    });
+    t.stamp(x - 1, y, ['.l.l.', 'lglgl', 'gGgGg', 'gGgGg', 'GdGdG', 'ddddd'], ink);
   }
+}
+
+/** A snowy evergreen: three tiers over a short trunk, snow on each tier's top (Highcairn Pass). */
+function pine(t: Tile16, v: number): void {
+  t.rect(7, 13, 2, 3, C.bark).vline(8, 13, 15, C.barkDk);
+  for (const [top, half] of [
+    [1, 3],
+    [5, 5],
+    [9, 7],
+  ] as [number, number][]) {
+    for (let j = 0; j < 4; j++) {
+      const w = Math.min(half, 1 + j * 2);
+      t.hline(8 - w, 7, top + j, C.pine).hline(8, 7 + w, top + j, C.pineDk);
+    }
+    t.hline(7, 8, top, C.snowLt);
+  }
+  // One or two snow clumps on the branches, varied per tree.
+  const h = hash2(v, 1, 19);
+  t.set(5 + (h % 3), 11, C.snow).set(9 + ((h >>> 4) % 3), 7, C.snow);
+  t.outline(C.pineOut);
 }
 
 function edgeLine(t: Tile16, a: Around, rgb: number, inset = 0): void {
@@ -385,6 +424,39 @@ const STYLES: Record<string, Style> = {
       blades(t);
     },
   },
+  frost_grass: {
+    id: 'frost_grass',
+    layer: 'ground',
+    tall: true,
+    paint: (t) => {
+      t.fill(C.frostBase);
+      blades(t, { l: C.frostLt, g: C.frost, G: C.frostBase, d: C.frostDk });
+    },
+  },
+  snow: {
+    id: 'snow',
+    layer: 'ground',
+    paint: (t, v) => {
+      t.fill(C.snow);
+      specks(t, v, 7, [C.snowDk, C.snowLt]);
+    },
+  },
+  scree: {
+    id: 'scree',
+    layer: 'ground',
+    paint: (t, v) => {
+      t.fill(C.scree);
+      specks(t, v, 8, [C.screeDk, C.screeLt]);
+      // Loose stones, lit from the top left.
+      for (let i = 0; i < 3; i++) {
+        const h = hash2(v, i, 23);
+        const x = 1 + (h % 12);
+        const y = 1 + ((h >>> 8) % 12);
+        t.rect(x, y, 2, 2, C.screeLt).set(x + 1, y + 1, C.screeDk);
+      }
+    },
+  },
+  pine: { id: 'pine', layer: 'deco', base: 'snow', paint: (t, v) => pine(t, v) },
   path: {
     id: 'path',
     layer: 'ground',
@@ -1022,7 +1094,7 @@ export function paintChunk(
           blit(out, stride, cached(style, v, around, roof), tx * TILE, ty * TILE);
         }
         painted = true;
-        if (style.id === 'tall_grass') tall = true;
+        if (style.id === 'tall_grass' || style.tall) tall = true;
       }
       if (!painted) blit(out, stride, cached(FALLBACK, v, ALL, 0), tx * TILE, ty * TILE);
       if (map.wild[i] && !tall) blit(out, stride, wildOverlay, tx * TILE, ty * TILE);

@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { CHOICE_PROMPT_MS, FORMATS, engine } from '@chain-theorem/content';
 import { scanPayload } from '@chain-theorem/content/scan';
 import {
+  applyWithDefaults,
   type GameState,
   type Loadout,
   type PublicState,
@@ -156,8 +157,16 @@ describe('BattleCore NPC seats (R-FMT-005)', () => {
           );
           continue;
         }
+        // The random human never leaves its own king in check: a random loadout may give it a
+        // Stalwart king (R-RULES-003), which may legally stand in check, and a random mover would
+        // walk it into capture within a few moves, ending the sweep before the NPC has moved much.
         const moves = engine.legalMoves(st, 'white');
-        const m = rng.pick(moves);
+        const safe = moves.filter(
+          (mv) =>
+            applyWithDefaults(engine, st, { kind: 'move', side: 'white', move: mv }).state
+              .inCheck !== 'white',
+        );
+        const m = rng.pick(safe.length > 0 ? safe : moves);
         core.message('white', frame('mv', { move: moveToUci(m) }), t);
       }
       expect(calls.filter((c) => c === 'move').length).toBeGreaterThan(5);

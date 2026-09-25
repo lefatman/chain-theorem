@@ -73,7 +73,7 @@ The agent checklist from spec 13.5, with the real commands:
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm content:new ability\|item\|trait <id>` | Scaffolds a module and a scenario test from a template (`apps/tools/src/content/new.ts`)                                                                                        |
 | `pnpm content:index`                         | Regenerates the registry from the module files; `content:validate` (and so CI) fails if it is stale                                                                             |
-| `pnpm content:validate`                      | Validates every module (§3.2, §5.2, §6) and prints e.g. `content:validate ok: 14 abilities, 11 items, 6 traits`                                                                 |
+| `pnpm content:validate`                      | Validates every module (§3.2, §5.2, §6) and the world (§14), and prints e.g. `content:validate ok: 26 abilities, 13 items, 6 traits; world: ...`                                |
 | `pnpm check`                                 | Typecheck, lint, unit tests (content scenario tests included), `content:validate`, dependency rules                                                                             |
 | `pnpm test`                                  | Unit, golden (E1–E9), content scenario and property tests                                                                                                                       |
 | `pnpm test:fuzz`                             | 500 random battles with random valid loadouts drawn from the registry: no crash, bounded chains, identical replay (INV-04) and the R-SEC-001 payload scan. Your module is in it |
@@ -116,7 +116,7 @@ The agent checklist from spec 13.5, with the real commands:
 | `MAX_ABILITY_CAPACITY`  | 5                                        | Upper bound of an ability's `slotCost` and of `capacity`  |
 | `MAX_CHAIN_DEPTH`       | 3                                        | Hard guard for nested pipelines (DD-12 makes the depth 1) |
 | `SILENCE_SCOPE`         | `'ALL_TRIGGERS'`                         | Silence rule knob (6.2): `REACTIONS_ONLY`, `OFF`          |
-| `ENABLED_ELEMENTS`      | `['ember', 'tide', 'grove']`             | Elements a real loadout may use (6.5)                     |
+| `ENABLED_ELEMENTS`      | all six elements (M7 7.3)                | Elements a real loadout may use (6.5); never `neutral`    |
 | `MAX_EVENTS_PER_ACTION` | 512                                      | Termination guard; exceeding it throws (unbounded chain)  |
 
 ## 3. Ability modules
@@ -219,8 +219,8 @@ Rules that follow from the pipeline and 5.4 (R-ABIL-004):
 
 **`minLevel`** is an integer from 1 to `CAPS.LEVEL_CAP` (30). `validateLoadout` rejects an ability
 above the player's level (R-LOAD-004 rule 2, code `ability_level`). Level requirements are PLAYTEST
-values tuned from telemetry (DD-05); the starter catalogue spans levels 1 to 18 (5.7), and the maximum
-build must still arrive at level 25.
+values tuned from telemetry (DD-05); the starter catalogue spans levels 1 to 18 (5.7), the M7
+Storm, Stone and Frost cards levels 1 to 20, and the maximum build must still arrive at level 25.
 
 **`slotCost`** is an integer from 1 to `CAPS.MAX_ABILITY_CAPACITY` (5). Every starter ability costs 1.
 In each ability set the total slot cost must fit the army's capacity (rule 4, `capacity_exceeded`).
@@ -285,10 +285,10 @@ Things to weigh when you price an ability:
 
 ### 3.7 Tags: replay, revive and Warden's Stopwatch
 
-| Tag      | Meaning (DD-02, 5.6)                  | Required when the ability contains (base or attuned) | Current modules    |
-| -------- | ------------------------------------- | ---------------------------------------------------- | ------------------ |
-| `replay` | Grants a bonus move                   | `fx.bonusAction(...)`                                | Momentum, Riposte  |
-| `revive` | Returns a captured piece to the board | `fx.revive(...)`                                     | Reinforce, Rebirth |
+| Tag      | Meaning (DD-02, 5.6)                  | Required when the ability contains (base or attuned) | Current modules                                        |
+| -------- | ------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------ |
+| `replay` | Grants a bonus move                   | `fx.bonusAction(...)`                                | Momentum, Riposte, Squall, Pawn Storm, Slipstream (M7) |
+| `revive` | Returns a captured piece to the board | `fx.revive(...)`                                     | Reinforce, Rebirth, Rebuild (M7)                       |
 
 Warden's Stopwatch reads nothing but tags: its `triggerFilter` negates every trigger whose ability
 carries either tag, for both players, for the whole battle (7.2, D-39 COMMITTED):
@@ -344,11 +344,19 @@ An ability whose affinity matches its bearer's element uses its attuned version 
   the trigger pass its conditions. Attunement uses the bearer's element when the ability resolves
   (DD-36), so a promoted piece under Blended Family follows its new group's element.
 - **`mode: 'replace'`** runs `attuned.effects` instead of `effects` (Hit and Run, Backdraft, Cleave,
-  Momentum, Antidote, Rebirth, Reinforce).
+  Momentum, Antidote, Rebirth, Reinforce; M7: Squall, Pawn Storm, Slipstream, Phalanx, Rebuild,
+  Frost Heave, Snowdrift, Snowbound).
 - **`mode: 'append'`** runs `effects`, then `attuned.effects` (Poisoned Meat, Pierce, Scout, Last
-  Word, Riposte).
+  Word, Riposte; M7: Afterimage, Buttress, Stonewall, Permafrost).
 - **`attuned.conditions`**, when present, replace `conditions` for an attuned bearer. Use `[]` to drop
-  the base conditions (Reinforce). When absent, the base conditions apply.
+  the base conditions (Reinforce, Slipstream), or a different list to widen them (Rebuild: rook or
+  queen victims, attuned any non-pawn; Phalanx: pawn captors, attuned also knights and bishops).
+  When absent, the base conditions apply.
+- **Attunement is not the trait.** Always First, Bulwark and Stillness follow the bearer's element,
+  not attunement: a Tide piece with a Storm Attunement Charm runs Afterimage's attuned version but
+  still resolves it after the victim's reactions (`abilities/afterimage.test.ts`). Write attuned
+  bonuses that pay off because of the element's trait with that in mind, and say so in the rules
+  text.
 - `AbilityTriggered.attuned` records which version ran.
 - Neutral abilities have no attuned version; `content:validate` rejects one.
 - Attunement does not protect against silence: an attuned bearer is still silenced by its foil (6.2).
@@ -534,6 +542,19 @@ for example burning squares for a non-Ember piece) and squares that would leave 
 ordinary king in check (INV-03). The fixed selectors `origin` and `start` are not pre-filtered: an
 occupied one fizzles with `occupied`, a burning one with `burning`, an unsafe one with `inv03`.
 
+`square.start()` works for any moved piece, not only the bearer: Snowbound and Permafrost send a
+chosen or captor enemy piece home (`fx.move(target.chosen({ side: 'enemy', ... }), square.start())`).
+A piece's start is its identity's starting square (DD-22), so in a battle started from a FEN every
+piece starts where the FEN puts it; scenario tests of sends-home abilities move the pieces away first
+(`abilities/permafrost.test.ts`) or play from the standard position (`abilities/snowbound.test.ts`).
+
+Moving pieces other than the bearer: an effect places a piece on any square its selector offers,
+whatever the piece's own movement rules. Keep pawns off squares they could never reach by moving
+(their own back rank or the last rank, where they would not promote): the M7 modules either leave
+pawns out of the target types (Afterimage, Snowdrift) or send them only to a square a
+pawn may stand on (Frost Heave's pawn guard with `fx.when(cond.typeIs('captor', ['pawn']), ...)`,
+Snowbound's starting squares).
+
 Hit and Run (`abilities/hit_and_run.ts`) and Rebirth (`abilities/rebirth.ts`) show both forms:
 
 ```ts
@@ -564,6 +585,8 @@ An `Anchor` is where a `near` filter measures from: `'self'`, `'captor'`, `'vict
   known square (5.4). This is how Backdraft measures "adjacent to this square" from a fallen pawn.
 - `'origin'` is the captor's from-square in the triggering capture; `'landing'` is the square it
   captured on. Unlike `'self'` or `'captor'`, both stay fixed even if a piece moves away afterwards.
+  In a Capturing ability (phase 2) the victim still stands on `'landing'` and the captor on
+  `'origin'`, so squares next to `'landing'` are the capture's neighbours (Buttress, Snowbound).
 - A piece captured in an earlier action has no last known square in this action, so a `near` filter
   anchored on it offers nothing and the effect fizzles with `no_target`.
 
@@ -855,6 +878,17 @@ export default defineItem({
   `exclusiveGroup` and `grants`, and treats any item with a `revealFilter.element` hook as one that can
   disguise the displayed elements. New items take part automatically.
 
+Two M7 utility items show the smallest useful hook items:
+
+- **Mooring Chain** (`items/mooring_chain.ts`): an `effectIntercept` that fizzles (`protected`) the
+  first `move` effect whose source is the opponent's and whose target is the wearer's piece, with a
+  private per-side "used" flag in its slice. The engine reveals it when it fizzles (no explicit
+  reveal).
+- **Mainspring** (`items/mainspring.ts`): a `modifyCharges` hook (+1 on the wearer's consumable
+  `replay` abilities; it chains after Overabundance) plus an `onEvent` hook that reveals the item the
+  first time a `ChargeSpent` for a named replay ability makes the extra charge public (a Veiled
+  ability's count is not public, so it stays hidden).
+
 Scout's Lens (`items/scouts_lens.ts`) shows `onBattleStart` and an explicit reveal with a source:
 
 ```ts
@@ -1014,31 +1048,35 @@ stateSlice: {
   spent list). A projected slice reaches `PublicState.slices` and the belief states used by previews
   and NPCs; a private slice is re-initialised there, so previews and NPCs assume its initial value.
 - **`hash: false`** only for bookkeeping that can never change legal play; by default slices are part
-  of the threefold-repetition hash (DD-33).
+  of the threefold-repetition hash (DD-33). Per-action bookkeeping in a hashed slice must be cleared
+  by the time the turn passes (Masquerade Mask resets its capture record on `TurnPassed`), or
+  otherwise identical positions stop repeating.
+- **`spectate`** (M7 7.2) decides what a spectator sees: return only facts both players know (Hot
+  Foot's burning squares, Bulwark's spent list); omit it and spectators never see the slice.
 - Export the slice type (`export interface ResonanceState`) so tests can read
   `state.slices[id]` with a type.
 
 ### 7.4 Hook reference
 
-| Hook                        | Context   | Runs                                                                                                                                                                                | Returns / may write                                                                                          | Used by                          |
-| --------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------- |
-| `priority`                  | —         | —                                                                                                                                                                                   | Number; lower runs first within its module kind                                                              | —                                |
-| `stateSlice`                | `ReadCtx` | `init` once per battle; `project` per projection                                                                                                                                    | See §7.3                                                                                                     | Hot Foot, Bulwark, Mask, Crystal |
-| `onBattleStart`             | `MutCtx`  | Once, after slices are initialised and `BattleStarted` is emitted                                                                                                                   | `void`; may set slices, emit, reveal                                                                         | Scout's Lens                     |
-| `moveFilter.passThrough`    | `ReadCtx` | For each piece on the board whenever movement rules are built                                                                                                                       | `true`: the piece treats its own side's pieces as empty while moving or attacking through them               | Flow                             |
-| `moveFilter.blockedSquares` | `ReadCtx` | Same                                                                                                                                                                                | Squares the piece may not move to or capture on; also removed from chosen squares for effects on that piece  | Hot Foot                         |
-| `moveFilter.kingMode`       | `ReadCtx` | Same, kings only                                                                                                                                                                    | `'stalwart'` gives the king Stalwart rules; the engine handles its reveal (DD-32)                            | Stalwart                         |
-| `queueOrder`                | `ReadCtx` | Phase 4, before the reaction queue resolves, when it holds two or more triggers                                                                                                     | A permutation of the queue (anything else is ignored); hooks chain                                           | Always First                     |
-| `triggerFilter`             | `MutCtx`  | Once per trigger when it is queued (phase 2 for CAPTURING, phase 4 for reactions)                                                                                                   | `'allow'`, `'silence'` or `'negate'` (first `'negate'` wins; a negating item is revealed)                    | Stillness, Warden's Stopwatch    |
-| `silenceOverride`           | `MutCtx`  | Only when a trigger would be silenced (element rule or a hook's `'silence'`); never for negations                                                                                   | `true` keeps it unsilenced (first `true` wins). No automatic reveal: call `revealSelf`                       | Resonance Crystal                |
-| `effectIntercept`           | `MutCtx`  | Before an `effectCapture`, `move` or `revive` resolves (§4.10)                                                                                                                      | `'allow'` or `{ fizzle: FizzleReason }` (first fizzle wins; a fizzling item is revealed)                     | Bulwark, Hot Foot                |
-| `onPieceMoved`              | `MutCtx`  | After a piece lands: cause `move`, `castle` (king and rook), `bonus`, `effect` or `revive` (`from: -1`)                                                                             | `void`. Not called when a piece is captured: use `onEvent` for `Captured`                                    | Hot Foot                         |
-| `onTurnEnd`                 | `MutCtx`  | In Settle, after the turn passes and before `TurnPassed` and adjudication; `side` is the player who just acted. Also on throwaway drafts, to judge king safety as the turn will end | `void`; changes count for checkmate and stalemate (DD-25)                                                    | Hot Foot countdown               |
-| `revealFilter.reveal`       | `ReadCtx` | When an ability would be revealed because it activated, was silenced or was negated                                                                                                 | `'hide'` keeps the name hidden and reveals the piece type as veiled; explicit and observed reveals bypass it | Veil                             |
-| `revealFilter.element`      | `ReadCtx` | While projecting, for the viewer's opponent's pieces, army elements and `Promoted` events                                                                                           | The element to display, or `undefined`                                                                       | Masquerade Mask                  |
-| `modifyCharges`             | `ReadCtx` | Whenever charges are counted (collection, `ChargeSpent`, `remainingCharges`)                                                                                                        | The new maximum; hooks chain                                                                                 | Overabundance                    |
-| `attunement`                | `ReadCtx` | When an ability with an attuned version is checked on a piece whose element does not match                                                                                          | `true` counts it as attuned (first `true` wins; the item is revealed as described in §3.9)                   | Attunement Charm                 |
-| `onEvent`                   | `MutCtx`  | After every emitted event: setup, actions, battle end and events emitted by hooks (nested up to 4 levels)                                                                           | `void`                                                                                                       | Masquerade Mask, Hot Foot        |
+| Hook                        | Context   | Runs                                                                                                                                                                                | Returns / may write                                                                                          | Used by                               |
+| --------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| `priority`                  | —         | —                                                                                                                                                                                   | Number; lower runs first within its module kind                                                              | —                                     |
+| `stateSlice`                | `ReadCtx` | `init` once per battle; `project` per projection                                                                                                                                    | See §7.3                                                                                                     | Hot Foot, Bulwark, Mask, Crystal      |
+| `onBattleStart`             | `MutCtx`  | Once, after slices are initialised and `BattleStarted` is emitted                                                                                                                   | `void`; may set slices, emit, reveal                                                                         | Scout's Lens                          |
+| `moveFilter.passThrough`    | `ReadCtx` | For each piece on the board whenever movement rules are built                                                                                                                       | `true`: the piece treats its own side's pieces as empty while moving or attacking through them               | Flow                                  |
+| `moveFilter.blockedSquares` | `ReadCtx` | Same                                                                                                                                                                                | Squares the piece may not move to or capture on; also removed from chosen squares for effects on that piece  | Hot Foot                              |
+| `moveFilter.kingMode`       | `ReadCtx` | Same, kings only                                                                                                                                                                    | `'stalwart'` gives the king Stalwart rules; the engine handles its reveal (DD-32)                            | Stalwart                              |
+| `queueOrder`                | `ReadCtx` | Phase 4, before the reaction queue resolves, when it holds two or more triggers                                                                                                     | A permutation of the queue (anything else is ignored); hooks chain                                           | Always First                          |
+| `triggerFilter`             | `MutCtx`  | Once per trigger when it is queued (phase 2 for CAPTURING, phase 4 for reactions)                                                                                                   | `'allow'`, `'silence'` or `'negate'` (first `'negate'` wins; a negating item is revealed)                    | Stillness, Warden's Stopwatch         |
+| `silenceOverride`           | `MutCtx`  | Only when a trigger would be silenced (element rule or a hook's `'silence'`); never for negations                                                                                   | `true` keeps it unsilenced (first `true` wins). No automatic reveal: call `revealSelf`                       | Resonance Crystal                     |
+| `effectIntercept`           | `MutCtx`  | Before an `effectCapture`, `move` or `revive` resolves (§4.10)                                                                                                                      | `'allow'` or `{ fizzle: FizzleReason }` (first fizzle wins; a fizzling item is revealed)                     | Bulwark, Hot Foot, Mooring Chain      |
+| `onPieceMoved`              | `MutCtx`  | After a piece lands: cause `move`, `castle` (king and rook), `bonus`, `effect` or `revive` (`from: -1`)                                                                             | `void`. Not called when a piece is captured: use `onEvent` for `Captured`                                    | Hot Foot                              |
+| `onTurnEnd`                 | `MutCtx`  | In Settle, after the turn passes and before `TurnPassed` and adjudication; `side` is the player who just acted. Also on throwaway drafts, to judge king safety as the turn will end | `void`; changes count for checkmate and stalemate (DD-25)                                                    | Hot Foot countdown                    |
+| `revealFilter.reveal`       | `ReadCtx` | When an ability would be revealed because it activated, was silenced or was negated                                                                                                 | `'hide'` keeps the name hidden and reveals the piece type as veiled; explicit and observed reveals bypass it | Veil                                  |
+| `revealFilter.element`      | `ReadCtx` | While projecting, for the viewer's opponent's pieces, army elements and `Promoted` events                                                                                           | The element to display, or `undefined`                                                                       | Masquerade Mask                       |
+| `modifyCharges`             | `ReadCtx` | Whenever charges are counted (collection, `ChargeSpent`, `remainingCharges`)                                                                                                        | The new maximum; hooks chain                                                                                 | Overabundance, Mainspring             |
+| `attunement`                | `ReadCtx` | When an ability with an attuned version is checked on a piece whose element does not match                                                                                          | `true` counts it as attuned (first `true` wins; the item is revealed as described in §3.9)                   | Attunement Charm                      |
+| `onEvent`                   | `MutCtx`  | After every emitted event: setup, actions, battle end and events emitted by hooks (nested up to 4 levels)                                                                           | `void`                                                                                                       | Masquerade Mask, Hot Foot, Mainspring |
 
 General rules:
 
@@ -1324,10 +1362,13 @@ capacity 1; that is fine because scenarios skip loadout validation (DD-23).
 **Step 6: check.** `pnpm content:validate`, then `pnpm check`. The diff is `abilities/backwash.ts`,
 `abilities/backwash.test.ts` and `registry.generated.ts`, nothing else.
 
-**Step 7: think about the NPCs** (§13). Backwash uses `fx.move`, which has no ability profile
-flag, so NPC search values it only at the root move; and its attuned prompt moves the captor rather
-than its bearer, which the NPC's `square` heuristic does not model. Both are acceptable for a
-PLAYTEST ability, but mention them to the AI owner.
+**Step 7: think about the NPCs** (§13). A CAPTURED `fx.move(target.captor(), ...)` sets the
+`pushesCaptor` profile flag, so the fast search plays the push back to the origin; its attuned prompt
+names the captor as the prompt's `subject`, which the NPC's `square` heuristic places and scores.
+
+Backwash stays a hypothetical Tide example, but the technique ships: **Frost Heave** (Frost, M7) has
+the same base and attuned effects, with a pawn guard (a pawn captor always goes straight back, so it
+never lands on a rank it could not reach by moving; §4.4).
 
 ## 11. Versions, status and retirement
 
@@ -1397,27 +1438,40 @@ unrevealed abilities and items are simply absent, and private slices are re-init
   effect data (base and attuned merged, including inside `fx.when` and `fx.atChainEnd`) and sets flags
   per category. The fast search (`fast.ts`) scores captures with them:
 
-| Profile flag     | Set by                                                      | Effect in the fast search                                                 |
-| ---------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `killsCaptor`    | `effectCapture(target.captor())` in a CAPTURED ability      | The captor is removed unless silenced, negated or protected; kings immune |
-| `killsOther`     | Any other `effectCapture`                                   | Penalty for capturing into it; bonus on your own CAPTURES                 |
-| `selfRevive`     | `revive(target.self(), ...)`                                | The victim is worth less to capture                                       |
-| `reviveFriendly` | Any other `revive`                                          | Bonus on your own CAPTURES                                                |
-| `bonus`          | `bonusAction`                                               | Small tempo bonus on your own CAPTURES                                    |
-| `negatesVictim`  | `negate('victim', [..'CAPTURED'..])` in a CAPTURING ability | Cancels the victim's reactions                                            |
-| `protectsSelf`   | `protect(target.self(), ...)` in a CAPTURING ability        | Cancels `killsCaptor`                                                     |
-| `reveals`        | Any `reveal`                                                | Recorded; not scored today                                                |
+| Profile flag      | Set by                                                      | Effect in the fast search                                                                        |
+| ----------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `killsCaptor`     | `effectCapture(target.captor())` in a CAPTURED ability      | The captor is removed unless silenced, negated, protected or saved by Bulwark; kings immune      |
+| `killsOther`      | Any other `effectCapture`                                   | Penalty for capturing into it (cancelled by your `protectsFriend`); bonus on your own CAPTURES   |
+| `selfRevive`      | `revive(target.self(), ...)`                                | The victim is worth less to capture                                                              |
+| `reviveFriendly`  | Any other `revive`                                          | Bonus on your own CAPTURES                                                                       |
+| `bonus`           | `bonusAction`                                               | Small tempo bonus on your own CAPTURES; a victim's non-capturing bonus (Squall) costs the captor |
+| `recaptures`      | `bonusAction` with `capture: 'captor'` (Riposte)            | Recorded; distinguishes a recapture from a free move                                             |
+| `negatesVictim`   | `negate('victim', [..'CAPTURED'..])` in a CAPTURING ability | Cancels the victim's reactions                                                                   |
+| `negatesCaptor`   | `negate('captor', [..'CAPTURES'..])` in a CAPTURED ability  | Cancels the captor's CAPTURES bonuses, unless Always First resolved them first                   |
+| `protectsSelf`    | `protect(target.self(), ...)`                               | CAPTURING, or CAPTURES on a Storm captor (Always First): cancels `killsCaptor`                   |
+| `protectsFriend`  | `protect(target.chosen({ side: 'friendly', ... }))`         | A CAPTURING guard cancels the penalty for the victim's `killsOther`                              |
+| `pushesCaptor`    | CAPTURED `move(target.captor(), origin or a nearby square)` | The captor is moved back to its from-square (if empty) in the search                             |
+| `sendsCaptorHome` | CAPTURED `move(target.captor(), square.start())`            | The captor is moved to its starting square (if empty) in the search                              |
+| `movesEnemy`      | `move(target.chosen({ side: 'enemy', ... }), ...)`          | Control bonus on your own CAPTURING/CAPTURES; penalty for capturing into a victim's              |
+| `reveals`         | Any `reveal`                                                | Recorded; not scored today                                                                       |
+
+The fast search also knows the element traits' public effects on a capture (`traitEffects` in
+`knowledge.ts`, 6.1): Always First puts a Storm captor's After-capturing abilities ahead of a
+non-Storm victim's reactions, Stillness cancels them when the victim is Frost, and Bulwark saves a
+Stone captor from its first effect capture (the spent list is a public slice).
 
 - **What the profiles do not see:** `fx.move` (no flag), trigger conditions, the difference between
   base and attuned versions, remaining charges, and any hook (items, traits, passives). Movement hooks
   still apply because the search position is built with the hook-derived movement rules, but they are
   fixed at the root and do not follow slice changes inside the search.
 - **Choices.** `chooseOption` scores each option by kind: `piece` by the target's value (positive
-  for an enemy piece, negative for a friendly one, which assumes the choice harms the target),
-  `square` by placing the ability's **bearer** on that square and searching briefly, `move` by
-  playing the bonus move (plus a small tempo bonus), and `decline` by searching the position as it
-  stands. An ability whose choice helps a friendly piece (for example a chosen `protect`) or places
-  a piece other than its bearer (Backwash) is scored with the wrong assumption.
+  for an enemy piece, negative for a friendly one; a `protect` prompt shields the most valuable own
+  piece; a piece sent to a fixed square, such as Snowbound's and Permafrost's starting squares, is
+  scored by placing it there, or before the capture by its value), `square` by placing the prompt's
+  `subject` (the piece the effect moves, the bearer or the captor) on that square and searching
+  briefly, `move` by playing the bonus move (plus a small tempo bonus), and `decline` by searching the
+  position as it stands. A `move` target whose square is chosen later (Snowdrift) scores level, and
+  its square prompt decides.
 - **Unknown sets** cost a risk penalty when capturing a piece type whose set is not fully known
   (`TIERS[tier].risk`), which is why reveal tools also make NPCs play better.
 
@@ -1462,6 +1516,19 @@ fixed loadouts legal at their levels and teaches exactly one ability or element.
 already met completes at once; accepting a quest from its giver completes a leading `talk` step to
 that giver (DD-72). Rewards are XP, items, cards, coins and key items; every reward item must be
 usable by then (the validator checks minimum levels).
+
+**Tiles.** A new ground or deco kind is appended to `tiles.ts` (existing maps keep their gids), gets a
+painter in `tools/art.ts` (the tileset image) and one in the client's `apps/client/src/world/tiles.ts`
+(procedural fallback and tests), and a legend character in `gen-maps.ts`. A wild kind other than
+`tall_grass` sets `tall: true` in the client style so it is not overdrawn with the blade overlay.
+Highcairn Pass (M7) added `snow`, `scree`, `frost_grass` (wild) and `pine` this way.
+
+**Example: Highcairn Pass (M7 7.3).** A route west of Thistle Meadow (a three-tile edge warp each way)
+that introduces Storm, Stone and Frost: wild patches whose encounter entries name each element's
+creatures, one story trainer per new element with a fixed loadout of that element (their rewards are
+their element's first cards), a practice trainer on a seeded build, talk NPCs that explain the
+traits and the second triangle, and a two-quest line (`highcairn_climb`, `highcairn_trial`) whose
+rewards include the new cards and the M7 items. `world.test.ts` checks all of it.
 
 **Checking your change:** `pnpm content:validate`, `pnpm exec vitest run --project unit
 packages/content/world` (includes the generated-map check), then walk it in `pnpm dev` or run
@@ -1508,33 +1575,47 @@ Anchors: `'self'`, `'captor'`, `'victim'`, `'origin'`, `'landing'`. Patterns: `'
 
 Find the closest existing module and copy its shape.
 
-| Module                                                      | Kind    | Lvl | Slots | Technique                                                                                        |
-| ----------------------------------------------------------- | ------- | --- | ----- | ------------------------------------------------------------------------------------------------ |
-| `abilities/scout.ts`                                        | Ability | 1   | 1     | CAPTURING reveal of the victim's set; attuned `highestCostItem`                                  |
-| `abilities/hit_and_run.ts`                                  | Ability | 1   | 1     | `move(self, origin)`; attuned chosen square near the origin (DD-20)                              |
-| `abilities/last_word.ts`                                    | Ability | 1   | 1     | CAPTURED reveal of the captor's set; attuned `items`                                             |
-| `abilities/poisoned_meat.ts`                                | Ability | 2   | 1     | `effectCapture(captor)`; attuned `revealIfSurvives`                                              |
-| `abilities/pierce.ts`                                       | Ability | 3   | 1     | `negate('victim', ['CAPTURED'])` in phase 2                                                      |
-| `abilities/backdraft.ts`                                    | Ability | 4   | 1     | Chosen target near the last known square, excluding the captor                                   |
-| `abilities/antidote.ts`                                     | Ability | 5   | 1     | `protect(self, 1)`; attuned `'all'`                                                              |
-| `abilities/cleave.ts`                                       | Ability | 6   | 1     | Chosen enemy pawn by diagonal, attuned adjacent pattern                                          |
-| `abilities/momentum.ts`                                     | Ability | 8   | 1     | Optional non-capturing bonus move, 2 charges, `replay`                                           |
-| `abilities/reinforce.ts`                                    | Ability | 10  | 1     | Condition, `mostRecentCaptured` revive, attuned `conditions: []`, `revive`                       |
-| `abilities/riposte.ts`                                      | Ability | 12  | 1     | Bonus capture of the captor (nested pipeline); `when` fallback; `replay`                         |
-| `abilities/rebirth.ts`                                      | Ability | 14  | 1     | `atChainEnd` self-revive, 1 charge; attuned back-rank choice; `revive`                           |
-| `abilities/stalwart.ts`                                     | Passive | 16  | 1     | `moveFilter.kingMode`; engine-handled reveal                                                     |
-| `abilities/veil.ts`                                         | Passive | 18  | 1     | `revealFilter.reveal`                                                                            |
-| `items/dual_adepts_glove.ts` (and the other capacity items) | Item    | 1   | 1     | Data-only capacity item                                                                          |
-| `items/multitaskers_schedule.ts`                            | Item    | 10  | 1     | `grants.perTypeSets`                                                                             |
-| `items/blended_family.ts`                                   | Item    | 15  | 1     | `grants.secondElement`                                                                           |
-| `items/attunement_charm.ts`                                 | Item    | 4   | 1     | `param.element` + `attunement` hook                                                              |
-| `items/scouts_lens.ts`                                      | Item    | 3   | 1     | `onBattleStart` reveal with an item source                                                       |
-| `items/resonance_crystal.ts`                                | Item    | 6   | 1     | `silenceOverride` + private per-side slice + `revealSelf`                                        |
-| `items/masquerade_mask.ts`                                  | Item    | 14  | 1     | `revealFilter.element` + `onEvent` + slice `init` computed per side                              |
-| `items/wardens_stopwatch.ts`                                | Item    | 18  | 1     | Two-sided `triggerFilter` on tags                                                                |
-| `traits/hot_foot.ts`                                        | Trait   | —   | —     | Public hashed slice, `blockedSquares`, `effectIntercept`, `onPieceMoved`, `onEvent`, `onTurnEnd` |
-| `traits/flow.ts`                                            | Trait   | —   | —     | `moveFilter.passThrough`                                                                         |
-| `traits/overabundance.ts`                                   | Trait   | —   | —     | `modifyCharges`                                                                                  |
-| `traits/always_first.ts`                                    | Trait   | —   | —     | `queueOrder` stable partition                                                                    |
-| `traits/bulwark.ts`                                         | Trait   | —   | —     | `effectIntercept` + public slice                                                                 |
-| `traits/stillness.ts`                                       | Trait   | —   | —     | `triggerFilter` negation                                                                         |
+| Module                                                      | Kind    | Lvl | Slots | Technique                                                                                                           |
+| ----------------------------------------------------------- | ------- | --- | ----- | ------------------------------------------------------------------------------------------------------------------- |
+| `abilities/scout.ts`                                        | Ability | 1   | 1     | CAPTURING reveal of the victim's set; attuned `highestCostItem`                                                     |
+| `abilities/hit_and_run.ts`                                  | Ability | 1   | 1     | `move(self, origin)`; attuned chosen square near the origin (DD-20)                                                 |
+| `abilities/last_word.ts`                                    | Ability | 1   | 1     | CAPTURED reveal of the captor's set; attuned `items`                                                                |
+| `abilities/poisoned_meat.ts`                                | Ability | 2   | 1     | `effectCapture(captor)`; attuned `revealIfSurvives`                                                                 |
+| `abilities/pierce.ts`                                       | Ability | 3   | 1     | `negate('victim', ['CAPTURED'])` in phase 2                                                                         |
+| `abilities/backdraft.ts`                                    | Ability | 4   | 1     | Chosen target near the last known square, excluding the captor                                                      |
+| `abilities/antidote.ts`                                     | Ability | 5   | 1     | `protect(self, 1)`; attuned `'all'`                                                                                 |
+| `abilities/cleave.ts`                                       | Ability | 6   | 1     | Chosen enemy pawn by diagonal, attuned adjacent pattern                                                             |
+| `abilities/momentum.ts`                                     | Ability | 8   | 1     | Optional non-capturing bonus move, 2 charges, `replay`                                                              |
+| `abilities/reinforce.ts`                                    | Ability | 10  | 1     | Condition, `mostRecentCaptured` revive, attuned `conditions: []`, `revive`                                          |
+| `abilities/riposte.ts`                                      | Ability | 12  | 1     | Bonus capture of the captor (nested pipeline); `when` fallback; `replay`                                            |
+| `abilities/rebirth.ts`                                      | Ability | 14  | 1     | `atChainEnd` self-revive, 1 charge; attuned back-rank choice; `revive`                                              |
+| `abilities/stalwart.ts`                                     | Passive | 16  | 1     | `moveFilter.kingMode`; engine-handled reveal                                                                        |
+| `abilities/veil.ts`                                         | Passive | 18  | 1     | `revealFilter.reveal`                                                                                               |
+| `abilities/squall.ts` (Storm)                               | Ability | 1   | 1     | CAPTURED non-capturing bonus for the victim's side (pawns; attuned any piece), `replay`                             |
+| `abilities/buttress.ts` (Stone)                             | Ability | 2   | 1     | CAPTURING chosen friendly `protect` near the landing; attuned appends `protect(self)`                               |
+| `abilities/frost_heave.ts` (Frost)                          | Ability | 3   | 1     | CAPTURED `move(captor, origin)`; attuned chosen square with a `when` pawn guard                                     |
+| `abilities/afterimage.ts` (Storm)                           | Ability | 5   | 1     | CAPTURES sidestep near the landing; attuned `protect(self)` that pays off with Always First                         |
+| `abilities/stonewall.ts` (Stone)                            | Ability | 6   | 1     | CAPTURED `negate('captor', ['CAPTURES'])` (the mirror of Pierce); attuned captor-set reveal                         |
+| `abilities/pawn_storm.ts` (Storm)                           | Ability | 7   | 1     | Pawn-only bonus push (promotion options, DD-31); attuned any friendly pawn, `replay`                                |
+| `abilities/snowdrift.ts` (Frost)                            | Ability | 9   | 1     | CAPTURES chosen enemy moved to a chosen square near the landing; attuned `include: ['origin']`                      |
+| `abilities/phalanx.ts` (Stone)                              | Ability | 10  | 1     | CAPTURING `negate('victim', ['CAPTURED'])` gated by `captorTypeIs: ['pawn']`; attuned widens the condition          |
+| `abilities/slipstream.ts` (Storm)                           | Ability | 12  | 1     | Any-piece bonus, 1 charge, non-pawn condition dropped when attuned, `replay`                                        |
+| `abilities/snowbound.ts` (Frost)                            | Ability | 14  | 1     | CAPTURING chosen enemy sent to `square.start()` before the capture, 2 charges; attuned allows pawns                 |
+| `abilities/rebuild.ts` (Stone)                              | Ability | 17  | 1     | Rook revive on rook/queen victims, 1 charge; attuned wider conditions, `revive`                                     |
+| `abilities/permafrost.ts` (Frost)                           | Ability | 20  | 1     | CAPTURED `move(captor, start)`, 1 charge; attuned appends a chosen neighbour sent home                              |
+| `items/dual_adepts_glove.ts` (and the other capacity items) | Item    | 1   | 1     | Data-only capacity item                                                                                             |
+| `items/multitaskers_schedule.ts`                            | Item    | 10  | 1     | `grants.perTypeSets`                                                                                                |
+| `items/blended_family.ts`                                   | Item    | 15  | 1     | `grants.secondElement`                                                                                              |
+| `items/attunement_charm.ts`                                 | Item    | 4   | 1     | `param.element` + `attunement` hook                                                                                 |
+| `items/scouts_lens.ts`                                      | Item    | 3   | 1     | `onBattleStart` reveal with an item source                                                                          |
+| `items/resonance_crystal.ts`                                | Item    | 6   | 1     | `silenceOverride` + private per-side slice + `revealSelf`                                                           |
+| `items/masquerade_mask.ts`                                  | Item    | 14  | 1     | `revealFilter.element` + `onEvent` (incl. trait observations and activation order) + slice `init` computed per side |
+| `items/wardens_stopwatch.ts`                                | Item    | 18  | 1     | Two-sided `triggerFilter` on tags                                                                                   |
+| `items/mooring_chain.ts` (M7)                               | Item    | 8   | 1     | One-sided `effectIntercept` on enemy `move` effects + private per-side slice                                        |
+| `items/mainspring.ts` (M7)                                  | Item    | 11  | 1     | `modifyCharges` on `replay` tags + `onEvent` reveal when the count becomes public                                   |
+| `traits/hot_foot.ts`                                        | Trait   | —   | —     | Public hashed slice, `blockedSquares`, `effectIntercept`, `onPieceMoved`, `onEvent`, `onTurnEnd`                    |
+| `traits/flow.ts`                                            | Trait   | —   | —     | `moveFilter.passThrough`                                                                                            |
+| `traits/overabundance.ts`                                   | Trait   | —   | —     | `modifyCharges`                                                                                                     |
+| `traits/always_first.ts`                                    | Trait   | —   | —     | `queueOrder` stable partition                                                                                       |
+| `traits/bulwark.ts`                                         | Trait   | —   | —     | `effectIntercept` + public slice                                                                                    |
+| `traits/stillness.ts`                                       | Trait   | —   | —     | `triggerFilter` negation                                                                                            |

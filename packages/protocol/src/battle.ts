@@ -106,6 +106,8 @@ export const ServerBattle = {
   clock: z.object({ clocks: Clocks, echo: z.number().optional(), now: z.number() }),
   /** The opponent's connection: while away the battle waits `graceUntil` at most (9.2). */
   opp: z.object({ connected: z.boolean(), graceUntil: z.number().optional() }),
+  /** How many spectators watch this battle (M7 7.2, public battles only; carries no game state). */
+  watchers: z.object({ count: z.number().int().min(0) }),
   err: z.object({ code: z.string().max(32), msg: z.string().max(200).optional() }),
 };
 export type ServerBattleMap = typeof ServerBattle;

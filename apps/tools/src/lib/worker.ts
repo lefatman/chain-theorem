@@ -83,7 +83,15 @@ export async function startWorker(
     } catch {
       /* starting */
     }
-    if (Date.now() > until) throw new Error(`worker did not start; see ${log}`);
+    if (Date.now() > until) {
+      // Do not leave a half-started wrangler behind (it would hold its port and state folder).
+      try {
+        if (child.pid) process.kill(-child.pid, 'SIGTERM');
+      } catch {
+        /* gone */
+      }
+      throw new Error(`worker did not start; see ${log}`);
+    }
     await new Promise((r) => setTimeout(r, 500));
   }
   return {

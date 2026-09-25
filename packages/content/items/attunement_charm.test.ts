@@ -44,8 +44,9 @@ describe('attunement charm (R-LOAD-002)', () => {
     expect(engine.validateLoadout(base, { level: 4 }).errors).toContainEqual(
       expect.objectContaining({ code: 'item_param', ref: ID }),
     );
-    const storm: Loadout = { ...base, itemParams: { [ID]: { element: 'storm' } } };
-    expect(engine.validateLoadout(storm, { level: 4 }).errors).toContainEqual(
+    // 'neutral' is never an enabled element (DD-23), so it is not a valid Charm choice.
+    const neutral: Loadout = { ...base, itemParams: { [ID]: { element: 'neutral' } } };
+    expect(engine.validateLoadout(neutral, { level: 4 }).errors).toContainEqual(
       expect.objectContaining({ code: 'item_param', ref: ID }),
     );
     expect(engine.validateLoadout(ok, { level: 3 }).errors).toContainEqual(
@@ -54,7 +55,7 @@ describe('attunement charm (R-LOAD-002)', () => {
   });
 
   it('R-LOAD-002 R-LOAD-004 DD-29 one Charm module covers every element but cannot be equipped twice', () => {
-    for (const element of ['ember', 'tide', 'grove'] as const) {
+    for (const element of ['ember', 'tide', 'grove', 'storm', 'stone', 'frost'] as const) {
       const l: Loadout = {
         elements: ['grove'],
         items: [ID],

@@ -107,6 +107,77 @@ export const QUESTS: readonly QuestDef[] = [
   },
 ];
 
+/**
+ * M7 7.3: the Highcairn Pass line introduces Storm, Stone and Frost (6.1, 6.5). Pathfinder Maud
+ * explains the traits and the second triangle, the three story trainers of the pass (one per
+ * element) hand out their element's first cards, and the rewards include the new ability cards and
+ * the M7 items.
+ */
+export const HIGHCAIRN_QUESTS: readonly QuestDef[] = [
+  {
+    id: 'highcairn_climb',
+    name: 'Storm, Stone and Frost',
+    requires: ['academy_first_road'],
+    steps: [
+      {
+        kind: 'talk',
+        npc: 'pathfinder_maud',
+        text: 'Talk to Pathfinder Maud at the foot of Highcairn Pass, west of Thistle Meadow.',
+      },
+      {
+        kind: 'defeat',
+        npc: 'stormcaller_imre',
+        text: 'Defeat Stormcaller Imre, who battles with Storm, on the lower pass.',
+      },
+      {
+        kind: 'defeat',
+        npc: 'mason_hedda',
+        text: 'Defeat Mason Hedda, who battles with Stone, on the scree slope.',
+      },
+      { kind: 'reach', zone: 'highcairn_pass', area: 'summit', text: 'Climb to the summit cairn.' },
+      {
+        kind: 'defeat',
+        npc: 'rimeguard_osk',
+        text: 'Defeat Rimeguard Osk, who battles with Frost, at the summit.',
+      },
+      { kind: 'talk', npc: 'pathfinder_maud', text: 'Tell Pathfinder Maud what you learned.' },
+    ],
+    reward: {
+      xp: 320,
+      coins: 140,
+      cards: [
+        { id: 'afterimage', qty: 1 },
+        { id: 'phalanx', qty: 1 },
+      ],
+      items: [{ id: 'mooring_chain', qty: 1 }],
+    },
+  },
+  {
+    id: 'highcairn_trial',
+    name: 'The Storm Trial',
+    requires: ['highcairn_climb'],
+    steps: [
+      {
+        kind: 'talk',
+        npc: 'surveyor_ib',
+        text: 'Talk to Surveyor Ib at the west end of the pass.',
+      },
+      {
+        kind: 'win',
+        text: 'Win a battle with a loadout of Storm abilities only.',
+        constraint: { onlyAffinity: 'storm' },
+      },
+      { kind: 'talk', npc: 'surveyor_ib', text: 'Report back to Surveyor Ib.' },
+    ],
+    reward: {
+      xp: 260,
+      coins: 120,
+      cards: [{ id: 'slipstream', qty: 1 }],
+      items: [{ id: 'mainspring', qty: 1 }],
+    },
+  },
+];
+
 export const KEY_ITEMS: readonly KeyItemDef[] = [
   {
     id: 'hush_candle',

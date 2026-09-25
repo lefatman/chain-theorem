@@ -1,8 +1,9 @@
 /**
  * `pnpm test:fuzz` (quick, CI) and `pnpm test:fuzz:full` (100,000 games) — M2 done-when:
  * fuzzed games with random loadouts finish with no crash, no unbounded chain and identical replays.
- * The R-SEC-001 payload scan runs on every game in quick mode and on 10,000 games in full mode
- * (release checklist 17.3). Runs on worker threads; exits 1 on any failure.
+ * The R-SEC-001 payload scan (both players' projections and the spectator projection, M7 7.2) runs on
+ * every game in quick mode and on 10,000 games in full mode (release checklist 17.3). Runs on worker
+ * threads; exits 1 on any failure.
  *
  *   tsx apps/tools/src/fuzz/cli.ts --games N [--seed S] [--workers W] [--max-plies P] [--scan-every K]
  */
@@ -115,6 +116,6 @@ if (!isMainThread) {
     process.exit(1);
   }
   console.log(
-    `fuzz ok: ${games} games, ${plies} plies, replays identical, ${scanned} projection-scanned, no crash, max ${maxChain} events per action`,
+    `fuzz ok: ${games} games, ${plies} plies, replays identical, ${scanned} projection-scanned (players and spectators), no crash, max ${maxChain} events per action`,
   );
 }

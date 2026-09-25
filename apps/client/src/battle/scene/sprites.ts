@@ -6,6 +6,9 @@
  *   slender caster with a staff, rook sturdy and crenellated, queen tall and regal with a beaded
  *   coronet, king round and crowned. Type is readable from the outline alone.
  * - Element changes the palette plus small motifs: flames, wave crests, leaves, sparks, rocks, ice.
+ *   The Storm, Stone and Frost creatures (M7 7.3) also wear a chest emblem on their front sprites
+ *   (a lightning zigzag, a stacked stone, a snow star): a shape cue that survives colour-vision
+ *   deficiencies next to the palette (R-ART-002: colour is never the only signal).
  * - Each creature has a front sprite, a back sprite, a 2-frame idle and a faint frame.
  *
  * All shapes are original: no Pokémon names, designs or capture-ball shapes (R-ART-003).
@@ -62,6 +65,8 @@ interface Motif {
   tail: [Stamp, Stamp];
   /** Body pattern: relative points (0..1) inside a box, painted onto BASE pixels. */
   pattern: { at: readonly (readonly [number, number])[]; m: number };
+  /** Chest emblem on front sprites (M7 7.3 elements), painted only onto body pixels. */
+  emblem?: Stamp;
 }
 
 const MOTIFS: Record<ElementId, Motif> = {
@@ -149,6 +154,8 @@ const MOTIFS: Record<ElementId, Motif> = {
       ],
       m: M.ACC,
     },
+    // A lightning zigzag.
+    emblem: ['..dd', '.dd.', 'dddd', '.dd.', 'dd..'],
   },
   stone: {
     crest: [
@@ -173,6 +180,8 @@ const MOTIFS: Record<ElementId, Motif> = {
       ],
       m: M.ACC_SH,
     },
+    // Two stacked stones (a small cairn).
+    emblem: ['.dd.', 'd..d', '.dd.', 'dddd', 'd..d', 'dddd'],
   },
   frost: {
     crest: [
@@ -195,6 +204,8 @@ const MOTIFS: Record<ElementId, Motif> = {
       ],
       m: M.MOTIF,
     },
+    // A six-pointed snow star.
+    emblem: ['d.d.d', '.ddd.', 'dd.dd', '.ddd.', 'd.d.d'],
   },
   neutral: {
     crest: [
@@ -214,6 +225,24 @@ const MOTIFS: Record<ElementId, Motif> = {
 function motif(g: PixelGrid, s: Stamp, cx: number, by: number, flip = false): void {
   const w = s[0]?.length ?? 0;
   g.stamp(Math.round(cx - (w - 1) / 2), by - s.length + 1, s, KEY, flip);
+}
+
+/**
+ * The element's chest emblem, centred on (cx, cy), on front sprites only. It is painted onto body,
+ * belly and accent pixels, so the silhouette (piece type, R-ART-002) never changes.
+ */
+function emblem(g: PixelGrid, p: Pose, cx: number, cy: number): void {
+  const s = MOTIFS[p.el].emblem;
+  if (!s || !p.front) return;
+  const w = s[0]?.length ?? 0;
+  const x0 = Math.round(cx - (w - 1) / 2);
+  const y0 = Math.round(cy - (s.length - 1) / 2);
+  s.forEach((row, j) => {
+    [...row].forEach((ch, i) => {
+      const m = KEY[ch];
+      if (m !== undefined) g.paintOnto(x0 + i, y0 + j, m, [M.BASE, M.BELLY, M.ACC]);
+    });
+  });
 }
 
 function pattern(g: PixelGrid, el: ElementId, x: number, y: number, w: number, h: number): void {
@@ -286,6 +315,7 @@ function pawn(g: PixelGrid, p: Pose): void {
   if (p.front) {
     g.ellipse(12, 19.2, 3.2, 2.2, M.BELLY);
     face(g, p, 9, 13, 14, 2, 17);
+    emblem(g, p, 12, 19.5);
   } else {
     pattern(g, p.el, 8, 13, 8, 7);
   }
@@ -332,6 +362,7 @@ function knight(g: PixelGrid, p: Pose): void {
     eye(g, 6, 7, 2, p.faint, false);
     g.set(3, 9, M.EYE);
     g.paintOnto(8, 10, M.BLUSH, [M.BASE]);
+    emblem(g, p, 15, 13);
   } else {
     g.line(12, 10, 17, 12, M.ACC, 1);
     pattern(g, p.el, 10, 11, 8, 4);
@@ -373,6 +404,7 @@ function bishop(g: PixelGrid, p: Pose): void {
     face(g, p, 10, 13, 10, 2, 12, false);
     g.rect(11, 13, 2, 10, M.BELLY);
     g.rect(16, 13, 2, 2, M.BASE);
+    emblem(g, p, 12, 18);
   } else {
     g.rect(11, 13, 2, 10, M.ACC_SH);
     g.rect(17, 14, 1, 2, M.BASE);
@@ -398,6 +430,7 @@ function rook(g: PixelGrid, p: Pose): void {
   if (p.front) {
     g.rect(8, 16, 8, 4, M.BELLY);
     face(g, p, 8, 14, 11, 3, 15);
+    emblem(g, p, 12, 18.5);
   } else {
     // A little arched door on its back.
     g.rect(10, 15, 4, 6, M.ACC_SH);
@@ -464,6 +497,7 @@ function queen(g: PixelGrid, p: Pose): void {
     );
     g.rect(10, 12, 4, 1, M.BELLY);
     face(g, p, 9, 13, 8, 2, 11);
+    emblem(g, p, 12, 18);
   } else {
     g.rect(10, 12, 4, 2, M.ACC);
     g.set(9, 14, M.ACC);
@@ -519,6 +553,7 @@ function king(g: PixelGrid, p: Pose): void {
   if (p.front) {
     g.ellipse(12, 17.6, 4.4, 3.4, M.BELLY);
     face(g, p, 8, 14, 11, 3, 15);
+    emblem(g, p, 12, 18.5);
     motif(g, mo.tail[p.v], 20, 20);
   } else {
     g.rect(8, 9, 8, 1, M.BELLY);

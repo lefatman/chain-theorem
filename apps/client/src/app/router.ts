@@ -13,7 +13,9 @@ export type RouteName =
   | 'online'
   | 'account'
   | 'leaderboards'
-  | 'guild';
+  | 'guild'
+  | 'tournaments'
+  | 'watch';
 
 export interface Route {
   name: RouteName;
