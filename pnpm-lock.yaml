@@ -48,7 +48,11 @@ importers:
 
   apps/tools: {}
 
-  packages/ai: {}
+  packages/ai:
+    dependencies:
+      '@chain-theorem/rules':
+        specifier: workspace:*
+        version: link:../rules
 
   packages/content: {}
 
