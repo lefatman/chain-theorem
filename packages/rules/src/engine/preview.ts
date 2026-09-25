@@ -157,7 +157,15 @@ export function preview(
   }
   const unknowns: Unknown[] = [];
   const known = pub.armies[opp].revealed;
-  const victimId = pub.board[move.to] ?? -1;
+  // En passant: the victim stands beside the landing square, not on it.
+  const mover = pub.pieces[pub.board[move.from] ?? -1];
+  const isEp =
+    mover?.type === 'pawn' &&
+    move.to === pub.ep &&
+    (pub.board[move.to] ?? -1) < 0 &&
+    (move.from & 7) !== (move.to & 7);
+  const victimSq = isEp ? move.to + (mover?.side === 'white' ? -8 : 8) : move.to;
+  const victimId = pub.board[victimSq] ?? -1;
   const victim = victimId >= 0 ? pub.pieces[victimId] : undefined;
   if (victim && victim.side === opp && !known.complete.includes(victim.type)) {
     unknowns.push({ kind: 'victimAbilities', pieceType: victim.type });

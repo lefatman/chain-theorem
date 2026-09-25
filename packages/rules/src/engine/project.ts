@@ -3,6 +3,14 @@
  * board, the viewer's own army, and only what has been revealed about the opponent. Events are
  * whitelisted field by field; any opponent ability or item id the viewer has not seen is replaced by
  * null, which is also how Veil keeps names hidden (DD-28).
+ *
+ * Spectators (M7 7.2, spec 10.4) get a public-only projection: about each army exactly what that
+ * army's opponent knows. The owner of an army knows all of it and every `Revealed` event goes to both
+ * players, so this is the intersection of the two players' knowledge: the reveal logs, the displayed
+ * elements (Masquerade Mask as the opponent sees it), the board and public slices. Nothing only one
+ * player saw reaches a spectator: no loadouts or sets, no legal moves, no prompt contents, no
+ * choices, no pending burns, and no fizzle, charge or usage counter of an ability the owner's
+ * opponent cannot name.
  */
 import { opposite } from '../board.ts';
 import type { PieceView } from '../sdk/types.ts';
@@ -72,6 +80,28 @@ export interface PublicState {
 
 export type PublicEvent = BattleEvent;
 
+/** Who a projection is for: one of the players, or a spectator (M7 7.2). */
+export type Viewer = Side | 'spectator';
+
+/**
+ * A spectator's projection (M7 7.2, R-INFO-005): the same shape as a player's, with both armies as
+ * their opponents see them, no loadout or sets on either army, no legal moves, a pending choice
+ * without its request, and only the slices whose module declares `spectate`.
+ */
+export interface SpectatorState extends Omit<PublicState, 'viewer' | 'pending' | 'legal'> {
+  viewer: 'spectator';
+  pending: { chooser: Side; request: null } | null;
+  legal: [];
+}
+
+/**
+ * The player whose knowledge decides what `viewer` may learn about `owner`'s hidden information: a
+ * player knows their own army; a spectator learns about each army only what its opponent knows.
+ */
+export function knowerOf(owner: Side, viewer: Viewer): Side {
+  return viewer === 'spectator' ? opposite(owner) : viewer;
+}
+
 class ReadHost implements Host {
   readonly s: GameState;
   constructor(s: GameState) {
@@ -82,38 +112,55 @@ class ReadHost implements Host {
   }
 }
 
+/**
+ * Is `ability` known to `viewer` on `side`'s pieces of `pieceType`? Knowledge is per piece type
+ * (8.2: an ability is revealed together with the piece type it was seen on), so a veiled type keeps
+ * its names hidden even when the same ability was revealed on another type (DD-28). Without a piece
+ * type (a side-wide source such as a passive) any type counts.
+ */
 export function knownAbility(
   state: GameState,
   side: Side,
-  viewer: Side,
+  viewer: Viewer,
   ability: string | null,
+  pieceType?: PieceType,
 ): boolean {
   if (ability === null) return true;
-  if (side === viewer) return true;
+  if (side === knowerOf(side, viewer)) return true;
   const log = state.reveals[side];
+  if (pieceType !== undefined) return log.abilities[pieceType]?.includes(ability) ?? false;
   for (const list of Object.values(log.abilities)) if (list?.includes(ability)) return true;
   return false;
 }
 
-export function knownItem(state: GameState, side: Side, viewer: Side, item: string): boolean {
-  if (side === viewer) return true;
+const typeOfPiece = (state: GameState, id: PieceId): PieceType | undefined =>
+  state.pieces[id]?.type;
+
+export function knownItem(state: GameState, side: Side, viewer: Viewer, item: string): boolean {
+  if (side === knowerOf(side, viewer)) return true;
   const log = state.reveals[side];
   return log.items.includes(item);
 }
 
-function displayElement(rt: Runtime, host: Host, viewer: Side, piece: PieceView): ElementId {
-  if (piece.side === viewer) return piece.element;
+function displayElement(rt: Runtime, host: Host, viewer: Viewer, piece: PieceView): ElementId {
+  const knower = knowerOf(piece.side, viewer);
+  if (piece.side === knower) return piece.element;
   for (const e of rt.hook(host.s, 'revealFilter')) {
     const fn = e.hooks.revealFilter?.element;
     if (!fn) continue;
-    const shown = fn(rt.ctx(host, e), viewer, piece);
+    const shown = fn(rt.ctx(host, e), knower, piece);
     if (shown !== undefined) return shown;
   }
   return piece.element;
 }
 
-export function project(rt: Runtime, state: GameState, viewer: Side, legal: string[]): PublicState {
-  const host = new ReadHost(state);
+/** Everything but the viewer-specific parts (own loadout, slices, pending, legal moves). */
+function projectBase(
+  rt: Runtime,
+  host: ReadHost,
+  viewer: Viewer,
+): Omit<PublicState, 'viewer' | 'slices' | 'pending' | 'legal'> {
+  const state = host.s;
   const pieces: PublicPiece[] = state.pieces.map((p) => ({
     id: p.id,
     side: p.side,
@@ -135,32 +182,21 @@ export function project(rt: Runtime, state: GameState, viewer: Side, legal: stri
     };
     const a = displayElement(rt, host, viewer, synth('pawn'));
     const b = displayElement(rt, host, viewer, synth('king'));
-    const pub: PublicArmy = {
+    armies[side] = {
       level: army.level,
       elements: a === b ? [a] : [a, b],
       consumedSlots: army.consumedSlots,
       revealed: state.reveals[side],
     };
-    if (side === viewer) {
-      pub.loadout = army.loadout;
-      pub.sets = army.sets;
-    }
-    armies[side] = pub;
   }
   const usage: Record<string, number> = {};
   for (const [key, n] of Object.entries(state.usage)) {
     const [pidStr, ability] = key.split(':') as [string, string];
     const p = state.pieces[Number(pidStr)];
     if (!p) continue;
-    if (knownAbility(state, p.side, viewer, ability)) usage[key] = n;
-  }
-  const slices: Record<string, unknown> = {};
-  for (const [id, hooks] of rt.slices) {
-    const decl = hooks.stateSlice;
-    if (decl?.project) slices[id] = decl.project(state.slices[id], viewer, rt.ctx(host, null));
+    if (knownAbility(state, p.side, viewer, ability, p.type)) usage[key] = n;
   }
   return {
-    viewer,
     format: state.format,
     contentVersion: state.contentVersion,
     turn: state.turn,
@@ -173,11 +209,28 @@ export function project(rt: Runtime, state: GameState, viewer: Side, legal: stri
     pieces,
     armies,
     usage,
-    slices,
     objective: { ...state.objective },
     inCheck: state.inCheck,
     result: state.result,
     eventSeq: state.eventSeq,
+  };
+}
+
+export function project(rt: Runtime, state: GameState, viewer: Side, legal: string[]): PublicState {
+  const host = new ReadHost(state);
+  const base = projectBase(rt, host, viewer);
+  const own = base.armies[viewer];
+  own.loadout = state.armies[viewer].loadout;
+  own.sets = state.armies[viewer].sets;
+  const slices: Record<string, unknown> = {};
+  for (const [id, hooks] of rt.slices) {
+    const decl = hooks.stateSlice;
+    if (decl?.project) slices[id] = decl.project(state.slices[id], viewer, rt.ctx(host, null));
+  }
+  return {
+    viewer,
+    ...base,
+    slices,
     pending: state.pending
       ? {
           chooser: state.pending.request.chooser,
@@ -188,14 +241,36 @@ export function project(rt: Runtime, state: GameState, viewer: Side, legal: stri
   };
 }
 
+/**
+ * The spectator projection (M7 7.2, R-INFO-005, R-SEC-001): public information only (see the file
+ * comment). Deterministic and pure like `project`.
+ */
+export function projectSpectator(rt: Runtime, state: GameState): SpectatorState {
+  const host = new ReadHost(state);
+  const base = projectBase(rt, host, 'spectator');
+  const slices: Record<string, unknown> = {};
+  for (const [id, hooks] of rt.slices) {
+    const decl = hooks.stateSlice;
+    if (decl?.spectate) slices[id] = decl.spectate(state.slices[id], rt.ctx(host, null));
+  }
+  return {
+    viewer: 'spectator',
+    ...base,
+    slices,
+    pending: state.pending ? { chooser: state.pending.request.chooser, request: null } : null,
+    legal: [],
+  };
+}
+
 function maskSource(
   state: GameState,
-  viewer: Side,
+  viewer: Viewer,
   src: SourceRef | undefined,
 ): SourceRef | undefined {
   if (!src) return undefined;
   if (src.kind === 'ability') {
-    return knownAbility(state, src.side, viewer, src.id) ? src : { kind: 'hidden' };
+    const type = src.piece >= 0 ? typeOfPiece(state, src.piece) : undefined;
+    return knownAbility(state, src.side, viewer, src.id, type) ? src : { kind: 'hidden' };
   }
   if (src.kind === 'item') {
     return knownItem(state, src.side, viewer, src.id) ? src : { kind: 'hidden' };
@@ -203,28 +278,64 @@ function maskSource(
   return src;
 }
 
-/** Project one event for `viewer` (whitelist; unknown opponent ids become null or 'hidden'). */
-export function projectEvent(state: GameState, ev: BattleEvent, viewer: Side): PublicEvent {
+/**
+ * Project one event for `viewer`, or null when the viewer must not receive it at all. A hidden
+ * ability (not revealed for the piece type that carries it, e.g. under Veil) is reduced to an
+ * opaque activation marker: no name, category or attuned flag, and its fizzles, charge spending and
+ * the owner's choices are not sent, so only board effects remain visible (8.2, DD-28, R-SEC-001).
+ * A spectator sees each side's events as that side's opponent does and never sees a choice (M7 7.2).
+ */
+export function projectEvent(
+  rt: Runtime,
+  state: GameState,
+  ev: BattleEvent,
+  viewer: Viewer,
+): PublicEvent | null {
   switch (ev.k) {
     case 'AbilityTriggered':
+      return knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType)
+        ? ev
+        : { ...ev, ability: null, category: null, attuned: null };
     case 'AbilitySilenced':
-      return knownAbility(state, ev.side, viewer, ev.ability) ? ev : { ...ev, ability: null };
+      return knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType)
+        ? ev
+        : { ...ev, ability: null, category: null };
     case 'AbilityNegated': {
-      const ability = knownAbility(state, ev.side, viewer, ev.ability) ? ev.ability : null;
-      return { ...ev, ability, source: maskSource(state, viewer, ev.source) ?? { kind: 'hidden' } };
+      const known = knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType);
+      return {
+        ...ev,
+        ability: known ? ev.ability : null,
+        category: known ? ev.category : null,
+        source: maskSource(state, viewer, ev.source) ?? { kind: 'hidden' },
+      };
     }
     case 'EffectFizzled': {
-      const known = knownAbility(state, ev.side, viewer, ev.ability);
-      const out = { ...ev, ability: known ? ev.ability : null };
+      if (!knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType)) return null;
+      const out = { ...ev };
       const src = maskSource(state, viewer, ev.source);
       if (src) out.source = src;
       else delete out.source;
       return out;
     }
     case 'ChargeSpent':
-      return knownAbility(state, ev.side, viewer, ev.ability)
-        ? ev
-        : { ...ev, ability: null, remaining: -1 };
+      return knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType) ? ev : null;
+    case 'ChoiceMade':
+      // A choice is the chooser's own business; its board effect follows as its own events.
+      return ev.side === viewer ? ev : null;
+    case 'Promoted': {
+      // Masquerade Mask: the new piece shows its displayed element, not the true one (DD-26).
+      if (ev.side === knowerOf(ev.side, viewer)) return ev;
+      const view: PieceView = {
+        id: ev.piece,
+        side: ev.side,
+        type: ev.to,
+        element: ev.element,
+        square: -1,
+        lastSquare: -1,
+        start: -1,
+      };
+      return { ...ev, element: displayElement(rt, new ReadHost(state), viewer, view) };
+    }
     case 'Captured':
     case 'PieceMoved':
     case 'PieceRevived': {
@@ -242,11 +353,17 @@ export function projectEvent(state: GameState, ev: BattleEvent, viewer: Side): P
 }
 
 export function projectEvents(
+  rt: Runtime,
   state: GameState,
   events: readonly BattleEvent[],
-  viewer: Side,
+  viewer: Viewer,
 ): PublicEvent[] {
-  return events.map((e) => projectEvent(state, e, viewer));
+  const out: PublicEvent[] = [];
+  for (const e of events) {
+    const p = projectEvent(rt, state, e, viewer);
+    if (p) out.push(p);
+  }
+  return out;
 }
 
 export { opposite };

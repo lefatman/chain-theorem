@@ -155,6 +155,11 @@ export class Pos {
   castling = 0;
   ep = -1;
   rules: MoveRules;
+  /**
+   * Rules for judging the mover's own king safety when they differ from the rules for generating
+   * moves (a burn that expires when this turn ends, R-ELEM-005 and INV-03). Null = same as `rules`.
+   */
+  safety: MoveRules | null = null;
 
   readonly n: number;
 
@@ -484,10 +489,14 @@ export class Pos {
       return out;
     }
     const saved = this.turn;
+    const moveRules = this.rules;
+    const safety = this.safety;
     for (let i = 0; i < pseudo.length; i++) {
       const m = pseudo[i] as number;
       const u = this.make(m);
+      if (safety) this.rules = safety;
       if (!this.inCheck(side)) out.push(m);
+      this.rules = moveRules;
       this.unmake(u);
     }
     this.turn = saved;

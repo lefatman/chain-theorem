@@ -27,8 +27,16 @@ import { type Deductions, deduce } from './deduce.ts';
 import { EventHost, emptyReveal } from './host.ts';
 import { expandSets, loadoutShape, validateLoadout } from './loadout.ts';
 import { type Preview, beliefState, preview } from './preview.ts';
-import { type PublicEvent, type PublicState, project, projectEvents } from './project.ts';
+import {
+  type PublicEvent,
+  type PublicState,
+  type SpectatorState,
+  project,
+  projectEvents,
+  projectSpectator,
+} from './project.ts';
 import { Runtime } from './runtime.ts';
+import { rulesAfterTurnEnd } from './simulate.ts';
 
 export interface Engine {
   readonly registry: ContentRegistry;
@@ -38,6 +46,13 @@ export interface Engine {
   applyAction(state: GameState, input: ActionInput): ApplyResult;
   project(state: GameState, viewer: Side): PublicState;
   projectEvents(state: GameState, events: readonly BattleEvent[], viewer: Side): PublicEvent[];
+  /**
+   * A spectator's projection (M7 7.2, R-INFO-005): public information only, each army as its
+   * opponent sees it; no loadouts, legal moves or prompt contents.
+   */
+  projectSpectator(state: GameState): SpectatorState;
+  /** Events as a spectator may see them: every ability, item and source not known to both hidden. */
+  projectSpectatorEvents(state: GameState, events: readonly BattleEvent[]): PublicEvent[];
   preview(pub: PublicState, own: Loadout, move: Move): Preview;
   stateHash(state: GameState): string;
   validateLoadout(loadout: Loadout, player: PlayerFacts): LoadoutValidation;
@@ -95,12 +110,30 @@ export function createEngine(registry: ContentRegistry, caps: Caps): Engine {
     if (state.result || state.pending) return [];
     const pos = rulesPos(state);
     if (side !== state.turn) pos.ep = -1;
+    // Own king safety is judged with the rules as they stand once this turn ends (INV-03).
+    pos.safety = rulesAfterTurnEnd(rt, state, state.turn);
     return pos.legal(side === 'white' ? 0 : 1);
   }
 
   function newBattle(setup: BattleSetup): { state: GameState; events: BattleEvent[] } {
     if (!caps.FORMATS[setup.format])
       throw new RulesError('bad_setup', `unknown format ${setup.format}`);
+    if (setup.strict) {
+      // R-LOAD-004 is an invariant at battle start: every real battle validates both loadouts.
+      for (const side of ['white', 'black'] as const) {
+        const v = validateLoadout(
+          setup[side].loadout,
+          { level: setup[side].level },
+          rt.abilities,
+          rt.items,
+          caps,
+        );
+        if (!v.ok) {
+          const why = v.errors.map((e) => `rule ${e.rule} ${e.code}`).join(', ');
+          throw new RulesError('bad_setup', `${side} loadout invalid: ${why}`);
+        }
+      }
+    }
     const parsed = parseFen(setup.fen ?? START_FEN);
     const white = armyFor(rt, setup.white);
     const black = armyFor(rt, setup.black);
@@ -260,7 +293,9 @@ export function createEngine(registry: ContentRegistry, caps: Caps): Engine {
           : [];
       return project(rt, state, viewer, legal);
     },
-    projectEvents: (state, events, viewer) => projectEvents(state, events, viewer),
+    projectEvents: (state, events, viewer) => projectEvents(rt, state, events, viewer),
+    projectSpectator: (state) => projectSpectator(rt, state),
+    projectSpectatorEvents: (state, events) => projectEvents(rt, state, events, 'spectator'),
     preview: (pub, own, move) => preview(engine, rt, pub, own, move),
     stateHash: (state) => rt.stateHash(state),
     validateLoadout: (loadout, player) =>

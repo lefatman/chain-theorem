@@ -5,5 +5,16 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@chain-theorem/ai": "workspace:*",
+    "@chain-theorem/content": "workspace:*",
+    "@chain-theorem/db": "workspace:*",
+    "@chain-theorem/protocol": "workspace:*",
+    "@chain-theorem/rules": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260925.1",
+    "wrangler": "^4.139.0"
   }
 }

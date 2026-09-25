@@ -15,7 +15,14 @@ export {
   toFen,
 } from './board.ts';
 export { createEngine, cloneState, type Engine } from './engine/index.ts';
-export type { PublicState, PublicPiece, PublicArmy, PublicEvent } from './engine/project.ts';
+export type {
+  PublicState,
+  PublicPiece,
+  PublicArmy,
+  PublicEvent,
+  SpectatorState,
+  Viewer,
+} from './engine/project.ts';
 export type { Preview, Unknown } from './engine/preview.ts';
 export { applyWithDefaults } from './engine/preview.ts';
 export type { Deductions } from './engine/deduce.ts';

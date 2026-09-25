@@ -5,7 +5,8 @@
  */
 import { opposite } from '../board.ts';
 import { stateHashOf } from '../hash.ts';
-import { type MoveRules, defaultRules } from '../movegen.ts';
+import { F_EP, type MoveRules, Pos, defaultRules } from '../movegen.ts';
+import { rulesAfterTurnEnd } from './simulate.ts';
 import type {
   AbilityDef,
   Caps,
@@ -117,8 +118,19 @@ export class Runtime {
     return this.abilities.get(id);
   }
 
+  /**
+   * Full-state hash for repetition (4.5, DD-33). The en passant file counts only when an en passant
+   * capture is actually legal for the side to move (pins, Hot Foot and Stalwart included).
+   */
   stateHash(state: GameState): string {
-    return stateHashOf(state, this.hashedSlices);
+    let epUsable = false;
+    if (state.ep >= 0) {
+      const host: Host = { s: state, lastSquare: (id) => state.pieces[id]?.square ?? -1 };
+      const pos = Pos.fromState(state, this.moveRules(host));
+      pos.safety = rulesAfterTurnEnd(this, state, state.turn);
+      epUsable = pos.legal(state.turn === 'white' ? 0 : 1).some((m) => (m & F_EP) !== 0);
+    }
+    return stateHashOf(state, this.hashedSlices, epUsable);
   }
 
   /** Hook entries active in this battle, in the fixed order. Cached per `armies` object. */

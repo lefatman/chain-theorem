@@ -8,6 +8,7 @@
     "abilities/**/*.ts",
     "items/**/*.ts",
     "traits/**/*.ts",
+    "world/**/*.ts",
     "src/**/*.ts",
     "test/**/*.ts"
   ]

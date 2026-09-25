@@ -106,6 +106,25 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:workers
 
+  load:
+    name: load, first win and tournaments (M5, M7 done-when)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # M5 done-when: 50 simulated clients in one zone stay inside the 14.2 guardrail.
+      - run: pnpm test:load
+      # M5 done-when: a new account reaches its first win within 30 minutes of play.
+      - run: pnpm test:firstwin
+      # M7 done-when: a public tournament completes (8 bot accounts, the real Worker), Swiss and knockout.
+      - run: pnpm tournament:local
+      - run: pnpm tournament:local --format se
+
   e2e:
     name: end to end (Playwright)
     runs-on: ubuntu-latest
@@ -128,3 +147,6 @@ jobs:
         run: pnpm --filter @chain-theorem/client exec playwright install --with-deps chromium
       - if: steps.detect.outputs.present == 'true'
         run: pnpm test:e2e
+      # M4 done-when: two browsers against the real Worker (wrangler dev, local D1/R2/DOs).
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm test:e2e:online

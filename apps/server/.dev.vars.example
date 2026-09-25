@@ -1,0 +1,47 @@
+# Local secrets for `wrangler dev` (copy to .dev.vars; `pnpm dev` creates it for you).
+# Production values are set with `wrangler secret put NAME` (DEPLOY.md 4), never committed (R-SEC-009).
+
+# HMAC key for 60-second socket tickets and OAuth state (R-SEC-006). At least 32 random bytes.
+AUTH_SECRET=replace-with-64-random-hex-characters
+
+# Local development opens the client through Vite on port 5173 (magic links point there).
+APP_ORIGIN=http://localhost:5173
+
+# Magic-link email (production). Locally MAIL_MODE=console prints links in the dev console.
+# MAIL_ENDPOINT=https://api.your-mail-provider.example/emails
+# MAIL_API_KEY=
+# MAIL_FROM=Chain Theorem <signin@your-domain>
+
+# Optional OAuth sign-in: a provider is enabled when both values are set.
+# GITHUB_CLIENT_ID=
+# GITHUB_CLIENT_SECRET=
+# GOOGLE_CLIENT_ID=
+# GOOGLE_CLIENT_SECRET=
+# DISCORD_CLIENT_ID=
+# DISCORD_CLIENT_SECRET=
+
+# Billing (M6 6.3, DEPLOY.md 5). Locally, with none of these set, the fake provider runs: checkout opens
+# a page the Worker serves, and paying sends signed webhooks to /api/billing/webhook (no money moves).
+# Paddle is used when both PADDLE_API_KEY and PADDLE_WEBHOOK_SECRET are set (sandbox keys first).
+# PADDLE_API_KEY=
+# The notification destination's secret key (verifies the Paddle-Signature header, R-SEC-007).
+# PADDLE_WEBHOOK_SECRET=
+# sandbox (default) or production.
+# PADDLE_ENV=sandbox
+# Price ids of the $4 monthly, $11 quarterly and $40 yearly plans (spec 14.3).
+# PADDLE_PRICE_MONTHLY=
+# PADDLE_PRICE_QUARTERLY=
+# PADDLE_PRICE_YEARLY=
+# Paddle.js client-side token for the pay page /api/billing/paddle/pay.
+# PADDLE_CLIENT_TOKEN=
+# The fake provider runs only on a local origin; FAKE_BILLING=on allows it elsewhere (a preview).
+# Never set it in production.
+# FAKE_BILLING=on
+# Signing key for the fake provider's checkout links and webhooks (default: derived from AUTH_SECRET).
+# FAKE_BILLING_SECRET=
+
+# Emails (comma-separated) that may open the admin pages: the moderation console at /admin (reports
+# queue, player lookup, suspensions and chat bans; M6 6.4) and the cost dashboard at /admin/cost
+# (14.2). Locally the seeded level25@local.test account is the admin; in production set it with
+# `wrangler secret put`.
+ADMIN_EMAILS=level25@local.test

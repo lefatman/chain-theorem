@@ -1,0 +1,664 @@
+{
+  "compressionlevel": -1,
+  "height": 24,
+  "infinite": false,
+  "layers": [
+    {
+      "data": [
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 38, 38, 38, 39, 38, 38, 38, 38, 38, 38, 38, 38, 38, 3, 38, 38, 3, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 39, 38, 38, 1,
+        1, 38, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 38, 1,
+        1, 38, 4, 38, 38, 38, 38, 38, 38, 38, 1, 38, 38, 38, 38, 4, 4, 38, 38, 38, 38, 1, 38, 38, 38, 38, 38, 38, 38, 4, 38, 1,
+        1, 38, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 38, 1,
+        1, 38, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 38, 1,
+        1, 38, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 38, 1,
+        1, 38, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 4, 38, 1,
+        1, 38, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 38, 4, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 38, 1,
+        1, 1, 4, 38, 38, 6, 6, 6, 6, 6, 6, 6, 38, 38, 38, 4, 4, 38, 38, 38, 6, 6, 6, 6, 6, 6, 6, 38, 38, 4, 38, 1,
+        4, 38, 4, 38, 38, 38, 38, 38, 1, 38, 38, 38, 38, 38, 38, 4, 4, 38, 38, 38, 38, 38, 39, 38, 38, 38, 38, 38, 38, 4, 38, 1,
+        4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 38, 1,
+        4, 38, 4, 38, 38, 39, 38, 38, 38, 38, 38, 38, 38, 38, 38, 4, 4, 38, 38, 38, 38, 38, 38, 38, 38, 38, 1, 38, 38, 4, 38, 1,
+        1, 38, 4, 38, 38, 6, 6, 6, 6, 6, 6, 6, 6, 38, 38, 4, 4, 38, 38, 6, 6, 6, 6, 6, 6, 6, 6, 38, 38, 4, 38, 1,
+        1, 38, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 38, 1,
+        1, 38, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 38, 1,
+        1, 38, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 38, 1,
+        1, 38, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 4, 38, 1,
+        1, 38, 4, 38, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 4, 4, 38, 6, 6, 6, 6, 6, 6, 6, 6, 6, 38, 38, 4, 38, 1,
+        1, 38, 4, 38, 38, 38, 6, 6, 6, 6, 6, 6, 6, 38, 38, 4, 4, 38, 38, 6, 6, 6, 6, 6, 6, 6, 38, 38, 38, 4, 38, 1,
+        1, 38, 4, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 4, 4, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 4, 38, 1,
+        1, 38, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 38, 1,
+        1, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 1, 4, 4, 4, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+      ],
+      "height": 24,
+      "id": 1,
+      "name": "ground",
+      "opacity": 1,
+      "type": "tilelayer",
+      "visible": true,
+      "width": 32,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "data": [
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9,
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 0, 0, 0, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9
+      ],
+      "height": 24,
+      "id": 2,
+      "name": "deco",
+      "opacity": 1,
+      "type": "tilelayer",
+      "visible": true,
+      "width": 32,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "draworder": "topdown",
+      "id": 3,
+      "name": "objects",
+      "objects": [
+        {
+          "height": 16,
+          "id": 1,
+          "name": "spawn",
+          "properties": [{ "name": "dir", "type": "string", "value": "n" }],
+          "rotation": 0,
+          "type": "spawn",
+          "visible": true,
+          "width": 16,
+          "x": 240,
+          "y": 320
+        },
+        {
+          "height": 16,
+          "id": 2,
+          "name": "to route_1",
+          "properties": [
+            { "name": "dir", "type": "string", "value": "s" },
+            { "name": "to", "type": "string", "value": "route_1" },
+            { "name": "toX", "type": "int", "value": 10 },
+            { "name": "toY", "type": "int", "value": 1 }
+          ],
+          "rotation": 0,
+          "type": "warp",
+          "visible": true,
+          "width": 16,
+          "x": 224,
+          "y": 368
+        },
+        {
+          "height": 16,
+          "id": 3,
+          "name": "to route_1",
+          "properties": [
+            { "name": "dir", "type": "string", "value": "s" },
+            { "name": "to", "type": "string", "value": "route_1" },
+            { "name": "toX", "type": "int", "value": 11 },
+            { "name": "toY", "type": "int", "value": 1 }
+          ],
+          "rotation": 0,
+          "type": "warp",
+          "visible": true,
+          "width": 16,
+          "x": 240,
+          "y": 368
+        },
+        {
+          "height": 16,
+          "id": 4,
+          "name": "to route_1",
+          "properties": [
+            { "name": "dir", "type": "string", "value": "s" },
+            { "name": "to", "type": "string", "value": "route_1" },
+            { "name": "toX", "type": "int", "value": 12 },
+            { "name": "toY", "type": "int", "value": 1 }
+          ],
+          "rotation": 0,
+          "type": "warp",
+          "visible": true,
+          "width": 16,
+          "x": 256,
+          "y": 368
+        },
+        {
+          "height": 16,
+          "id": 5,
+          "name": "to highcairn_pass",
+          "properties": [
+            { "name": "dir", "type": "string", "value": "w" },
+            { "name": "to", "type": "string", "value": "highcairn_pass" },
+            { "name": "toX", "type": "int", "value": 28 },
+            { "name": "toY", "type": "int", "value": 11 }
+          ],
+          "rotation": 0,
+          "type": "warp",
+          "visible": true,
+          "width": 16,
+          "x": 0,
+          "y": 160
+        },
+        {
+          "height": 16,
+          "id": 6,
+          "name": "to highcairn_pass",
+          "properties": [
+            { "name": "dir", "type": "string", "value": "w" },
+            { "name": "to", "type": "string", "value": "highcairn_pass" },
+            { "name": "toX", "type": "int", "value": 28 },
+            { "name": "toY", "type": "int", "value": 12 }
+          ],
+          "rotation": 0,
+          "type": "warp",
+          "visible": true,
+          "width": 16,
+          "x": 0,
+          "y": 176
+        },
+        {
+          "height": 16,
+          "id": 7,
+          "name": "to highcairn_pass",
+          "properties": [
+            { "name": "dir", "type": "string", "value": "w" },
+            { "name": "to", "type": "string", "value": "highcairn_pass" },
+            { "name": "toX", "type": "int", "value": 28 },
+            { "name": "toY", "type": "int", "value": 13 }
+          ],
+          "rotation": 0,
+          "type": "warp",
+          "visible": true,
+          "width": 16,
+          "x": 0,
+          "y": 192
+        },
+        {
+          "height": 16,
+          "id": 8,
+          "name": "meadowkeeper_sef",
+          "properties": [
+            { "name": "dir", "type": "string", "value": "s" },
+            { "name": "npc", "type": "string", "value": "meadowkeeper_sef" }
+          ],
+          "rotation": 0,
+          "type": "npc",
+          "visible": true,
+          "width": 16,
+          "x": 240,
+          "y": 16
+        },
+        {
+          "height": 16,
+          "id": 9,
+          "name": "botanist_ilse",
+          "properties": [
+            { "name": "dir", "type": "string", "value": "w" },
+            { "name": "npc", "type": "string", "value": "botanist_ilse" }
+          ],
+          "rotation": 0,
+          "type": "npc",
+          "visible": true,
+          "width": 16,
+          "x": 480,
+          "y": 192
+        },
+        {
+          "height": 16,
+          "id": 10,
+          "name": "sign",
+          "properties": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Thistle Meadow. The grass here is thick with wild creatures. Paths ring every field, so you choose when to battle."
+            }
+          ],
+          "rotation": 0,
+          "type": "sign",
+          "visible": true,
+          "width": 16,
+          "x": 208,
+          "y": 352
+        },
+        {
+          "height": 16,
+          "id": 11,
+          "name": "sign",
+          "properties": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "West: Highcairn Pass. Storm, Stone and Frost creatures live on its slopes; the trainers there will show you how they fight."
+            }
+          ],
+          "rotation": 0,
+          "type": "sign",
+          "visible": true,
+          "width": 16,
+          "x": 16,
+          "y": 144
+        },
+        {
+          "height": 48,
+          "id": 12,
+          "name": "meadow_heart",
+          "rotation": 0,
+          "type": "area",
+          "visible": true,
+          "width": 64,
+          "x": 224,
+          "y": 160
+        }
+      ],
+      "opacity": 1,
+      "type": "objectgroup",
+      "visible": true,
+      "x": 0,
+      "y": 0
+    }
+  ],
+  "nextlayerid": 4,
+  "nextobjectid": 13,
+  "orientation": "orthogonal",
+  "properties": [{ "name": "zone", "type": "string", "value": "thistle_meadow" }],
+  "renderorder": "right-down",
+  "tiledversion": "1.10.2",
+  "tileheight": 16,
+  "tilesets": [
+    {
+      "columns": 8,
+      "firstgid": 1,
+      "image": "../../../../assets/world/tiles.png",
+      "imageheight": 96,
+      "imagewidth": 128,
+      "margin": 0,
+      "name": "overworld",
+      "spacing": 0,
+      "tilecount": 44,
+      "tileheight": 16,
+      "tiles": [
+        {
+          "id": 0,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "grass" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 1,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "grass_tuft" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 2,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "flowers" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 3,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "path" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 4,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "plaza" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 5,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "tall_grass" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": true }
+          ]
+        },
+        {
+          "id": 6,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "sand" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 7,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "bridge" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 8,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "tree" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 9,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "bush" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 10,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "rock" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 11,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "water" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 12,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "lily" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 13,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "fence" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 14,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "signpost" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 15,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "stump" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 16,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "roof" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 17,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "eave" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 18,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "wall" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 19,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "window" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 20,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "door" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 21,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "emblem" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 22,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "lamp" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 23,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "fountain" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 24,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "floor" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 25,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "checker_light" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 26,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "checker_dark" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 27,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "inner_wall" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 28,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "bookshelf" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 29,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "desk" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 30,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "rug" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 31,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "doormat" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 32,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "statue" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 33,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "blackboard" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 34,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "plant" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 35,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "crate" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 36,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "mailbox" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 37,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "meadow_grass" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 38,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "mushrooms" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 39,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "reeds" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 40,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "snow" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 41,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "scree" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        },
+        {
+          "id": 42,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "frost_grass" },
+            { "name": "solid", "type": "bool", "value": false },
+            { "name": "wild", "type": "bool", "value": true }
+          ]
+        },
+        {
+          "id": 43,
+          "properties": [
+            { "name": "kind", "type": "string", "value": "pine" },
+            { "name": "solid", "type": "bool", "value": true },
+            { "name": "wild", "type": "bool", "value": false }
+          ]
+        }
+      ],
+      "tilewidth": 16
+    }
+  ],
+  "tilewidth": 16,
+  "type": "map",
+  "version": "1.10",
+  "width": 32
+}

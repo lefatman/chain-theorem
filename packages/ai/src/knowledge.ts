@@ -1,0 +1,192 @@
+/**
+ * Ability knowledge for search (ability-aware evaluation, 3.3, 9.4). Profiles are derived from
+ * ability data (effect primitives), never from ability ids, so new content is understood without AI
+ * changes. Only information the NPC may see is used: its own loadout and the opponent's revealed
+ * abilities (the belief state). M7 7.3 adds the patterns of the Storm, Stone and Frost catalogue
+ * (negating the captor, pushing it back or home, guarding a friend, moving an enemy piece) and the
+ * three new traits' public effects on a capture (`traitEffects`).
+ */
+import {
+  beats,
+  type ElementId,
+  type GameState,
+  type PieceType,
+  type Side,
+} from '@chain-theorem/rules';
+import type { AbilityDef, EffectSpec, Engine } from './types.ts';
+
+export interface Profile {
+  /** CAPTURED: effect-captures the captor. */
+  killsCaptor: boolean;
+  /** CAPTURED/CAPTURES: effect-captures some other enemy piece. */
+  killsOther: boolean;
+  /** CAPTURED: the piece revives itself. */
+  selfRevive: boolean;
+  /** CAPTURES: revives a friendly piece. */
+  reviveFriendly: boolean;
+  /** Grants a bonus move (tempo). */
+  bonus: boolean;
+  /** CAPTURING: negates the victim's CAPTURED abilities. */
+  negatesVictim: boolean;
+  /** CAPTURING: protects the captor from effect captures. */
+  protectsSelf: boolean;
+  /** CAPTURED: reveals information (small value). */
+  reveals: boolean;
+  /** The bonus action captures the captor (Riposte), rather than granting a free move. */
+  recaptures: boolean;
+  /** CAPTURED: negates the captor's After-capturing abilities (Stonewall; M7). */
+  negatesCaptor: boolean;
+  /** CAPTURED: pushes the captor back towards the square it moved from (Frost Heave; M7). */
+  pushesCaptor: boolean;
+  /** CAPTURED: sends the captor to its starting square (Permafrost; M7). */
+  sendsCaptorHome: boolean;
+  /** Protects a chosen friendly piece from effect captures (Buttress; M7). */
+  protectsFriend: boolean;
+  /** Moves a chosen enemy piece: control (Snowdrift, Snowbound, attuned Permafrost; M7). */
+  movesEnemy: boolean;
+}
+
+const EMPTY: Profile = {
+  killsCaptor: false,
+  killsOther: false,
+  selfRevive: false,
+  reviveFriendly: false,
+  bonus: false,
+  negatesVictim: false,
+  protectsSelf: false,
+  reveals: false,
+  recaptures: false,
+  negatesCaptor: false,
+  pushesCaptor: false,
+  sendsCaptorHome: false,
+  protectsFriend: false,
+  movesEnemy: false,
+};
+
+function scan(effects: readonly EffectSpec[], p: Profile, cat: AbilityDef['category']): void {
+  for (const e of effects) {
+    switch (e.op) {
+      case 'effectCapture':
+        if (e.target.t === 'captor' && cat === 'CAPTURED') p.killsCaptor = true;
+        else p.killsOther = true;
+        break;
+      case 'revive':
+        if (e.piece.t === 'self') p.selfRevive = true;
+        else p.reviveFriendly = true;
+        break;
+      case 'bonusAction':
+        p.bonus = true;
+        if (e.bonus.capture === 'captor') p.recaptures = true;
+        break;
+      case 'negate':
+        if (e.of === 'victim' && e.categories.includes('CAPTURED')) p.negatesVictim = true;
+        if (e.of === 'captor' && e.categories.includes('CAPTURES')) p.negatesCaptor = true;
+        break;
+      case 'protect':
+        if (e.target.t === 'self') p.protectsSelf = true;
+        else if (e.target.t === 'chosen' && e.target.filter.side !== 'enemy')
+          p.protectsFriend = true;
+        break;
+      case 'move':
+        if (e.piece.t === 'captor' && cat === 'CAPTURED') {
+          if (e.to.s === 'start') p.sendsCaptorHome = true;
+          else p.pushesCaptor = true;
+        } else if (e.piece.t === 'chosen' && e.piece.filter.side === 'enemy') p.movesEnemy = true;
+        break;
+      case 'reveal':
+        p.reveals = true;
+        break;
+      case 'when':
+        scan(e.then, p, cat);
+        break;
+      case 'atChainEnd':
+        scan(e.effects, p, cat);
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+const cache = new WeakMap<AbilityDef, Profile>();
+export function profileOf(def: AbilityDef): Profile {
+  const hit = cache.get(def);
+  if (hit) return hit;
+  const p = { ...EMPTY };
+  scan(def.effects, p, def.category);
+  if (def.attuned) scan(def.attuned.effects, p, def.category);
+  cache.set(def, p);
+  return p;
+}
+
+export interface PieceKnowledge {
+  capturing: Profile;
+  captures: Profile;
+  captured: Profile;
+  /** Number of known triggered abilities (board presence value). */
+  count: number;
+  /** Opponent piece whose type set is not fully known while slots may hide more abilities. */
+  uncertain: boolean;
+}
+
+function merge(into: Profile, p: Profile): void {
+  for (const k of Object.keys(p) as (keyof Profile)[]) if (p[k]) into[k] = true;
+}
+
+/** Knowledge per piece type for one side of a (belief) state. */
+export function sideKnowledge(
+  engine: Engine,
+  state: GameState,
+  side: Side,
+  viewer: Side,
+): Record<PieceType, PieceKnowledge> {
+  const out = {} as Record<PieceType, PieceKnowledge>;
+  const army = state.armies[side];
+  const reveals = state.reveals[side];
+  const abilities = new Map(engine.registry.abilities.map((a) => [a.id, a]));
+  for (const t of ['pawn', 'knight', 'bishop', 'rook', 'queen', 'king'] as PieceType[]) {
+    const k: PieceKnowledge = {
+      capturing: { ...EMPTY },
+      captures: { ...EMPTY },
+      captured: { ...EMPTY },
+      count: 0,
+      uncertain: false,
+    };
+    for (const id of army.sets[t]) {
+      const def = abilities.get(id);
+      if (!def || (def.eligible !== 'all' && !def.eligible.includes(t))) continue;
+      const p = profileOf(def);
+      if (def.category === 'CAPTURING') merge(k.capturing, p);
+      if (def.category === 'CAPTURES') merge(k.captures, p);
+      if (def.category === 'CAPTURED') merge(k.captured, p);
+      if (def.category !== 'PASSIVE') k.count++;
+    }
+    k.uncertain = side !== viewer && !reveals.complete.includes(t);
+    out[t] = k;
+  }
+  return out;
+}
+
+export function silenced(
+  captorEl: ElementId,
+  victimEl: ElementId,
+): { victim: boolean; captor: boolean } {
+  return { victim: beats(captorEl, victimEl), captor: beats(victimEl, captorEl) };
+}
+
+/**
+ * The element traits that change a capture's reactions (6.1, COMMITTED, public knowledge): Always
+ * First puts a Storm captor's After-capturing abilities ahead of a non-Storm victim's reactions;
+ * Stillness negates them when the victim is Frost; Bulwark saves a Stone piece from its first effect
+ * capture (the spent list is a public slice).
+ */
+export function traitEffects(
+  captorEl: ElementId,
+  victimEl: ElementId,
+): { stormFirst: boolean; stillness: boolean; captorBulwark: boolean } {
+  return {
+    stormFirst: captorEl === 'storm' && victimEl !== 'storm',
+    stillness: victimEl === 'frost',
+    captorBulwark: captorEl === 'stone',
+  };
+}

@@ -50,8 +50,11 @@ export interface Caps {
 
 // ---- effect data (5.2) ----------------------------------------------------------------------------
 
-/** Where a distance is measured from; captured pieces use their last known square (5.4). */
-export type Anchor = 'self' | 'captor' | 'victim' | 'origin';
+/**
+ * Where a distance is measured from; captured pieces use their last known square (5.4). 'origin' is
+ * the square the captor moved from in this capture and 'landing' the square it captured on.
+ */
+export type Anchor = 'self' | 'captor' | 'victim' | 'origin' | 'landing';
 export type Pattern = 'adjacent' | 'diagonal' | 'orthogonal';
 
 export interface PieceFilter {
@@ -292,6 +295,12 @@ export interface RuleHooks {
     init(ctx: ReadCtx): unknown;
     /** What a viewer may see; omit to keep the slice private (never projected). */
     project?(value: unknown, viewer: Side, ctx: ReadCtx): unknown;
+    /**
+     * What a spectator may see (M7 7.2, R-INFO-005): only facts both players know, such as Hot
+     * Foot's burning squares. Omit to keep the slice from spectators (the safe default); it is
+     * never derived from `project`.
+     */
+    spectate?(value: unknown, ctx: ReadCtx): unknown;
     /** Include in the repetition hash (default true). */
     hash?: boolean;
   };
