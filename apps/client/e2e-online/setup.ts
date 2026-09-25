@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const ROOT = new URL('../../..', import.meta.url).pathname;
-const PORT = 8788;
+const PORT = Number(process.env.CT_ONLINE_PORT) || 8788;
 export const LOG_ENV = 'CT_WORKER_LOG';
 
 async function waitUp(url: string, ms: number): Promise<void> {

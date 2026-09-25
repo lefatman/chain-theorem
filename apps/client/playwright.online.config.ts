@@ -7,7 +7,8 @@
 import { existsSync } from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
 
-export const ONLINE_PORT = 8788;
+/** `CT_ONLINE_PORT` lets several runs share a machine (default 8788). */
+export const ONLINE_PORT = Number(process.env.CT_ONLINE_PORT) || 8788;
 const PREINSTALLED_CHROMIUM = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const executablePath =
   process.env.PW_CHROMIUM_PATH ??
