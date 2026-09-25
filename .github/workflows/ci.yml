@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'claude/**']
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check (typecheck, lint, unit, content)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm check
+      - name: Content registry is up to date
+        run: pnpm content:index && git diff --exit-code -- packages/content/registry.generated.ts
+      - name: Secret scan (R-SEC-009)
+        run: pnpm tsx scripts/secret-scan.ts
+
+  perft:
+    name: perft
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:perft
+
+  fuzz:
+    name: quick fuzz and replay
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:fuzz
+
+  db-sqlite:
+    name: database (SQLite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:db
+
+  db-postgres:
+    name: database portability (PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: chain
+          POSTGRES_PASSWORD: chain
+          POSTGRES_DB: chain_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chain" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_PG_URL: postgres://chain:chain@localhost:5432/chain_test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:db:pg
+
+  workers:
+    name: Durable Object integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:workers
+
+  e2e:
+    name: end to end (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - id: detect
+        name: Playwright suite present?
+        run: |
+          if [ -f apps/client/playwright.config.ts ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; echo "no Playwright suite yet (arrives in M3)"; fi
+      - if: steps.detect.outputs.present == 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm --filter @chain-theorem/client exec playwright install --with-deps chromium
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm test:e2e

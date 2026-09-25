@@ -1,0 +1,10 @@
+pnpm-lock.yaml
+node_modules
+dist
+coverage
+.wrangler
+docs/DESIGN.md
+docs/BUILD_PROMPT.md
+apps/client/public/maps/*.json
+packages/content/registry.generated.ts
+reports/
