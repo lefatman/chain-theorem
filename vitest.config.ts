@@ -37,6 +37,7 @@ export default defineConfig({
         test: {
           name: 'db',
           include: ['packages/db/**/*.test.ts'],
+          passWithNoTests: true,
           exclude: ['**/node_modules/**'],
           environment: 'node',
           testTimeout: 60_000,

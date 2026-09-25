@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:workers": "echo \"test:workers: Durable Object tests arrive with M4 (see PROGRESS.md)\""
   }
 }

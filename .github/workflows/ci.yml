@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -109,6 +109,7 @@ jobs:
   e2e:
     name: end to end (Playwright)
     runs-on: ubuntu-latest
+    if: ${{ hashFiles('apps/client/playwright.config.ts') != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

@@ -156,7 +156,10 @@ export class Pos {
   ep = -1;
   rules: MoveRules;
 
-  constructor(readonly n: number) {
+  readonly n: number;
+
+  constructor(n: number) {
+    this.n = n;
     this.ptype = new Uint8Array(n);
     this.pside = new Uint8Array(n);
     this.psq = new Int8Array(n).fill(-1);

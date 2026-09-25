@@ -127,7 +127,6 @@ export interface RevealLog {
   items: string[]; // known item ids
   allItems: boolean; // the full item list is known
   veiled: PieceType[]; // piece types known to carry Veil
-  trueElements: boolean; // Masquerade Mask dropped (or never worn)
 }
 
 export interface BattleResult {

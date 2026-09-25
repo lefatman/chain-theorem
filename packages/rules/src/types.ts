@@ -326,21 +326,22 @@ export interface LoadoutValidation {
   capacity: number;
 }
 
+export type RulesErrorCode =
+  | 'illegal_move'
+  | 'not_your_turn'
+  | 'battle_over'
+  | 'pending_choice'
+  | 'no_pending_choice'
+  | 'bad_choice'
+  | 'bad_fen'
+  | 'bad_setup'
+  | 'internal';
+
 export class RulesError extends Error {
-  constructor(
-    readonly code:
-      | 'illegal_move'
-      | 'not_your_turn'
-      | 'battle_over'
-      | 'pending_choice'
-      | 'no_pending_choice'
-      | 'bad_choice'
-      | 'bad_fen'
-      | 'bad_setup'
-      | 'internal',
-    message: string,
-  ) {
+  readonly code: RulesErrorCode;
+  constructor(code: RulesErrorCode, message: string) {
     super(message);
+    this.code = code;
     this.name = 'RulesError';
   }
 }
