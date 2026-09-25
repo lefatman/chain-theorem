@@ -4,9 +4,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { GameState } from '@chain-theorem/rules';
-import { engine } from '@chain-theorem/content';
-import { setup } from '@chain-theorem/content/testing';
-import { scanPayload } from './game.ts';
+import { engine } from '../index.ts';
+import { scanPayload } from '../src/scan.ts';
+import { setup } from '../src/testing.ts';
 
 function battle(): GameState {
   return setup({
