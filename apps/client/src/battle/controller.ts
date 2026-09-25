@@ -50,6 +50,14 @@ export interface BattleSnapshot {
   controls: Side[];
   /** Interstitial before handing the device over in hot-seat play. */
   handoff: Side | null;
+  /** Online: a draw offer from this side is waiting for the viewer's reply (9.2). */
+  drawOffer?: Side | null;
+  /** Online: the opponent's connection; while away the battle waits until `graceUntil` (9.2). */
+  opponent?: { connected: boolean; graceUntil?: number } | null;
+  /** Online: the socket to the BattleRoom. */
+  connection?: 'connecting' | 'open' | 'reconnecting' | 'closed';
+  /** Online: the last message the server rejected (shown briefly). */
+  notice?: string | null;
 }
 
 /** One committed action's projected events, for step-by-step animation (11.2). */
@@ -69,5 +77,7 @@ export interface BattleController {
   offerDraw(): void;
   /** Hot-seat: the next player confirms they have the device. */
   acceptHandoff(): void;
+  /** Online: answer the opponent's draw offer. */
+  replyDraw?(accept: boolean): void;
   dispose(): void;
 }

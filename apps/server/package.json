@@ -6,5 +6,19 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:workers": "echo \"test:workers: Durable Object tests arrive with M4 (see PROGRESS.md)\""
+  },
+  "dependencies": {
+    "@chain-theorem/ai": "workspace:*",
+    "@chain-theorem/content": "workspace:*",
+    "@chain-theorem/db": "workspace:*",
+    "@chain-theorem/protocol": "workspace:*",
+    "@chain-theorem/rules": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@cloudflare/workers-types": "^5.20260925.1",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.139.0"
   }
 }
