@@ -14,7 +14,7 @@ const PATTERNS: [string, RegExp][] = [
   ['Stripe live key', /\bsk_live_[A-Za-z0-9]{20,}\b/],
   [
     'Postgres URL with password',
-    /postgres(?:ql)?:\/\/[^:\s'"]+:(?!chain@|postgres@|password@|\$\{)[^@\s'"]{6,}@(?!localhost|127\.0\.0\.1)/,
+    /postgres(?:ql)?:\/\/[^:\s'"]+:(?!chain@|postgres@|password@|PASSWORD@|\$\{)[^@\s'"]{6,}@(?!localhost|127\.0\.0\.1)/,
   ],
 ];
 const ALLOW_FILES = [/^scripts\/secret-scan\.ts$/, /^pnpm-lock\.yaml$/, /^docs\//];

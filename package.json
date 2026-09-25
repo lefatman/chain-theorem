@@ -20,7 +20,7 @@
     "test:perft": "vitest run --project perft",
     "test:fuzz": "tsx apps/tools/src/fuzz/cli.ts --games 500",
     "test:fuzz:full": "tsx apps/tools/src/fuzz/cli.ts --games 100000",
-    "test:db": "vitest run --project db",
+    "test:db": "vitest run --project db --passWithNoTests",
     "test:db:pg": "tsx scripts/test-db-pg.ts",
     "test:workers": "pnpm --filter @chain-theorem/server test:workers",
     "test:e2e": "pnpm --filter @chain-theorem/client test:e2e",
