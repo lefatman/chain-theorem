@@ -160,7 +160,7 @@ describe('online battle controller (R-NET-001)', () => {
     c.dispose();
   });
 
-  it('R-FMT-003 prompts, draw offers, opponent status and the result reach the snapshot', async () => {
+  it('R-FMT-003 prompts, draw offers, opponent status, watchers and the result reach the snapshot', async () => {
     const { c, sockets } = setup();
     await flush();
     const s = sockets[0] as FakeSocket;
@@ -192,6 +192,11 @@ describe('online battle controller (R-NET-001)', () => {
 
     s.deliver({ t: 'opp', d: { connected: false, graceUntil: 60_000 } });
     expect(c.snapshot.value.opponent).toEqual({ connected: false, graceUntil: 60_000 });
+
+    // A public battle tells the players how many people are watching (DD-92).
+    expect(c.snapshot.value.watchers).toBe(0);
+    s.deliver({ t: 'watchers', d: { count: 3 } });
+    expect(c.snapshot.value.watchers).toBe(3);
 
     s.deliver({ t: 'bend', d: { result: { winner: 'white', reason: 'abandon' } } });
     expect(c.snapshot.value.status).toBe('ended');

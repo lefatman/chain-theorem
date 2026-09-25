@@ -54,6 +54,8 @@ export interface BattleSnapshot {
   drawOffer?: Side | null;
   /** Online: the opponent's connection; while away the battle waits until `graceUntil` (9.2). */
   opponent?: { connected: boolean; graceUntil?: number } | null;
+  /** Online: how many spectators are watching (0 or absent for unlisted battles). */
+  watchers?: number;
   /** Online: the socket to the BattleRoom. */
   connection?: 'connecting' | 'open' | 'reconnecting' | 'closed';
   /** Online: the last message the server rejected (shown briefly). */

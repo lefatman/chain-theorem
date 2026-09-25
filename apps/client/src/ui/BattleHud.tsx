@@ -398,6 +398,12 @@ function OnlineStatus({ controller }: { controller: BattleController }) {
         </p>
       )}
       {s.notice && <p class="note warn">{s.notice}</p>}
+      {(s.watchers ?? 0) > 0 && s.status === 'playing' && (
+        <p class="note" aria-live="polite">
+          {s.watchers === 1 ? '1 person is' : `${s.watchers} people are`} watching (a few moves
+          behind).
+        </p>
+      )}
       {offer && (
         <div class="confirm" role="alertdialog" aria-label="Draw offer">
           <span>{s.names[offer]} offers a draw. Accept?</span>

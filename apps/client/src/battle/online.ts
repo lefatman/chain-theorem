@@ -73,6 +73,8 @@ export class OnlineController implements BattleController {
   private result: BattleResult | null = null;
   private drawOffer: Side | null = null;
   private opponent: { connected: boolean; graceUntil?: number } | null = null;
+  /** People watching this battle (public battles only, a few plies behind, DD-92). */
+  private watchers = 0;
   private connection: NonNullable<BattleSnapshot['connection']> = 'connecting';
   private notice: string | null = null;
   private attempts = 0;
@@ -235,6 +237,9 @@ export class OnlineController implements BattleController {
             ? { connected: msg.d.connected, graceUntil: msg.d.graceUntil }
             : { connected: msg.d.connected };
         break;
+      case 'watchers':
+        this.watchers = msg.d.count;
+        break;
       case 'err':
         this.notice = msg.d.msg ?? msg.d.code;
         break;
@@ -262,6 +267,7 @@ export class OnlineController implements BattleController {
       handoff: null,
       drawOffer: this.drawOffer,
       opponent: this.opponent,
+      watchers: this.watchers,
       connection: this.connection,
       notice: this.notice,
     };

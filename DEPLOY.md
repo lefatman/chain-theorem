@@ -19,7 +19,7 @@ which prerequisites are present and what is still missing.
    `"alert":"cost_guardrail"` (the Metrics object logs one when an hour's projection exceeds $0.10
    per subscriber).
 6. Durable Object classes ship through the `migrations` list in `wrangler.jsonc` (`v1`: BattleRoom,
-   Matchmaker; `v2`: ZoneRoom, Metrics). `wrangler deploy` applies new tags in order; never edit or
+   Matchmaker; `v2`: ZoneRoom, Metrics; `v3`: TradeSession; `v4`: GuildRoom; `v5`: TournamentRoom). `wrangler deploy` applies new tags in order; never edit or
    remove a tag that has been deployed.
 
 ## 2. Neon PostgreSQL and Hyperdrive (step 0.4)

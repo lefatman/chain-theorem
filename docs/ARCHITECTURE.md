@@ -11,7 +11,7 @@ in spec section 18 and as records in `docs/decisions/`.
 chain-theorem/
   AGENTS.md  CLAUDE.md  PROGRESS.md  README.md  TESTING.md  DEPLOY.md
   apps/
-    client/     Vite + Phaser 4.2 + Preact overlay. Local battles (M3), online (M4+), overworld (M5+)
+    client/     Vite + Phaser 4.2 + Preact overlay: local battles, online play, the overworld, social, watching
     server/     Worker entry (auth, REST, static assets) and the Durable Object classes
     tools/      content CLI, balance simulator, fuzzer, load test, seed, map importer
   packages/
@@ -742,7 +742,6 @@ it succeeds. Players in the world get `tourney` notices through presence; the to
 | `Metrics`        | deployment (`global`)    | hourly usage rollups for the cost dashboard (14.2, DD-81)                            | none                                                                      |
 | `TradeSession`   | trade or wager session   | both offers, revision, marks, confirmations, wager attempt state                     | alarm: invitation lapse, idle expiry, wager watchdog                      |
 | `GuildRoom`      | guild                    | roster cache, guild chat                                                             | none                                                                      |
-| `TradeSession`   | trade                    | both offers, confirmations                                                           | alarm: expiry                                                             |
 | `TournamentRoom` | tournament               | TournamentCore snapshot: entrants, seeds, rounds, pairings, results, places (M7 7.1) | alarm: the start, each round after its break, watchdog, the end's retries |
 
 Every DO uses `ctx.acceptWebSocket` (Hibernation API) and `ctx.storage.setAlarm`; no `setInterval`, no

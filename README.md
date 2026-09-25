@@ -24,6 +24,14 @@ pnpm check          # typecheck, lint, unit tests, content validation, dependenc
 pnpm dev            # client + local Worker, Durable Objects and SQLite
 ```
 
+What is in the build: six elements (Ember, Tide, Grove, Storm, Stone, Frost) with 26 abilities, 13
+items and 36 creatures; local battles against Wild, Trainer and Elite NPCs; online battles with
+clocks and reconnects; a shared overworld (Chess Academy, Rookhaven, Knight's Way, Thistle Meadow,
+Highcairn Pass) with encounters, trainers, quests, chat, friends and parties; trading and item
+wagers; ranked queues, leaderboards and guilds; Swiss and knockout tournaments; delayed spectating;
+a 7-day trial and subscriptions (a fake provider locally, Paddle in production); report, mute,
+block and an admin console.
+
 Open the printed URL, choose **Play a local battle**, and fight a Wild, Trainer or Elite NPC (or a
 friend on the same device) in First Blood, Vanguard or Full Battle. For the online game choose **Play
 online**, sign in with the magic link printed in the `pnpm dev` console, and **Enter the world**: the
@@ -43,22 +51,24 @@ See [`TESTING.md`](TESTING.md) for every test command and a manual play-test scr
 | `packages/db`       | Kysely schema, migrations and repositories for PostgreSQL (production) and SQLite/D1 (local, tests).                                                                                                                                   |
 | `packages/protocol` | Zod schemas for every WebSocket message and REST payload.                                                                                                                                                                              |
 | `apps/client`       | Vite + Phaser 4 board and overworld, Preact overlay (loadouts, Dossier, log, previews), Scenario Lab (dev only).                                                                                                                       |
-| `apps/server`       | Cloudflare Worker (auth, REST, assets) and the Durable Objects: BattleRoom, ZoneRoom, Matchmaker, Metrics (M5); GuildRoom, TradeSession, TournamentRoom arrive in M6 and M7.                                                           |
+| `apps/server`       | Cloudflare Worker (auth, REST, billing, admin console, assets) and the Durable Objects: BattleRoom, ZoneRoom, Matchmaker, TradeSession, GuildRoom, TournamentRoom, Metrics.                                                            |
 | `apps/tools`        | Content CLI (`content:new`, `content:index`, `content:validate`), fuzzer, balance simulator, load test, first-win bot, seed.                                                                                                           |
 | `docs`              | Spec, architecture, content guide, playtest gate report, decision records (`decisions/`).                                                                                                                                              |
 
 ## Common commands
 
-| Command                                                                                   | Purpose                                                                         |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `pnpm test`                                                                               | Unit, golden (E1–E9), content scenario and property tests                       |
-| `pnpm test:perft`                                                                         | Perft suites (start position depth 5 = 4,865,609; Kiwipete depth 4 = 4,085,603) |
-| `pnpm test:fuzz` / `pnpm test:fuzz:full`                                                  | Fuzzed battles with replay and projection checks (quick / 100,000 games)        |
-| `pnpm sim`                                                                                | Balance simulator; writes matchup tables to `reports/sim/`                      |
-| `pnpm content:new ability <id>`                                                           | Scaffold a new ability module and its scenario test                             |
-| `pnpm test:db`, `pnpm test:db:pg`, `pnpm test:workers`, `pnpm test:e2e`, `pnpm test:load` | Database, Durable Object, browser and load tests                                |
-| `pnpm test:e2e:online`, `pnpm test:firstwin`                                              | Browser tests against the real Worker; a new player's first win (M5)            |
-| `pnpm seed`                                                                               | Reset local data and create test accounts                                       |
+| Command                                                                                   | Purpose                                                                              |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `pnpm test`                                                                               | Unit, golden (E1–E9), content scenario and property tests                            |
+| `pnpm test:perft`                                                                         | Perft suites (start position depth 5 = 4,865,609; Kiwipete depth 4 = 4,085,603)      |
+| `pnpm test:fuzz` / `pnpm test:fuzz:full`                                                  | Fuzzed battles with replay and projection checks (quick / 100,000 games)             |
+| `pnpm sim`                                                                                | Balance simulator; writes matchup tables to `reports/sim/`                           |
+| `pnpm content:new ability <id>`                                                           | Scaffold a new ability module and its scenario test                                  |
+| `pnpm test:db`, `pnpm test:db:pg`, `pnpm test:workers`, `pnpm test:e2e`, `pnpm test:load` | Database, Durable Object, browser and load tests                                     |
+| `pnpm test:e2e:online`, `pnpm test:firstwin`                                              | Browser tests against the real Worker; a new player's first win (M5)                 |
+| `pnpm tournament:local` (`--format se`)                                                   | A whole Swiss (or knockout) tournament with bot players against the real Worker (M7) |
+| `pnpm req:coverage`                                                                       | Every requirement ID in the spec has a named test (part of `pnpm check`)             |
+| `pnpm seed`                                                                               | Reset local data and create test accounts                                            |
 
 ## Contributing content
 
