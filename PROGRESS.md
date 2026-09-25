@@ -29,21 +29,21 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## M1 — Pure chess core
 
 - [x] 1.1 Board representation and move generation: all pieces, castling, en passant, promotion (R-RULES-001).
-- [ ] 1.2 Check, checkmate, stalemate, 50-move rule, threefold repetition via Zobrist (R-RULES-005).
+- [x] 1.2 Check, checkmate, stalemate, 50-move rule, threefold repetition via Zobrist (R-RULES-005).
 - [x] 1.3 Perft: start position, Kiwipete and more published positions.
-- [ ] 1.4 Typed event emission for every move.
+- [x] 1.4 Typed event emission for every move.
 - Done when: perft start depth 5 = 4,865,609; Kiwipete depth 4 = 4,085,603.
 
 ## M2 — Ability, element and loadout engine
 
-- [ ] 2.1 Content module system: SDK (`defineAbility`, `defineItem`, `defineTrait`), hooks, CAPS config, registry generator, scaffolding and validator CLIs.
-- [ ] 2.2 Effect primitives and the five-phase pipeline with the resolution queue in state (5.2–5.4).
+- [x] 2.1 Content module system: SDK (`defineAbility`, `defineItem`, `defineTrait`), hooks, CAPS config, registry generator, scaffolding and validator CLIs.
+- [x] 2.2 Effect primitives and the five-phase pipeline with the resolution queue in state (5.2–5.4).
 - [ ] 2.3 Loadout model and validation: level requirements, slot costs, Schedule, Blended Family (7.3, 7.4, 6.4).
-- [ ] 2.4 Silence rule, six element traits as modules, `silenceScope` config (6.1, 6.2).
-- [ ] 2.5 Stalwart, Royal Immunity, INV-03 fizzle check, format objectives (4.3–4.5, 9.1).
+- [x] 2.4 Silence rule, six element traits as modules, `silenceScope` config (6.1, 6.2).
+- [x] 2.5 Stalwart, Royal Immunity, INV-03 fizzle check, format objectives (4.3–4.5, 9.1).
 - [ ] 2.6 `project()`, reveal logs, Dossier deductions (8.2–8.5).
-- [ ] 2.7 14 starter abilities and 11 items as content modules only (5.7, 7.2).
-- [ ] 2.8 Golden tests E1–E9 (+ Arcane Chess edge cases if a path is provided).
+- [x] 2.7 14 starter abilities and 11 items as content modules only (5.7, 7.2).
+- [x] 2.8 Golden tests E1–E9 (Arcane Chess part skipped: no path provided; see top of file).
 - [ ] 2.9 Property tests: determinism, chain termination, projection safety.
 - Done when: 100,000 fuzzed games with random loadouts finish with no crash, no unbounded chain and identical replays.
 
@@ -117,5 +117,14 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 
 (Newest first: date, step, commands run, pass counts.)
 
+- 2026-09-25 M2 done-when: `tsx apps/tools/src/fuzz/cli.ts` in four 25,000-game chunks (seeds 1–100,000,
+  `--scan-every 10`): 100,000 games, 8,088,493 plies, 0 failures, replays identical (events and final
+  hash), no crash, max 31 events in one action, 10,000 games R-SEC-001 projection-scanned with no leak.
+- 2026-09-25 M2 tests: `pnpm check` green, 503 unit tests (chess core 96, golden E1–E9 11, 14 ability
+  suites, 11 item suites, 6 trait suites, elements, invariants 66). Engine fixes found by tests: Stalwart
+  reveal on capture, per-type ability knowledge in projections (Veil), Promoted element under Masquerade,
+  capture ids fixed at commit (Resonance Crystal).
+- 2026-09-25 M1 1.2/1.4: `packages/rules/test/chess.test.ts` 96/96 (castling, en passant, promotion,
+  check, mate, stalemate, 50-move, repetition, events, purity, full-engine perft cross-check).
 - 2026-09-25 M1 1.1/1.3: `pnpm test:perft` 30/30 (7 positions; start d5 4,865,609; Kiwipete d4 4,085,603) in 4.4 s.
 - 2026-09-25 M0: `pnpm check` green on the skeleton (typecheck, lint, 1 unit test, deps:check); secret scan clean.
