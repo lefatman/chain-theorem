@@ -2,8 +2,28 @@
  * REST client for the Worker (ARCHITECTURE 6). Same-origin requests carry the HttpOnly session
  * cookie automatically; the client never sees or stores the session token (R-SEC-006).
  */
-import type { BattleTicket, LoadoutBody, WorldTicket } from '@chain-theorem/protocol';
+import type {
+  AccessView,
+  BattleTicket,
+  BillingPlans,
+  LoadoutBody,
+  PlanId,
+  SubscriptionView,
+  TradeAccess,
+  TradeMode,
+  TradeTicket,
+  WorldTicket,
+} from '@chain-theorem/protocol';
 import type { FormatId, Loadout, LoadoutError } from '@chain-theorem/rules';
+import type {
+  Bracket,
+  GuildLeaderboard,
+  GuildRank,
+  Leaderboard,
+  MyGuild,
+  MyRatings,
+  RankedTicket,
+} from '@chain-theorem/protocol';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -13,6 +33,12 @@ export class ApiError extends Error {
     this.status = status;
     this.code = code;
   }
+}
+
+/** Called when the server refuses online play because the trial or subscription ended (402). */
+let subscriptionRequired: (() => void) | null = null;
+export function onSubscriptionRequired(fn: (() => void) | null): void {
+  subscriptionRequired = fn;
 }
 
 async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -37,6 +63,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   if (!res.ok) {
     // A non-JSON error (static hosting, a dev proxy with no Worker behind it) means no API server.
     const code = data === null ? 'no_server' : ((data as { error?: string }).error ?? 'error');
+    if (res.status === 402 && code === 'subscription_required') subscriptionRequired?.();
     throw new ApiError(res.status, code);
   }
   if (data === null) throw new ApiError(res.status, 'no_server');
@@ -49,6 +76,8 @@ export interface Me {
   level: number;
   xp: number;
   adult: boolean;
+  /** Trial or subscription, decided on the server (M6 6.3, R-SEC-007). */
+  access: AccessView;
 }
 
 export interface ServerLoadout {
@@ -129,6 +158,51 @@ export const api = {
     call<{ status: 'requested' | 'friends' }>('POST', '/api/friends', { to }),
   removeFriend: (id: string) => call<void>('DELETE', `/api/friends/${encodeURIComponent(id)}`),
   progress: () => call<Progress>('GET', '/api/progress'),
+  // M6 6.1 trades and item wagers (10.4, 9.5; subscribers only, 14.4).
+  tradeAccess: () => call<TradeAccess>('GET', '/api/trades/access'),
+  startTrade: (to: string, mode: TradeMode, format?: FormatId) =>
+    call<TradeTicket>('POST', '/api/trades', { with: to, mode, ...(format ? { format } : {}) }),
+  tradeTicket: (id: string) =>
+    call<TradeTicket>('POST', `/api/trades/${encodeURIComponent(id)}/ticket`),
+  declineTrade: (id: string) => call<void>('POST', `/api/trades/${encodeURIComponent(id)}/decline`),
+  // M6 6.3 billing (ARCHITECTURE 6).
+  billingPlans: () => call<BillingPlans>('GET', '/api/billing/plans'),
+  subscription: () => call<SubscriptionView>('GET', '/api/billing/subscription'),
+  checkout: (plan: PlanId) => call<{ url: string }>('POST', '/api/billing/checkout', { plan }),
+  cancelSubscription: () => call<SubscriptionView>('POST', '/api/billing/cancel'),
+  resumeSubscription: () => call<SubscriptionView>('POST', '/api/billing/resume'),
+  billingPortal: () => call<{ url: string }>('POST', '/api/billing/portal'),
+  deleteAccount: () => call<void>('DELETE', '/api/me'),
+  // M6 6.2 ranked queues and 6.1 leaderboards and guilds (9.3, 10.4).
+  rankedTicket: (format: FormatId, loadoutId: string) =>
+    call<RankedTicket>('POST', '/api/ranked/ticket', { format, loadoutId }),
+  myRatings: () => call<MyRatings>('GET', '/api/ratings/me'),
+  leaderboard: (format: FormatId, bracket: Bracket) =>
+    call<Leaderboard>('GET', `/api/leaderboards?${new URLSearchParams({ format, bracket })}`),
+  guildLeaderboard: (format: FormatId, bracket: Bracket) =>
+    call<GuildLeaderboard>(
+      'GET',
+      `/api/leaderboards/guilds?${new URLSearchParams({ format, bracket })}`,
+    ),
+  myGuild: () => call<MyGuild>('GET', '/api/guilds/me'),
+  createGuild: (name: string, tag: string) => call<MyGuild>('POST', '/api/guilds', { name, tag }),
+  guildInvite: (to: string) => call<MyGuild>('POST', '/api/guilds/invites', { to }),
+  acceptGuildInvite: (guildId: string) =>
+    call<MyGuild>('POST', `/api/guilds/invites/${encodeURIComponent(guildId)}/accept`),
+  declineGuildInvite: (guildId: string) =>
+    call<MyGuild>('DELETE', `/api/guilds/invites/${encodeURIComponent(guildId)}`),
+  revokeGuildInvite: (guildId: string, playerId: string) =>
+    call<MyGuild>(
+      'DELETE',
+      `/api/guilds/invites/${encodeURIComponent(guildId)}/${encodeURIComponent(playerId)}`,
+    ),
+  setGuildRank: (playerId: string, rank: GuildRank) =>
+    call<MyGuild>('PUT', `/api/guilds/members/${encodeURIComponent(playerId)}`, { rank }),
+  kickFromGuild: (playerId: string) =>
+    call<MyGuild>('DELETE', `/api/guilds/members/${encodeURIComponent(playerId)}`),
+  leaveGuild: () => call<MyGuild>('POST', '/api/guilds/leave'),
+  disbandGuild: (guildId: string) =>
+    call<MyGuild>('DELETE', `/api/guilds/${encodeURIComponent(guildId)}`),
 };
 
 /** Absolute WebSocket URL for a server-relative socket path. */

@@ -9,3 +9,6 @@ export * from './api.ts';
 export * from './limits.ts';
 export * from './queue.ts';
 export * from './cost.ts';
+export * from './trade.ts';
+export * from './social.ts';
+export * from './billing.ts';

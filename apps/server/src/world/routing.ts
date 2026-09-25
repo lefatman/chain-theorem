@@ -18,7 +18,16 @@ export function zoneStub(env: Env, zone: string, channel: number): DurableObject
 }
 
 /** Host calls a ZoneRoom accepts from other rooms (POST, JSON body). */
-export type ZoneCall = 'deliver' | 'refused' | 'party' | 'invite' | 'ended' | 'grant';
+export type ZoneCall =
+  | 'deliver'
+  | 'refused'
+  | 'party'
+  | 'invite'
+  | 'ended'
+  | 'grant'
+  | 'notify'
+  /** M6: the player's guild changed (joined, left, kicked, disbanded). */
+  | 'guild';
 
 /**
  * Send a host call to the channel the player is in. Resolves false when the player is offline or

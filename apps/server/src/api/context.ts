@@ -6,6 +6,8 @@ import {
   sessionCookieName,
   SESSION_TTL_MS,
 } from '../auth/cookies.ts';
+import type { AccessView } from '@chain-theorem/protocol';
+import { accessView } from '../billing/entitlement.ts';
 import type { Env } from '../env.ts';
 import { HttpError } from '../http.ts';
 
@@ -62,18 +64,24 @@ export function makeCtx(req: Request, env: Env, db: Db, now: number): Ctx {
   };
 }
 
-export function publicMe(p: Player): {
+export function publicMe(
+  p: Player,
+  now: number = Date.now(),
+): {
   id: string;
   name: string;
   level: number;
   xp: number;
   adult: boolean;
+  /** Trial, subscription and what they allow, decided on the server (M6 6.3, R-SEC-007). */
+  access: AccessView;
 } {
   return {
     id: p.id,
     name: p.displayName,
     level: p.level,
     xp: p.xp,
-    adult: Date.now() >= p.adultFrom,
+    adult: now >= p.adultFrom,
+    access: accessView(p, now),
   };
 }

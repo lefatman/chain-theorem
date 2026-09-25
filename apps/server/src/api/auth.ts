@@ -6,6 +6,7 @@ import { AuthStart, AuthVerify, IsoDate } from '@chain-theorem/protocol';
 import { z } from 'zod';
 import type { Player } from '@chain-theorem/db';
 import { checkAge } from '../auth/age.ts';
+import { TRIAL_MS } from '../billing/entitlement.ts';
 import { parseCookies, serializeCookie, SESSION_TTL_MS } from '../auth/cookies.ts';
 import { ConsoleMailSender, HttpMailSender, magicLinkMail, type MailSender } from '../auth/mail.ts';
 import {
@@ -59,7 +60,7 @@ async function signIn(ctx: Ctx, player: Player): Promise<Response> {
     ttlMs: SESSION_TTL_MS,
     now: ctx.now,
   });
-  return json({ status: 'signed_in', me: publicMe(player) }, 200, {
+  return json({ status: 'signed_in', me: publicMe(player, ctx.now) }, 200, {
     'set-cookie': sessionCookie(ctx.env, token),
   });
 }
@@ -117,6 +118,8 @@ export function authRoutes(r: Router<Ctx>): void {
         email: used.email,
         displayName: name,
         adultFrom: age.adultFrom,
+        // 14.4 (COMMITTED): every new account starts a 7-day free trial with full play (R-COST-005).
+        trialEndsAt: ctx.now + TRIAL_MS,
         now: ctx.now,
       });
       await grantStarterCollection(ctx.db, player.id);

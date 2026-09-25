@@ -7,6 +7,7 @@ import { world, xpForLevel, xpToNext, zoneById } from '@chain-theorem/content/wo
 import type { Db } from '@chain-theorem/db';
 import type { WorldTicket } from '@chain-theorem/protocol';
 import { signTicket, verifyTicket } from '../auth/tickets.ts';
+import { refusePlay, requirePlay } from '../billing/gate.ts';
 import type { Env } from '../env.ts';
 import { HttpError, json, type Router } from '../http.ts';
 import type { CostDashboard } from '../metrics.ts';
@@ -49,6 +50,11 @@ export async function zoneSocket(
   if (!zoneById.has(zone)) return json({ error: 'not_found' }, 404);
   const player = await verifyTicket(env.AUTH_SECRET, token, `zone:${zone}`, now);
   if (!player) return json({ error: 'bad_ticket' }, 403);
+  // Entitlement is re-read at connect (14.4, R-SEC-007): a 60 s ticket may outlive the trial.
+  const who = await db.players.getById(player);
+  if (!who) return json({ error: 'not_found' }, 404);
+  const refused = refusePlay(who, now);
+  if (refused) return refused;
   const loaded = await loadPlayerInit(db, player, zone, now, await inBattle(env, db, player));
   if (!loaded) return json({ error: 'not_found' }, 404);
   const preferred: number[] = [];
@@ -122,7 +128,7 @@ Cost per player-hour ${usd(t.cost.perPlayerHour, 6)}; per heavy subscriber-month
 
 export function worldRoutes(r: Router<Ctx>): void {
   r.add('POST', '/api/world/ticket', async (_req, ctx) => {
-    const me = await ctx.requireMe();
+    const me = await requirePlay(ctx);
     const zone = entryZone(me.zoneId);
     const token = await signTicket(ctx.env.AUTH_SECRET, me.id, `zone:${zone}`, ctx.now);
     return json({

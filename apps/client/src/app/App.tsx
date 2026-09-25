@@ -8,10 +8,20 @@ import { LoadoutsScreen } from '../ui/LoadoutsScreen.tsx';
 import { SettingsScreen } from '../ui/SettingsScreen.tsx';
 import { LoginScreen } from '../ui/LoginScreen.tsx';
 import { OnlineScreen } from '../ui/OnlineScreen.tsx';
+import { AccountScreen, SubscribeRequired } from '../ui/AccountScreen.tsx';
+import { account } from '../state/account.ts';
 
 // The overworld (M5) is its own lazy chunk; its Phaser scene is a further lazy chunk (12.3).
 const WorldScreen = lazy(() =>
   import('../ui/world/WorldScreen.tsx').then((m) => ({ default: m.WorldScreen })),
+);
+
+// M6 leaderboards and guild screens load on demand (12.3 bundle budget).
+const LeaderboardsScreen = lazy(() =>
+  import('../ui/LeaderboardsScreen.tsx').then((m) => ({ default: m.LeaderboardsScreen })),
+);
+const GuildScreen = lazy(() =>
+  import('../ui/GuildScreen.tsx').then((m) => ({ default: m.GuildScreen })),
 );
 
 // Dev-only Scenario Lab: this branch is removed from production builds (BUILD_PROMPT M3).
@@ -41,8 +51,25 @@ export function App() {
     case 'online':
       screen = <OnlineScreen />;
       break;
-    case 'world':
-      screen = <WorldScreen />;
+    case 'world': {
+      // The trial or subscription has ended: the world is refused (402), so say so (M6 6.3).
+      const acc = account.value;
+      screen =
+        acc.kind === 'signed_in' && !acc.me.access.canPlay ? (
+          <SubscribeRequired access={acc.me.access} />
+        ) : (
+          <WorldScreen />
+        );
+      break;
+    }
+    case 'account':
+      screen = <AccountScreen />;
+      break;
+    case 'leaderboards':
+      screen = <LeaderboardsScreen />;
+      break;
+    case 'guild':
+      screen = <GuildScreen />;
       break;
     case 'lab':
       screen = ScenarioLab ? <ScenarioLab /> : <Title />;

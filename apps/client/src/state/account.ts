@@ -3,7 +3,7 @@
  * answers (a static build without the Worker): local play keeps working either way.
  */
 import { signal } from '@preact/signals';
-import { ApiError, api, type Me } from '../net/api.ts';
+import { ApiError, api, onSubscriptionRequired, type Me } from '../net/api.ts';
 
 export type AccountState =
   | { kind: 'unknown' }
@@ -24,6 +24,10 @@ export async function refreshAccount(): Promise<AccountState> {
   }
   return account.value;
 }
+
+// A 402 anywhere (the trial ended while the app was open): re-read the account so every screen
+// shows the "trial has ended" state (M6 6.3).
+onSubscriptionRequired(() => void refreshAccount());
 
 export function setSignedIn(me: Me): void {
   account.value = { kind: 'signed_in', me };

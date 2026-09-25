@@ -87,6 +87,8 @@ export function zoneOutcome(
       return { ...base, kind: 'challenge' };
     case 'npc':
     case 'pvp':
+    case 'ranked':
+    case 'wager':
       return null;
   }
 }
@@ -120,7 +122,9 @@ export function totalReward(list: readonly Reward[]): Reward {
  * - trainer: battle XP, plus the trainer's reward on a win (a story trainer's once per player, under
  *   its own key, with the defeated flag);
  * - lesson: nothing here: the lesson's reward is granted when the lesson completes (DD-73);
- * - PvP and online-screen NPC battles: battle XP by format, result and the opponent's level.
+ * - PvP (ranked and wager battles too) and online-screen NPC battles: battle XP by format, result
+ *   and the opponent's level; a ranked battle's rating update is separate (`rating/settle.ts`), a
+ *   wager's stakes are settled by `world/wager.ts`.
  */
 export function battleGrants(
   origin: BattleOrigin,
@@ -163,6 +167,8 @@ export function battleGrants(
     case 'challenge':
     case 'npc':
     case 'pvp':
+    case 'ranked':
+    case 'wager':
       return [
         {
           key,

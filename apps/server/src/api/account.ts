@@ -3,6 +3,7 @@ import { MAX_SAVED_LOADOUTS, engine } from '@chain-theorem/content';
 import { SaveLoadout } from '@chain-theorem/protocol';
 import type { Loadout, LoadoutError } from '@chain-theorem/rules';
 import type { Loadout as SavedRow } from '@chain-theorem/db';
+import { cancelForDeletion } from '../billing/routes.ts';
 import { HttpError, body, json, noContent, type Router } from '../http.ts';
 import { playerFacts } from './collection.ts';
 import { publicMe, sessionCookie, type Ctx } from './context.ts';
@@ -47,7 +48,7 @@ export async function legalLoadout(
 export function accountRoutes(r: Router<Ctx>): void {
   r.add('GET', '/api/me', async (_req, ctx) => {
     const me = await ctx.me();
-    return json({ me: me ? publicMe(me) : null });
+    return json({ me: me ? publicMe(me, ctx.now) : null });
   });
 
   r.add('GET', '/api/me/export', async (_req, ctx) => {
@@ -60,6 +61,8 @@ export function accountRoutes(r: Router<Ctx>): void {
 
   r.add('DELETE', '/api/me', async (_req, ctx) => {
     const me = await ctx.requireMe();
+    // A deleted account is never billed again: end a live subscription first (M6 6.3).
+    await cancelForDeletion(ctx, me);
     await ctx.db.players.delete(me.id);
     return noContent({ 'set-cookie': sessionCookie(ctx.env, '', 0) });
   });

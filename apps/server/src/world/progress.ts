@@ -114,6 +114,8 @@ export async function loadPlayerInit(
     party: await partyView(db, await db.social.partyOf(playerId), now),
     filterChat: await db.world.filterChat(playerId),
     battling,
+    // M6 (10.4): guild chat goes to this guild's GuildRoom.
+    guild: await db.guilds.guildIdOf(playerId),
   };
   return { init, firstVisit: !flags.zonesSeen.includes(zone) };
 }

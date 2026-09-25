@@ -11,6 +11,11 @@ import { accountRoutes, viewLoadouts } from './api/account.ts';
 import { battleRoutes } from './api/battles.ts';
 import { socialRoutes } from './api/social.ts';
 import { worldRoutes, zoneSocket } from './api/world.ts';
+import { guildRoutes } from './api/guilds.ts';
+import { rankedRoutes, rankedSocket } from './api/ranked.ts';
+import { tradeRoutes } from './api/trades.ts';
+import { refusePlay } from './billing/gate.ts';
+import { billingRoutes } from './billing/routes.ts';
 import { verifyTicket } from './auth/tickets.ts';
 import { getDb, releaseDb } from './db.ts';
 import type { Env } from './env.ts';
@@ -20,6 +25,8 @@ export { BattleRoom } from './rooms/battle-room.ts';
 export { Matchmaker } from './rooms/matchmaker.ts';
 export { Metrics } from './rooms/metrics.ts';
 export { ZoneRoom } from './rooms/zone-room.ts';
+export { GuildRoom } from './rooms/guild-room.ts';
+export { TradeSession } from './rooms/trade-session.ts';
 
 const router = new Router<Ctx>();
 authRoutes(router);
@@ -27,6 +34,10 @@ accountRoutes(router);
 battleRoutes(router);
 socialRoutes(router);
 worldRoutes(router);
+rankedRoutes(router);
+guildRoutes(router);
+tradeRoutes(router);
+billingRoutes(router);
 
 const FORMATS = new Set(Object.keys(engine.caps.FORMATS));
 
@@ -46,8 +57,8 @@ async function api(req: Request, env: Env): Promise<Response> {
 }
 
 /**
- * `/ws/battle/:id?t=`, `/ws/queue/:format/:loadoutId?t=` and `/ws/zone/:zone?t=`: check the ticket,
- * then hand over.
+ * `/ws/battle/:id?t=`, `/ws/queue/:format/:loadoutId?t=`, `/ws/ranked/:format/:loadoutId?t=` (M6),
+ * `/ws/zone/:zone?t=` and `/ws/trade/:id?t=`: check the ticket, then hand over.
  */
 async function socket(req: Request, env: Env): Promise<Response> {
   if (req.headers.get('upgrade') !== 'websocket') return json({ error: 'expected_websocket' }, 426);
@@ -64,10 +75,29 @@ async function socket(req: Request, env: Env): Promise<Response> {
     const stub = env.BATTLE_ROOM.get(env.BATTLE_ROOM.idFromName(battleId));
     return stub.fetch(new Request('https://room/ws', { headers }));
   }
+  if (parts[1] === 'trade' && parts.length === 3) {
+    // M6 6.1: a trade or wager session (R-SEC-006: the ticket is bound to the player and trade).
+    const tradeId = parts[2] as string;
+    const player = await verifyTicket(env.AUTH_SECRET, token, `trade:${tradeId}`, now);
+    if (!player) return json({ error: 'bad_ticket' }, 403);
+    const headers = new Headers(req.headers);
+    headers.set('x-player-id', player);
+    const stub = env.TRADE_SESSION.get(env.TRADE_SESSION.idFromName(tradeId));
+    return stub.fetch(new Request('https://trade/ws', { headers }));
+  }
   if (parts[1] === 'zone' && parts.length === 3) {
     const db = await getDb(env);
     try {
       return await zoneSocket(req, env, db, parts[2] as string, token, now);
+    } finally {
+      await releaseDb(env, db);
+    }
+  }
+  if (parts[1] === 'ranked' && parts.length === 4) {
+    // M6 6.2: `/ws/ranked/:format/:loadoutId?t=` (R-FMT-004).
+    const db = await getDb(env);
+    try {
+      return await rankedSocket(req, env, db, parts[2] as string, parts[3] as string, token, now);
     } finally {
       await releaseDb(env, db);
     }
@@ -84,6 +114,9 @@ async function socket(req: Request, env: Env): Promise<Response> {
       const me = await db.players.getById(player);
       const row = me ? (await db.loadouts.list(me.id)).find((l) => l.id === loadoutId) : undefined;
       if (!me || !row) return json({ error: 'not_found' }, 404);
+      // Entitlement is re-read at connect too (14.4, R-SEC-007): the trial may have just ended.
+      const refused = refusePlay(me, now);
+      if (refused) return refused;
       const ctx = makeCtx(req, env, db, now);
       const [view] = await viewLoadouts(ctx, me.id, me.level, [row]);
       if (!view?.valid) return json({ error: 'invalid_loadout' }, 400);

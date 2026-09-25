@@ -2,7 +2,18 @@
 import { signal } from '@preact/signals';
 
 export type RouteName =
-  'title' | 'play' | 'battle' | 'loadouts' | 'lab' | 'settings' | 'world' | 'login' | 'online';
+  | 'title'
+  | 'play'
+  | 'battle'
+  | 'loadouts'
+  | 'lab'
+  | 'settings'
+  | 'world'
+  | 'login'
+  | 'online'
+  | 'account'
+  | 'leaderboards'
+  | 'guild';
 
 export interface Route {
   name: RouteName;

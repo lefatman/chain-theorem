@@ -13,9 +13,17 @@ import { toBattle, type Battle } from './battles.ts';
 import { toLoadout, type Loadout } from './loadouts.ts';
 import { toRating, type Rating } from './ratings.ts';
 import { toRewardGrant, type RewardGrant } from './rewards.ts';
-import { toWager, type Wager } from './wagers.ts';
+import { toEscrow, toWager, type Wager, type WagerEscrow } from './wagers.ts';
 import type { AuditEntry } from './audit.ts';
+import {
+  toBillingAccount,
+  toBillingEvent,
+  type BillingAccount,
+  type BillingEventRecord,
+} from './billing.ts';
 import type { Inventory } from './inventory.ts';
+import { guildRemovalStatements } from './guilds.ts';
+import { toRatedGame, type RatedGame } from './ranked.ts';
 
 export interface Player {
   id: string;
@@ -39,6 +47,8 @@ export interface NewPlayer {
   displayName: string;
   /** From `adultFromBirthDate()`; the birth date itself is never stored (R-SEC-011). */
   adultFrom: number;
+  /** When the free trial ends (sign-up: now + 7 days, spec 14.4); null falls back to created + 7 days. */
+  trialEndsAt?: number;
   now?: number;
 }
 
@@ -53,8 +63,19 @@ export interface PlayerExport {
   ratings: Rating[];
   battles: Battle[];
   wagers: Wager[];
+  /** Stakes this player put into wager escrow (M6, 9.5), live or settled. */
+  wagerEscrows: WagerEscrow[];
   guildMemberships: { guildId: string; rank: string; joinedAt: number }[];
   guildsOwned: { id: string; name: string; tag: string; createdAt: number }[];
+  /** Guild invitations to this player or sent by this player (M6, 10.4). */
+  guildInvites: {
+    guildId: string;
+    playerId: string;
+    invitedBy: string | null;
+    createdAt: number;
+  }[];
+  /** Rated battles (M6, 9.3): opponent pair, score, rating changes, whether the cap held them. */
+  ratedGames: RatedGame[];
   trades: {
     id: string;
     aId: string | null;
@@ -72,6 +93,8 @@ export interface PlayerExport {
   keyItems: { keyId: string; acquiredAt: number }[];
   progressFlags: { flag: string; at: number }[];
   partyId: string | null;
+  /** Subscription billing (M6 6.3): provider ids, plan and every recorded webhook event. */
+  billing: { account: BillingAccount | null; events: BillingEventRecord[] };
 }
 
 export function normalizeEmail(email: string): string {
@@ -139,6 +162,8 @@ export function playerRepo(ctx: RepoContext) {
         throw new RangeError('adultFrom must be epoch ms');
       const displayName = input.displayName.trim();
       if (displayName.length === 0) throw new RangeError('displayName is empty');
+      if (input.trialEndsAt !== undefined && !Number.isSafeInteger(input.trialEndsAt))
+        throw new RangeError('trialEndsAt must be epoch ms');
       const now = input.now ?? ctx.now();
       const row = {
         id: uuidv7(now),
@@ -146,6 +171,7 @@ export function playerRepo(ctx: RepoContext) {
         display_name: displayName,
         adult_from: input.adultFrom,
         created_at: now,
+        trial_ends_at: input.trialEndsAt ?? null,
       };
       try {
         await k.insertInto('players').values(row).execute();
@@ -336,6 +362,38 @@ export function playerRepo(ctx: RepoContext) {
           .execute(),
         k.selectFrom('party_members').selectAll().where('player_id', '=', id).executeTakeFirst(),
       ]);
+      const [billingAccount, billingEvents] = await Promise.all([
+        k.selectFrom('billing_accounts').selectAll().where('player_id', '=', id).executeTakeFirst(),
+        k
+          .selectFrom('billing_events')
+          .selectAll()
+          .where('player_id', '=', id)
+          .orderBy('occurred_at')
+          .orderBy('id')
+          .execute(),
+      ]);
+      const escrows = await k
+        .selectFrom('wager_escrows')
+        .selectAll()
+        .where((eb) => eb.or([eb('a_id', '=', id), eb('b_id', '=', id)]))
+        .orderBy('id')
+        .execute();
+      const [guildInvites, ratedGames] = await Promise.all([
+        k
+          .selectFrom('guild_invites')
+          .selectAll()
+          .where((eb) => eb.or([eb('player_id', '=', id), eb('invited_by', '=', id)]))
+          .orderBy('created_at')
+          .orderBy('guild_id')
+          .execute(),
+        k
+          .selectFrom('rated_games')
+          .selectAll()
+          .where((eb) => eb.or([eb('a_id', '=', id), eb('b_id', '=', id)]))
+          .orderBy('at')
+          .orderBy('battle_id')
+          .execute(),
+      ]);
       const battleIds = battles.map((b) => b.id);
       const wagers =
         battleIds.length === 0
@@ -369,11 +427,19 @@ export function playerRepo(ctx: RepoContext) {
         ratings: ratings.map(toRating),
         battles: battles.map(toBattle),
         wagers: wagers.map((w) => toWager(ctx, w)),
+        wagerEscrows: escrows.map((e) => toEscrow(ctx, e)),
         guildMemberships: members.map((m) => ({
           guildId: m.guild_id,
           rank: m.rank,
           joinedAt: m.joined_at,
         })),
+        guildInvites: guildInvites.map((i) => ({
+          guildId: i.guild_id,
+          playerId: i.player_id,
+          invitedBy: i.invited_by,
+          createdAt: i.created_at,
+        })),
+        ratedGames: ratedGames.map(toRatedGame),
         guildsOwned: owned.map((g) => ({
           id: g.id,
           name: g.name,
@@ -406,6 +472,10 @@ export function playerRepo(ctx: RepoContext) {
         keyItems: keyItems.map((r) => ({ keyId: r.key_id, acquiredAt: r.acquired_at })),
         progressFlags: flags.map((f) => ({ flag: f.flag, at: f.at })),
         partyId: membership?.party_id ?? null,
+        billing: {
+          account: billingAccount ? toBillingAccount(billingAccount) : null,
+          events: billingEvents.map((e) => toBillingEvent(ctx, e)),
+        },
         auditLog: audit.map((a) => ({
           id: a.id,
           playerId: a.player_id,
@@ -428,6 +498,11 @@ export function playerRepo(ctx: RepoContext) {
         .where('id', '=', id)
         .executeTakeFirst();
       if (!player) return false;
+      const guild = await k
+        .selectFrom('guild_members')
+        .select('guild_id')
+        .where('player_id', '=', id)
+        .executeTakeFirst();
       const byPlayer = [
         'sessions',
         'oauth_accounts',
@@ -443,6 +518,8 @@ export function playerRepo(ctx: RepoContext) {
         'key_items',
         'progress_flags',
         'party_members',
+        'billing_events',
+        'billing_accounts',
       ] as const;
       const statements: CompiledQuery[] = [
         ...byPlayer.map((t) => k.deleteFrom(t).where('player_id', '=', id).compile()),
@@ -464,6 +541,19 @@ export function playerRepo(ctx: RepoContext) {
         k.updateTable('battles').set({ black_id: null }).where('black_id', '=', id).compile(),
         k.updateTable('trades').set({ a_id: null }).where('a_id', '=', id).compile(),
         k.updateTable('trades').set({ b_id: null }).where('b_id', '=', id).compile(),
+        k.updateTable('wager_escrows').set({ a_id: null }).where('a_id', '=', id).compile(),
+        k.updateTable('wager_escrows').set({ b_id: null }).where('b_id', '=', id).compile(),
+        // M6 guilds: leave the guild (a leader hands over, an empty guild goes), drop invitations.
+        ...(guild ? guildRemovalStatements(k, guild.guild_id, id) : []),
+        k.deleteFrom('guild_invites').where('player_id', '=', id).compile(),
+        k
+          .updateTable('guild_invites')
+          .set({ invited_by: null })
+          .where('invited_by', '=', id)
+          .compile(),
+        // M6 ranked: the opponent's rated history stays with this side anonymized.
+        k.updateTable('rated_games').set({ a_id: null }).where('a_id', '=', id).compile(),
+        k.updateTable('rated_games').set({ b_id: null }).where('b_id', '=', id).compile(),
         k.deleteFrom('players').where('id', '=', id).compile(),
       ];
       const counts = await ctx.atomic(statements);

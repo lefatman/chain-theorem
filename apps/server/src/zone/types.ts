@@ -59,6 +59,8 @@ export interface PlayerInit {
   battling?: boolean;
   /** When the player's last battle ended (epoch ms), for the 60 s challenge cooldown (10.4). */
   battleEndedAt?: number | null;
+  /** The player's guild (M6, 10.4): guild chat goes to its GuildRoom; null or absent: none. */
+  guild?: string | null;
 }
 
 /** A battle the host must create (a BattleRoom), then answer with `battleStarted` per player. */
@@ -109,9 +111,12 @@ export interface BattleOutcome {
   affinities: ElementId[];
 }
 
-/** A party or whisper line routed by the host to another player's zone core (`deliverChat`). */
+/**
+ * A party, whisper or guild line routed by the host to another player's zone core (`deliverChat`).
+ * Guild lines come from the guild's GuildRoom, which sets `filtered` when any member is under 18.
+ */
 export interface RoutedChat {
-  ch: 'party' | 'whisper';
+  ch: 'party' | 'whisper' | 'guild';
   from: string;
   name: string;
   /** Already filtered when `filtered` is true: raw text never leaves a filtered conversation. */
@@ -175,6 +180,11 @@ export type Effect =
   | { kind: 'defeated'; id: string; npc: string }
   /** Deliver `msg` to each player in `to` with `deliverChat` on their zone core, wherever they are. */
   | { kind: 'chat'; from: string; to: string[]; msg: RoutedChat }
+  /**
+   * A guild line (M6, 10.4): the host forwards it to the guild's GuildRoom, which filters it by the
+   * guild's youngest member (R-SEC-011) and delivers it to every online member (`deliverChat`).
+   */
+  | { kind: 'guildChat'; guild: string; msg: RoutedChat }
   /** A routed whisper was refused or undeliverable: call `chatRefused(to)` on the sender's core. */
   | { kind: 'bounce'; to: string; code: string }
   /** A party operation for the host (parties span zones); then `setParty` / `partyInvite`. */
@@ -231,6 +241,8 @@ export interface PlayerState {
   defeatedNpcs: string[];
   keyItems: string[];
   party: PartyView | null;
+  /** The player's guild id (M6); absent in snapshots stored before M6. */
+  guild?: string | null;
   battling: boolean;
   battleId: string | null;
   battleEndedAt: number | null;

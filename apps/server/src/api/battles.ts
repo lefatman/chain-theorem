@@ -13,6 +13,7 @@ import {
 import type { SeatInit } from '../battle/index.ts';
 import { randomToken } from '../auth/crypto.ts';
 import { signTicket } from '../auth/tickets.ts';
+import { requirePlay } from '../billing/gate.ts';
 import { HttpError, body, json, type Router } from '../http.ts';
 import { assignColours, type LobbyInit } from '../rooms/init.ts';
 import type { RoomInfo } from '../rooms/battle-room.ts';
@@ -49,6 +50,7 @@ function newCode(): string {
 
 export function battleRoutes(r: Router<Ctx>): void {
   r.add('POST', '/api/battles', async (req, ctx) => {
+    await requirePlay(ctx); // 402 once the trial has ended without a subscription (14.4)
     const input = await body(req, CreateBattle);
     const mine = await legalLoadout(ctx, input.loadoutId);
     const me: SeatInit = {
@@ -122,6 +124,7 @@ export function battleRoutes(r: Router<Ctx>): void {
   });
 
   r.add('POST', '/api/challenges/:code/accept', async (req, ctx, params) => {
+    await requirePlay(ctx);
     const { loadoutId } = await body(req, AcceptChallenge);
     const code = params.code ?? '';
     const mine = await legalLoadout(ctx, loadoutId);
@@ -144,6 +147,7 @@ export function battleRoutes(r: Router<Ctx>): void {
   });
 
   r.add('POST', '/api/queue/ticket', async (req, ctx) => {
+    await requirePlay(ctx);
     const { format, loadoutId } = await body(req, JoinQueue);
     const mine = await legalLoadout(ctx, loadoutId);
     const roomName = `queue:${format}:${loadoutId}`;

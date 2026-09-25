@@ -1868,6 +1868,123 @@ button.link {
   }
 }
 
+/* ---- trades and item wagers (M6 6.1, 10.4, 9.5) ------------------------------------------------- */
+.trade-back {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+}
+.trade-window {
+  width: min(44rem, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  border: 2px solid var(--accent);
+}
+.trade-window:focus {
+  outline: none;
+}
+.trade-window h4 {
+  margin: 0;
+}
+.trade-window p {
+  margin: 0;
+}
+.trade-sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.trade-side {
+  display: grid;
+  align-content: start;
+  gap: 0.5em;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px;
+  min-width: 0;
+}
+.offer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.offer-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3em;
+  min-width: 0;
+}
+.qty-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  margin-left: auto;
+}
+.trade-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  align-items: end;
+}
+.trade-add label {
+  display: grid;
+  gap: 0.2em;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+.trade-add label.qty {
+  flex: 0 0 5.5rem;
+}
+.trade-add select,
+.trade-add input {
+  width: 100%;
+  min-width: 0;
+}
+.trade-marks {
+  display: block;
+}
+.trade-reset {
+  border-left: 4px solid var(--warn);
+  padding-left: 8px;
+}
+.trade-wager {
+  display: grid;
+  gap: 0.3em;
+}
+.trade-result {
+  display: grid;
+  gap: 0.4em;
+}
+@media (max-width: 760px) {
+  .trade-back {
+    padding: 0;
+    place-items: stretch;
+  }
+  .trade-window {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    border-width: 0;
+  }
+  .trade-sides {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .trade-actions {
+    position: sticky;
+    bottom: -12px;
+    background: var(--panel);
+    padding: 6px 0;
+  }
+}
+
 /* ---- reduced motion (11.2) --------------------------------------------------------------------- */
 [data-reduced-motion='true'] *,
 [data-reduced-motion='true'] *::before,
@@ -1880,4 +1997,198 @@ button.link {
   * {
     scroll-behavior: auto !important;
   }
+}
+
+/* ---- account and subscription (M6 6.3) -------------------------------------------------------- */
+.access-banner,
+.access-status {
+  margin: 0;
+  padding: 0.5em 0.75em;
+  border-left: 4px solid var(--line);
+  background: var(--panel);
+  border-radius: 4px;
+}
+.access-banner.ok,
+.access-status.ok {
+  border-left-color: var(--ok);
+}
+.access-banner.info,
+.access-status.info {
+  border-left-color: var(--accent);
+}
+.access-banner.warn,
+.access-status.warn {
+  border-left-color: var(--warn);
+}
+.access-banner.alert,
+.access-status.alert {
+  border-left-color: var(--danger);
+  font-weight: 600;
+}
+.access-locked {
+  display: grid;
+  gap: 0.5em;
+  padding: 12px;
+  border: 2px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+.access-locked h3 {
+  margin: 0;
+}
+.access-locked p {
+  margin: 0;
+}
+.plans {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 0.6em;
+}
+.plan-card {
+  display: grid;
+  gap: 0.3em;
+  align-content: start;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+.plan-card h4,
+.plan-card p {
+  margin: 0;
+}
+.plan-price {
+  font-size: 1.15em;
+  font-weight: 650;
+  color: var(--accent);
+}
+.plan-card button {
+  margin-top: 0.3em;
+  min-height: 44px;
+}
+.account .confirm {
+  display: grid;
+  gap: 0.4em;
+  padding: 8px 10px;
+  border: 1px dashed var(--warn);
+  border-radius: 6px;
+}
+.account .confirm p {
+  margin: 0;
+}
+a.button-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25em;
+  padding: 0.35em 0.8em;
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--ink);
+  text-decoration: none;
+}
+a.button-link:hover {
+  border-color: var(--accent);
+}
+
+/* ---- M6 ranked, leaderboards and guilds (9.3, 10.4) ------------------------------------------- */
+.ranked-rating strong {
+  font-size: 1.2em;
+  color: var(--accent);
+}
+.table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+table.board {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+table.board th,
+table.board td {
+  text-align: left;
+  padding: 0.35em 0.5em;
+  border-bottom: 1px solid var(--line);
+}
+table.board thead th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9em;
+}
+table.board tbody th {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+/* Your own row: a filled background, an accent edge and a "(you)" label, not colour alone. */
+table.board tr.own {
+  background: var(--panel-3);
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+table.board tr.own th,
+.guild-roster li.own strong {
+  font-weight: 700;
+}
+.you {
+  color: var(--accent);
+  font-weight: 600;
+}
+.guild-panel {
+  display: grid;
+  gap: 0.6em;
+}
+.guild-panel h3,
+.guild-panel h4 {
+  margin: 0;
+}
+.guild-create {
+  display: grid;
+  gap: 0.5em;
+}
+.guild-create label {
+  display: grid;
+  gap: 0.2em;
+}
+.guild-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.guild-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.guild-roster li.own {
+  outline: 2px solid var(--line);
+}
+.guild-member {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.presence.on {
+  color: var(--ok);
+}
+.presence.off {
+  color: var(--muted);
+}
+.tag.rank-leader {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tag.rank-officer {
+  border-color: var(--ok);
+}
+.guild-invite input {
+  width: 12em;
 }

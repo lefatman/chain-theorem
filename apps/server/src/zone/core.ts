@@ -371,6 +371,7 @@ export class ZoneCore {
       defeatedNpcs: [...init.defeatedNpcs],
       keyItems: [...init.keyItems],
       party: init.party ? clone(init.party) : null,
+      guild: init.guild ?? null,
       battling: init.battling ?? false,
       battleId: null,
       battleEndedAt: init.battleEndedAt ?? null,
@@ -650,9 +651,24 @@ export class ZoneCore {
         else this.out.effects.push({ kind: 'chat', from: p.id, to: [to], msg });
         return true;
       }
-      case 'guild':
-        // Guilds arrive in M6 (10.4).
-        return this.refuse(p, ZoneErr.no_guild);
+      case 'guild': {
+        // M6 (10.4): the host hands the line to the guild's GuildRoom, which knows the members and
+        // filters for everyone when any of them is under 18 (R-SEC-011). A minor's line is already
+        // filtered here, so raw text never leaves a filtered conversation.
+        if (!p.guild) return this.refuse(p, ZoneErr.no_guild);
+        const filtered = !p.adult;
+        const msg: RoutedChat = {
+          ch: 'guild',
+          from: p.id,
+          name: p.name,
+          text: filtered ? cut(this.filter.clean(text), 200) : text,
+          filtered,
+          fromAdult: p.adult,
+          friend: true,
+        };
+        this.out.effects.push({ kind: 'guildChat', guild: p.guild, msg });
+        return true;
+      }
     }
   }
 
@@ -1112,6 +1128,16 @@ export class ZoneCore {
     return this.flush();
   }
 
+  /** The player joined, left or lost a guild (M6, 10.4): guild chat follows the new guild. */
+  setGuild(id: string, guild: string | null, now: number): Outbox {
+    this.begin(now);
+    const p = this.byId.get(id);
+    if (!p || (p.guild ?? null) === guild) return this.flush();
+    p.guild = guild;
+    this.out.save = true;
+    return this.flush();
+  }
+
   /** Show a party invitation (`id` is the host's invite id, answered with `party {op:'reply'}`). */
   partyInvite(
     toId: string,
@@ -1124,6 +1150,17 @@ export class ZoneCore {
         t: 'partyInvite',
         d: { id: invite.id, from: invite.from, name: cut(invite.name, 40) },
       });
+    return this.flush();
+  }
+
+  /**
+   * Deliver one message the host composed (a trade or wager invitation, a wager result; M6) to the
+   * player, if they are in this channel. Changes no zone state. Other rooms reach a player this way
+   * through their presence, like chat and party calls.
+   */
+  notify(id: string, msg: ServerMsg, now: number): Outbox {
+    this.begin(now);
+    if (this.byId.has(id)) this.send(id, msg);
     return this.flush();
   }
 
@@ -1193,6 +1230,7 @@ export class ZoneCore {
     p.friends = [...init.friends];
     p.filterChat = init.filterChat;
     p.party = init.party ? clone(init.party) : null;
+    p.guild = init.guild ?? null;
     p.keyItems = union(p.keyItems, init.keyItems);
     p.lessonsDone = union(p.lessonsDone, init.lessonsDone);
     p.defeatedNpcs = union(p.defeatedNpcs, init.defeatedNpcs);

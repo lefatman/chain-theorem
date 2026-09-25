@@ -55,8 +55,36 @@ export type {
   RewardRepo,
 } from './repos/rewards.ts';
 export type { Session, SessionRepo } from './repos/sessions.ts';
-export type { Wager, WagerRepo, WagerStatus } from './repos/wagers.ts';
+export type {
+  EscrowInput,
+  EscrowOutcome,
+  EscrowResult,
+  EscrowStatus,
+  Payout,
+  SettleInput,
+  SettleResult,
+  Wager,
+  WagerEscrow,
+  WagerRepo,
+  WagerStatus,
+} from './repos/wagers.ts';
+export {
+  TradeOffer,
+  type Trade,
+  type TradeInput,
+  type TradeOutcome,
+  type TradeRepo,
+} from './repos/trades.ts';
+export { isEmptyBundle, mergeBundles, normalizeBundle } from './repos/moves.ts';
 export type { QuestRow, WorldRepo } from './repos/world.ts';
+export type {
+  BillingAccount,
+  BillingEventInput,
+  BillingEventOutcome,
+  BillingEventRecord,
+  BillingRepo,
+  BillingState,
+} from './repos/billing.ts';
 export {
   PARTY_MAX,
   type FriendView,
@@ -64,3 +92,27 @@ export {
   type PartyMember,
   type SocialRepo,
 } from './repos/social.ts';
+export {
+  sortedPair,
+  type BoardRow,
+  type BoardRules,
+  type RankedRepo,
+  type RatedGame,
+  type RatedSide,
+  type RecordRatedInput,
+  type RecordRatedResult,
+} from './repos/ranked.ts';
+export {
+  GUILD_RANKS,
+  guildNameKey,
+  type CreateGuildResult,
+  type Guild,
+  type GuildBoardRow,
+  type GuildInvite,
+  type GuildMember,
+  type GuildRankName,
+  type GuildRepo,
+  type InviteResult,
+  type JoinResult,
+  type RankResult,
+} from './repos/guilds.ts';

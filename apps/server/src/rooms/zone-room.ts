@@ -8,8 +8,10 @@
  * routing party and whisper chat to other channels (R-SEC-011), parties, and telemetry (14.2).
  *
  * Other rooms reach a player through their presence with POST host calls (see `world/routing.ts`):
- * `/deliver`, `/refused`, `/party`, `/invite`, `/grant` and `/ended`; each answers 404 when the
- * player is not in this channel.
+ * `/deliver`, `/refused`, `/party`, `/invite`, `/grant`, `/ended` and `/notify` (one message the host
+ * composed: trade and wager invitations and results, M6); each answers 404 when the player is not in
+ * this channel. M6 guilds add `/guild` (the player's guild changed); guild lines leave through the
+ * guild's GuildRoom, which delivers them back with `/deliver`.
  */
 import { DurableObject } from 'cloudflare:workers';
 import { DISCOVERY_XP, world, type Dir, type Reward } from '@chain-theorem/content/world';
@@ -30,9 +32,11 @@ import {
   type PartyView,
   type PlayerInit,
   type RoutedChat,
+  type ServerMsg,
   type ZoneKey,
   type ZoneSnapshot,
 } from '../zone/index.ts';
+import { guildStub } from './guild-room.ts';
 import { metricsStub } from './metrics.ts';
 
 interface Attachment {
@@ -63,6 +67,8 @@ interface Calls {
   invite: { to: string; invite: { id: string; from: string; name: string } };
   grant: { id: string; reward: Reward; level: number };
   ended: { id: string; outcome: BattleOutcome | null; rewards: Reward[]; level: number };
+  notify: { id: string; msg: ServerMsg };
+  guild: { id: string; guild: string | null };
 }
 
 const target = (call: ZoneCall, body: Calls[ZoneCall]): string =>
@@ -111,7 +117,7 @@ export class ZoneRoom extends DurableObject<Env> {
     const call = url.pathname.slice(1) as ZoneCall;
     if (
       req.method !== 'POST' ||
-      !['deliver', 'refused', 'party', 'invite', 'grant', 'ended'].includes(call)
+      !['deliver', 'refused', 'party', 'invite', 'grant', 'ended', 'notify', 'guild'].includes(call)
     )
       return new Response('not found', { status: 404 });
     const body = (await req.json()) as Calls[ZoneCall];
@@ -150,6 +156,14 @@ export class ZoneRoom extends DurableObject<Env> {
           core.battleEnded(b.id, b.outcome, now),
           ...b.rewards.map((r) => core.grant(b.id, r, b.level, now)),
         ];
+      }
+      case 'notify': {
+        const b = body as Calls['notify'];
+        return [core.notify(b.id, b.msg, now)];
+      }
+      case 'guild': {
+        const b = body as Calls['guild'];
+        return [core.setGuild(b.id, b.guild, now)];
       }
     }
   }
@@ -359,6 +373,16 @@ export class ZoneRoom extends DurableObject<Env> {
           if (!ok && e.msg.ch === 'whisper') outs.push(core.chatRefused(e.from, now));
         }
         return outs;
+      }
+      case 'guildChat': {
+        // M6 (10.4): the guild's GuildRoom filters by its youngest member (R-SEC-011) and delivers
+        // the line to every online member; a sender it does not know has left the guild.
+        const res = await guildStub(this.env, e.guild).fetch(
+          `https://guild/chat?g=${encodeURIComponent(e.guild)}`,
+          { method: 'POST', body: JSON.stringify({ msg: e.msg }) },
+        );
+        if (res.status !== 404) return [];
+        return [core.setGuild(e.msg.from, null, now), core.notice(e.msg.from, 'no_guild', now)];
       }
       case 'bounce': {
         const outs: Outbox[] = [];

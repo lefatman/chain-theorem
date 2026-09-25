@@ -1,4 +1,7 @@
-/** Ratings per player, format and bracket (spec 13.3). The Glicko-2 update itself is M6. */
+/**
+ * Ratings per player, format and bracket (spec 13.3). Rated battles update them through the ranked
+ * repository (`ranked.ts`, M6 6.2), one atomic list per battle.
+ */
 import type { Selectable } from 'kysely';
 import type { RepoContext } from '../db-types.ts';
 import type { RatingsTable } from '../schema.ts';

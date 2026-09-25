@@ -5,6 +5,7 @@
  * to date by verified provider webhooks, M6 6.3) unlocks everything that affects play.
  */
 import type { Player } from '@chain-theorem/db';
+import type { AccessView } from '@chain-theorem/protocol';
 
 /** 14.4: the free trial lasts 7 days (COMMITTED). */
 export const TRIAL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -45,4 +46,16 @@ export function canPlay(p: Facts, now: number): boolean {
 /** Trading and item wagers: paying subscribers only (14.4, 9.5). */
 export function canTrade(p: Facts, now: number): boolean {
   return access(p, now) === 'subscriber';
+}
+
+/** What `/api/me` reports (R-SEC-007: computed here, never taken from the client). */
+export function accessView(p: Facts, now: number): AccessView {
+  return {
+    status: access(p, now),
+    subStatus: p.subStatus,
+    trialEndsAt: trialEndsAt(p),
+    subExpiresAt: p.subExpiresAt,
+    canPlay: canPlay(p, now),
+    canTrade: canTrade(p, now),
+  };
 }

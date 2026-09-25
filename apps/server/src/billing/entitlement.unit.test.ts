@@ -1,6 +1,6 @@
 /** Entitlement rules (R-COST-005, R-SEC-007, R-FMT-006): trial, subscription, expiry. */
 import { describe, expect, it } from 'vitest';
-import { TRIAL_MS, access, canPlay, canTrade, trialEndsAt } from './entitlement.ts';
+import { TRIAL_MS, access, accessView, canPlay, canTrade, trialEndsAt } from './entitlement.ts';
 
 const T0 = 1_760_000_000_000;
 const DAY = 24 * 60 * 60 * 1000;
@@ -35,5 +35,23 @@ describe('entitlement (R-COST-005)', () => {
     const paused = { ...fresh, subStatus: 'paused', subExpiresAt: T0 + 40 * DAY };
     expect(access(paused, T0 + 30 * DAY)).toBe('expired');
     expect(access({ ...fresh, subStatus: 'active' }, T0 + DAY)).toBe('trial');
+  });
+
+  it('R-SEC-007 R-COST-005 /api/me reports the server decision: status, dates, canPlay, canTrade', () => {
+    expect(accessView(fresh, T0 + DAY)).toEqual({
+      status: 'trial',
+      subStatus: 'none',
+      trialEndsAt: T0 + TRIAL_MS,
+      subExpiresAt: null,
+      canPlay: true,
+      canTrade: false,
+    });
+    const paid = { ...fresh, subStatus: 'active', subExpiresAt: T0 + 40 * DAY };
+    expect(accessView(paid, T0 + DAY)).toMatchObject({ status: 'subscriber', canTrade: true });
+    expect(accessView(fresh, T0 + TRIAL_MS)).toMatchObject({
+      status: 'expired',
+      canPlay: false,
+      canTrade: false,
+    });
   });
 });

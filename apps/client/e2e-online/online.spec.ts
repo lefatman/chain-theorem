@@ -109,7 +109,7 @@ test('M4 R-FMT-003 R-NET-001 R-SEC-001 two browsers: a timed battle with a disco
   });
 
   // Ada creates a challenge link for a Full Battle and waits inside it.
-  await ada.page.getByLabel('Format').selectOption('full');
+  await ada.page.getByRole('combobox', { name: 'Format', exact: true }).selectOption('full');
   await ada.page.getByRole('button', { name: 'Create a challenge link' }).click();
   const link = await ada.page.getByLabel('Challenge link').inputValue();
   expect(link).toMatch(/#\/online\?c=\w+/);

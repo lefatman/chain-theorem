@@ -538,6 +538,45 @@ Online play answers `402 { error: 'subscription_required' }` when the trial has 
 subscription: `POST /api/world/ticket`, `/api/battles`, `/api/challenges/:code/accept`,
 `/api/queue/ticket`, and the zone and queue socket upgrades (battles in progress can be finished).
 
+M6 trading and wagers (6.1; `apps/server/src/trade/`, `rooms/trade-session.ts`, DD-86, DD-87). Only
+subscribers trade or wager (`canTrade`); the invitee gets `tradeIn {id, from, name, mode}` on the zone
+socket and the settled wager `wagerEnd {id, result, items, cards, invalid}`.
+
+| Method and path                | Body                      | Answer                                                                                                                               |
+| ------------------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/trades/access`       | —                         | `{ allowed, reason: 'trial' \| 'expired' \| null }`                                                                                  |
+| `POST /api/trades`             | `{ with, mode, format? }` | `TradeTicket { id, mode, url }` (`/ws/trade/:id?t=`); 403 `trial_account`/`no_subscription`, 409 `partner_cannot_trade`/`not_online` |
+| `POST /api/trades/:id/ticket`  | —                         | a fresh `TradeTicket`; 409 `closed`                                                                                                  |
+| `POST /api/trades/:id/decline` | —                         | `204`                                                                                                                                |
+
+Trade socket: client `hello`, `offer {items, cards}` (replaces your side), `format {format}`,
+`ready {rev, on}`, `confirm {rev}`, `cancel`; server `tstate` (both offers, marks, revision, phase,
+who caused the last reset, expiry), `tdone` (trade: what you got and gave and loadouts now invalid;
+wager: the battle id and a ticketed URL), `tend {reason, by}`, `err {code}`. A trade runs as one
+atomic list with conditional quantity updates (R-SEC-004); a wager escrows both stakes atomically
+before the battle and `settleBattle` pays them out once (`world/wager.ts`).
+
+M6 ranked, leaderboards and guilds (6.1, 6.2; `rating/`, `guild/`, `rooms/guild-room.ts`, DD-88,
+DD-89). Schemas in `packages/protocol/src/social.ts`.
+
+| Method and path                                                                      | Body                    | Answer                                                                                                                    |
+| ------------------------------------------------------------------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/ranked/ticket`                                                            | `{ format, loadoutId }` | `RankedTicket { url: /ws/ranked/:format/:loadoutId?t=, format, bracket, rating }`; 400 `not_ranked`, 409 `in_battle`, 402 |
+| `GET /api/ratings/me`                                                                | —                       | `{ bracket, formats, ratings[] }`                                                                                         |
+| `GET /api/leaderboards?format=&bracket=&limit=`                                      | —                       | `{ entries[], me, rules }` (tied ratings share a rank)                                                                    |
+| `GET /api/leaderboards/guilds?format=&bracket=`                                      | —                       | `{ entries[], mine, rules }`                                                                                              |
+| `GET /api/guilds/me`                                                                 | —                       | `MyGuild { guild, rank, invites }` (every guild action answers this too)                                                  |
+| `POST /api/guilds`                                                                   | `{ name, tag }`         | 409 `name_taken`/`tag_taken`/`in_guild`, 400 `bad_name`                                                                   |
+| `POST /api/guilds/invites`                                                           | `{ to }`                | invite by name or id                                                                                                      |
+| `POST /api/guilds/invites/:guildId/accept`, `DELETE /api/guilds/invites/:guildId`    | —                       | accept, decline                                                                                                           |
+| `DELETE /api/guilds/invites/:guildId/:playerId`                                      | —                       | a leader or officer revokes an invite                                                                                     |
+| `PUT /api/guilds/members/:id`                                                        | `{ rank }`              | leader only: officer, member, or `leader` to hand over                                                                    |
+| `DELETE /api/guilds/members/:id`, `POST /api/guilds/leave`, `DELETE /api/guilds/:id` | —                       | kick, leave, disband                                                                                                      |
+
+Guild chat uses the zone socket (`chat {ch: 'guild'}`): the zone core emits a `guildChat` effect,
+the ZoneRoom forwards it to the GuildRoom, which delivers it through presence (`/deliver`, `RoutedChat.ch
+= 'guild'`), filtered for everyone while any member is under 18 (R-SEC-011).
+
 The zone socket (`/ws/zone/:zone?t=`, a 60 s ticket for `zone:<zone>`): the Worker loads the
 player (`PlayerInit`: level, adult flag, friends, saved tile, quests, lessons done, defeated story
 trainers, key items, party with its youngest-member flag, chat preference, still-battling flag) and
@@ -553,6 +592,7 @@ Word and Scout (every level-1 module); M5 rewards grow it.
 | `ZoneRoom`       | zone channel             | tile positions, zone chat, encounter rolls, challenge-zone state  | none (event-driven)                                          |
 | `Matchmaker`     | queue (format x bracket) | waiting players, pairing                                          | alarm: widen search                                          |
 | `Metrics`        | deployment (`global`)    | hourly usage rollups for the cost dashboard (14.2, DD-81)         | none                                                         |
+| `TradeSession`   | trade or wager session   | both offers, revision, marks, confirmations, wager attempt state  | alarm: invitation lapse, idle expiry, wager watchdog         |
 | `GuildRoom`      | guild                    | roster cache, guild chat                                          | none                                                         |
 | `TradeSession`   | trade                    | both offers, confirmations                                        | alarm: expiry                                                |
 | `TournamentRoom` | tournament               | bracket, pairings, results                                        | alarm: round start                                           |

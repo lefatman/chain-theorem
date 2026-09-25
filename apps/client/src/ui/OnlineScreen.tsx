@@ -12,6 +12,8 @@ import { ApiError, api, wsUrl, type ServerLoadout } from '../net/api.ts';
 import { account, refreshAccount, signOut } from '../state/account.ts';
 import { profile } from '../state/profile.ts';
 import { startOnlineBattle } from './battleSession.ts';
+import { AccessBanner, PlayLocked } from './AccountScreen.tsx';
+import { RankedPanel } from './RankedPanel.tsx';
 
 type Tier = 'wild' | 'trainer' | 'elite';
 
@@ -24,6 +26,7 @@ function errorText(e: unknown): string {
     own_challenge: 'You cannot accept your own challenge.',
     too_many_loadouts: 'You can keep at most 5 loadouts (7.4).',
     offline: 'The server cannot be reached.',
+    subscription_required: 'Your trial has ended. Subscribe to keep playing online.',
   };
   return known[code] ?? `Something went wrong (${code}).`;
 }
@@ -130,14 +133,28 @@ export function OnlineScreen() {
   };
 
   const me = acc.me;
+  // M6 6.3: the trial or subscription has ended (the server answers 402 to online play).
+  if (!me.access.canPlay)
+    return (
+      <PlayLocked
+        me={me}
+        active={active}
+        onRejoin={(id) => {
+          startOnlineBattle(id);
+          go('battle');
+        }}
+      />
+    );
   const valid = loadouts.filter((l) => l.valid);
   return (
     <main class="setup">
       <h2>Online play</h2>
       <p>
         Signed in as <strong>{me.name}</strong> · level {me.level}{' '}
+        <button onClick={() => go('account')}>Account and subscription</button>{' '}
         <button onClick={() => void signOut()}>Sign out</button>
       </p>
+      <AccessBanner access={me.access} />
       {error && (
         <p class="note warn" role="alert">
           {error}
@@ -325,6 +342,8 @@ export function OnlineScreen() {
           </button>
         )}
       </fieldset>
+      {/* M6 6.2: ranked queues by bracket and rating; leaderboards and guilds (9.3, 10.4). */}
+      <RankedPanel loadoutId={loadoutId} />
       <button onClick={() => go('title')}>Back</button>
     </main>
   );

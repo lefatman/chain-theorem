@@ -152,6 +152,10 @@ export type Reward = Data<'reward'>;
 export type Encounter = Data<'enc'>;
 export type ChallengeIn = Data<'chalIn'>;
 export type PartyInvite = Data<'partyInvite'>;
+/** A trade or wager invitation (M6, 10.4, 9.5). */
+export type TradeInvite = Data<'tradeIn'>;
+/** A settled wager: what this player received (9.5). */
+export type WagerEnd = Data<'wagerEnd'>;
 
 export type ToastInput =
   { kind: 'reward'; reward: Reward } | { kind: 'info' | 'error'; text: string };
@@ -232,7 +236,7 @@ const ERRORS: Record<string, string> = {
   no_challenge: 'That challenge is no longer open.',
   chal_declined: 'Your challenge was declined.',
   no_party: 'You are not in a party.',
-  no_guild: 'Guild chat arrives with guilds.',
+  no_guild: 'Join a guild to use guild chat.',
   friends_only: 'Players under 18 can whisper friends only.',
   whisper_refused: 'That player cannot receive your whispers.',
   party_full: 'That party is full.',
@@ -273,6 +277,10 @@ export class WorldController {
   readonly party = signal<PartyView | null>(null);
   readonly challenges = signal<readonly ChallengeIn[]>([]);
   readonly invites = signal<readonly PartyInvite[]>([]);
+  /** Trade and wager invitations waiting for an answer (M6; the trade window takes over). */
+  readonly tradeInvites = signal<readonly TradeInvite[]>([]);
+  /** Settled wagers not yet dismissed (M6, 9.5). */
+  readonly wagerResults = signal<readonly WagerEnd[]>([]);
   readonly toasts = signal<readonly Toast[]>([]);
   /** The battle this player is in, started from the world (null in the world). */
   readonly battle = signal<Encounter | null>(null);
@@ -339,6 +347,11 @@ export class WorldController {
       const status = (e as { status?: number } | null)?.status;
       if (status === 401 || status === 403) {
         this.stop('Sign in to enter the world.');
+        return;
+      }
+      // 402: the trial or subscription has ended (M6 6.3); retrying cannot help.
+      if (status === 402) {
+        this.stop('Your trial has ended. Subscribe to keep playing online.');
         return;
       }
       this.retry();
@@ -563,6 +576,18 @@ export class WorldController {
       }
       case 'partyInvite':
         this.invites.value = [...this.invites.value.filter((i) => i.id !== msg.d.id), msg.d];
+        break;
+      case 'tradeIn':
+        this.tradeInvites.value = [
+          ...this.tradeInvites.value.filter((i) => i.id !== msg.d.id),
+          msg.d,
+        ];
+        break;
+      case 'wagerEnd':
+        this.wagerResults.value = [
+          ...this.wagerResults.value.filter((w) => w.id !== msg.d.id),
+          msg.d,
+        ];
         break;
       case 'err': {
         const d = msg.d;
@@ -976,6 +1001,12 @@ export class WorldController {
 
   leaveParty(): boolean {
     return this.send({ t: 'party', d: { op: 'leave' } });
+  }
+
+  /** Forget a trade invitation or a wager result (answered, expired or read). */
+  dismissTrade(id: string): void {
+    this.tradeInvites.value = this.tradeInvites.value.filter((i) => i.id !== id);
+    this.wagerResults.value = this.wagerResults.value.filter((w) => w.id !== id);
   }
 
   dismissToast(id: number): void {

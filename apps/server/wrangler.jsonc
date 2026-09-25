@@ -20,11 +20,15 @@
       { "name": "MATCHMAKER", "class_name": "Matchmaker" },
       { "name": "ZONE_ROOM", "class_name": "ZoneRoom" },
       { "name": "METRICS", "class_name": "Metrics" },
+      { "name": "TRADE_SESSION", "class_name": "TradeSession" },
+      { "name": "GUILD_ROOM", "class_name": "GuildRoom" },
     ],
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["BattleRoom", "Matchmaker"] },
     { "tag": "v2", "new_sqlite_classes": ["ZoneRoom", "Metrics"] },
+    { "tag": "v3", "new_sqlite_classes": ["TradeSession"] },
+    { "tag": "v4", "new_sqlite_classes": ["GuildRoom"] },
   ],
   // Local and test database (13.6): D1 (SQLite). Production uses PostgreSQL through Hyperdrive.
   "d1_databases": [
@@ -56,6 +60,8 @@
           { "name": "MATCHMAKER", "class_name": "Matchmaker" },
           { "name": "ZONE_ROOM", "class_name": "ZoneRoom" },
           { "name": "METRICS", "class_name": "Metrics" },
+          { "name": "TRADE_SESSION", "class_name": "TradeSession" },
+          { "name": "GUILD_ROOM", "class_name": "GuildRoom" },
         ],
       },
       // Telemetry (14.2): Workers Analytics Engine; the cost dashboard reads the METRICS rollups.

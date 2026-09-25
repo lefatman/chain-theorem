@@ -9,6 +9,7 @@ import type { ElementId, FormatId, Loadout } from '@chain-theorem/rules';
 import type { BattleInit, SeatInit } from '../battle/index.ts';
 import type { NpcTier } from '@chain-theorem/content/world';
 import type { BattleRequest } from '../zone/index.ts';
+import type { Bracket } from '../rating/ranked.ts';
 
 /** Where a battle came from; stored next to the battle, never sent to a client. */
 export type BattleOrigin =
@@ -26,7 +27,17 @@ export type BattleOrigin =
   /** An NPC battle from the online screen (M4 `POST /api/battles`). */
   | { kind: 'npc'; tier: NpcTier }
   /** A challenge link or a queue pairing (M4). */
-  | { kind: 'pvp' };
+  | { kind: 'pvp' }
+  /**
+   * A ranked-queue pairing (M6 6.2, R-FMT-004): rated per format and bracket when it ends. Never
+   * carries a wager (9.5) and never seats an NPC.
+   */
+  | { kind: 'ranked'; bracket: Bracket }
+  /**
+   * An item wager battle negotiated in a TradeSession (M6 6.1, 9.5 R-FMT-006): both stakes are in
+   * escrow under `wagerId`; the end settles them once (`world/wager.ts`). PvP only, never ranked.
+   */
+  | { kind: 'wager'; wagerId: string };
 
 /** A human seat's fighting loadout, already checked legal (R-LOAD-004). */
 export interface Fighter {

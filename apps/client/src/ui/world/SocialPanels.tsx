@@ -1,12 +1,21 @@
 /**
  * World side panels (M5, spec 10.4, 10.5, R-SEC-011): players here (whisper, party invite, friend
  * request, consent-based challenges; a quick Challenge on nearby players inside a challenge zone,
- * R-WORLD-006), the party, friends (REST), quests, and settings (own chat filter, new-player hints).
+ * R-WORLD-006; M6: Trade and Wager battle, off with the reason for trial accounts, 14.4), the party,
+ * friends (REST), quests, and settings (own chat filter, new-player hints).
  */
 import { useEffect, useState } from 'preact/hooks';
 import { FORMATS } from '@chain-theorem/content';
 import type { Format } from '@chain-theorem/protocol';
 import { ApiError, api, type Friend } from '../../net/api.ts';
+import {
+  accessReason,
+  activeTrade,
+  loadTradeAccess,
+  openTrade,
+  tradeAccess,
+  tradeApiError,
+} from '../../trade/session.ts';
 import { account } from '../../state/account.ts';
 import { settings, updateSettings } from '../../state/settings.ts';
 import { worldIndex, zoneName } from '../../world/content.ts';
@@ -59,6 +68,18 @@ export function PlayersPanel({ c, onWhisper }: PlayersPanelProps) {
   const rows = [...roster].sort((a, b) => dist(a.p) - dist(b.p) || a.name.localeCompare(b.name));
   const inParty = new Set(party?.members.map((m) => m.p) ?? []);
   const sel = roster.find((r) => r.p === selected) ?? null;
+  // M6 6.1: trades and wagers are for subscribers (14.4); the reason shows when they are off.
+  const locked = accessReason(tradeAccess.value);
+  const trading = activeTrade.value !== null;
+  useEffect(() => void loadTradeAccess(), []);
+  const trade = async (p: string, name: string, mode: 'trade' | 'wager') => {
+    setNote(null);
+    try {
+      openTrade(await api.startTrade(p, mode, mode === 'wager' ? 'first_blood' : undefined));
+    } catch (e) {
+      setNote(tradeApiError(e, name));
+    }
+  };
 
   const addFriend = async (p: string, name: string) => {
     setNote(null);
@@ -132,6 +153,29 @@ export function PlayersPanel({ c, onWhisper }: PlayersPanelProps) {
               Add friend
             </button>
           </div>
+          <div class="row start">
+            <button
+              type="button"
+              disabled={locked !== null || trading || sel.battling || c.battling.value}
+              aria-describedby={locked ? 'trade-locked' : undefined}
+              onClick={() => void trade(sel.p, sel.name, 'trade')}
+            >
+              <span aria-hidden="true">⇄</span> Trade
+            </button>
+            <button
+              type="button"
+              disabled={locked !== null || trading || sel.battling || c.battling.value}
+              aria-describedby={locked ? 'trade-locked' : undefined}
+              onClick={() => void trade(sel.p, sel.name, 'wager')}
+            >
+              <span aria-hidden="true">⚔</span> Wager battle
+            </button>
+          </div>
+          {locked && (
+            <p id="trade-locked" class="muted small-text">
+              {locked}
+            </p>
+          )}
           {!inside && (
             <div class="row start">
               <label class="inline">

@@ -40,6 +40,8 @@ export interface PlayersTable {
   presence_channel: number | null;
   /** 1 when an adult turned chat filtering on for themselves (R-SEC-011). */
   filter_chat: Generated<number>;
+  /** Provider time of the billing event that last set sub_status (0004; out-of-order guard). */
+  sub_event_at: number | null;
 }
 
 export interface SessionsTable {
@@ -136,16 +138,55 @@ export interface WagersTable {
 export interface GuildsTable {
   id: string;
   name: string;
+  /** Stored upper case (0005); UNIQUE. */
   tag: string;
+  /** The founder; NULL once that account is deleted (R-SEC-010). The leader is a member's rank. */
   owner_id: string | null;
   created_at: number;
+  /** Lower-cased name, UNIQUE: names are unique regardless of case (0005). */
+  name_key: string | null;
+  /** Member cap (GUILDS.maxMembers at creation); CHECK (size <= max_size) (0005). */
+  max_size: Generated<number>;
+  /** Member count, recounted inside every membership change (0005, DD-15). */
+  size: Generated<number>;
+  /** Bumped first by every membership change: serializes them and invalidates roster caches. */
+  roster_version: Generated<number>;
 }
 
 export interface GuildMembersTable {
   guild_id: string;
+  /** UNIQUE (0005): one guild per player. */
   player_id: string;
+  /** `leader` (one per guild, a unique partial index), `officer` or `member`. */
   rank: string;
   joined_at: number;
+}
+
+/** An invitation to join a guild (0005). */
+export interface GuildInvitesTable {
+  guild_id: string;
+  /** The invitee. */
+  player_id: string;
+  /** NULL once the inviter's account is deleted (R-SEC-010). */
+  invited_by: string | null;
+  created_at: number;
+}
+
+/** One row per rated battle (0005): the primary key makes a battle rated once (R-FMT-004). */
+export interface RatedGamesTable {
+  battle_id: string;
+  format: string;
+  bracket: string;
+  /** The two players, a_id < b_id; NULL once that account is deleted (R-SEC-010). */
+  a_id: string | null;
+  b_id: string | null;
+  /** a's score: 1, 0.5 or 0. */
+  score_a: number;
+  /** 0 when the per-day same-opponent cap kept both ratings (R-SEC-008). */
+  rated: number;
+  a_delta: number;
+  b_delta: number;
+  at: number;
 }
 
 export interface TradesTable {
@@ -224,6 +265,58 @@ export interface PartyMembersTable {
   joined_at: number;
 }
 
+/** Stakes held by the server while a wager battle runs (0003, spec 9.5, R-FMT-006). */
+export interface WagerEscrowsTable {
+  /** The wager id (the TradeSession id that negotiated it). */
+  id: string;
+  /** The BattleRoom the stakes ride on; the `battles` row is written when the room starts. */
+  battle_id: string;
+  format: string;
+  /** Inviter (a) and invitee (b); null after that account was deleted (R-SEC-010). */
+  a_id: string | null;
+  b_id: string | null;
+  a_stake_json: JsonColumn;
+  b_stake_json: JsonColumn;
+  /** 'escrowed' | 'settled' | 'returned'. */
+  status: string;
+  /** Raised once by the settlement; CHECK (releases <= 1) makes a second one abort (DD-15). */
+  releases: Generated<number>;
+  /** 'a' | 'b' (the side that won the stakes), 'draw' or 'aborted'; null while escrowed. */
+  outcome: string | null;
+  created_at: number;
+  settled_at: number | null;
+}
+
+/** A player's subscription at the billing provider (0004, spec 14.3, R-SEC-007). */
+export interface BillingAccountsTable {
+  player_id: string;
+  /** 'fake' | 'paddle'. */
+  provider: string;
+  customer_id: string | null;
+  subscription_id: string | null;
+  /** 'monthly' | 'quarterly' | 'yearly', or null when the price is unknown. */
+  plan: string | null;
+  /** When a scheduled cancellation takes effect, or null. */
+  cancel_at: number | null;
+  /** Provider time of the latest applied event (webhooks arrive out of order). */
+  state_at: number;
+  updated_at: number;
+}
+
+/** Every verified provider webhook, once: UNIQUE (provider, event_id) (0004, R-SEC-007). */
+export interface BillingEventsTable {
+  id: string;
+  provider: string;
+  event_id: string;
+  event_type: string;
+  /** Null when the event names no known player. */
+  player_id: string | null;
+  occurred_at: number;
+  received_at: number;
+  /** The normalized event (status, paid-until, plan); never card or address data. */
+  payload_json: JsonColumn;
+}
+
 export interface Schema {
   schema_migrations: SchemaMigrationsTable;
   players: PlayersTable;
@@ -248,6 +341,11 @@ export interface Schema {
   progress_flags: ProgressFlagsTable;
   parties: PartiesTable;
   party_members: PartyMembersTable;
+  billing_accounts: BillingAccountsTable;
+  billing_events: BillingEventsTable;
+  wager_escrows: WagerEscrowsTable;
+  guild_invites: GuildInvitesTable;
+  rated_games: RatedGamesTable;
 }
 
 /** Every table of spec 13.3 plus the auth and reward tables, in creation order. */
@@ -274,4 +372,9 @@ export const TABLES = [
   'progress_flags',
   'parties',
   'party_members',
+  'billing_accounts',
+  'billing_events',
+  'wager_escrows',
+  'guild_invites',
+  'rated_games',
 ] as const satisfies readonly (keyof Schema)[];

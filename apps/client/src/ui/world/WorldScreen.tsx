@@ -21,6 +21,8 @@ import { npcLook, playerLook, unknownNpcLook } from '../../world/trainers.ts';
 import type { WorldSceneHost } from '../../world/WorldScene.ts';
 import { COMPACT_QUERY, useMedia } from '../useMedia.ts';
 import { ChatPanel, type WhisperTarget } from './ChatPanel.tsx';
+import { GuildPanel } from '../GuildPanel.tsx';
+import { refreshGuild } from '../../state/guild.ts';
 import { DialogBox } from './DialogBox.tsx';
 import { LessonPanel } from './LessonPanel.tsx';
 import {
@@ -31,13 +33,16 @@ import {
   WorldSettingsPanel,
 } from './SocialPanels.tsx';
 import { ChallengeBanner, Prompts, QuestTracker, Toasts, TouchControls } from './StageOverlays.tsx';
+import { TradeWindow } from './TradeWindow.tsx';
+import { activeTrade, closeTrade } from '../../trade/session.ts';
 
-type Tab = 'chat' | 'players' | 'party' | 'friends' | 'quests' | 'settings';
-const TABS: Tab[] = ['chat', 'players', 'party', 'friends', 'quests', 'settings'];
+type Tab = 'chat' | 'players' | 'party' | 'guild' | 'friends' | 'quests' | 'settings';
+const TABS: Tab[] = ['chat', 'players', 'party', 'guild', 'friends', 'quests', 'settings'];
 const TAB_LABEL: Record<Tab, string> = {
   chat: 'Chat',
   players: 'Players',
   party: 'Party',
+  guild: 'Guild',
   friends: 'Friends',
   quests: 'Quests',
   settings: 'Settings',
@@ -103,12 +108,17 @@ function World({ me }: { me: Me }) {
 
   // The world content (maps, NPC looks, names) loads with this screen.
   useEffect(() => void loadWorld(), []);
+  // M6: the guild (for the chat's Guild tab and the Guild panel).
+  useEffect(() => void refreshGuild().catch(() => undefined), []);
 
   // Leaving the screen leaves the world, unless the world just handed the player to a battle.
   useEffect(
     () => () => {
       input.dispose();
-      if (route.peek().name !== 'battle') leaveWorld();
+      if (route.peek().name !== 'battle') {
+        leaveWorld();
+        closeTrade();
+      }
     },
     [],
   );
@@ -368,6 +378,7 @@ function World({ me }: { me: Me }) {
             )}
             {tab === 'players' && <PlayersPanel c={c} onWhisper={whisper} />}
             {tab === 'party' && <PartyPanel c={c} />}
+            {tab === 'guild' && <GuildPanel me={me.id} compact />}
             {tab === 'friends' && <FriendsPanel onWhisper={whisper} />}
             {tab === 'quests' && <QuestsPanel c={c} />}
             {tab === 'settings' && <WorldSettingsPanel c={c} />}
@@ -380,6 +391,7 @@ function World({ me }: { me: Me }) {
         </aside>
       </div>
       <LessonPanel c={c} />
+      {activeTrade.value && <TradeWindow key={activeTrade.value.id} c={activeTrade.value} />}
     </main>
   );
 }

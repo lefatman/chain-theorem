@@ -14,9 +14,11 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
 - M5 complete: world content (4 zones, 18 NPCs, 7 lessons, 3 quests), the pure zone core, the
   ZoneRoom host with world battles and idempotent rewards, parties, the Metrics cost dashboard, the
   overworld client; `pnpm test:load` and `pnpm test:firstwin` are the done-when, both in CI.
-- Next: M6 6.1 trading (TradeSession, atomic trades), item wagers with escrow, guilds, leaderboards;
-  6.2 ranked queues with Glicko-2 (`apps/server/src/rating/glicko2.ts` is ready); 6.3 billing (fake
-  provider and Paddle sandbox, trial, entitlement); 6.4 report, mute, block, admin console.
+- M6 6.1–6.3 done: trading and wagers with escrow, ranked queues with Glicko-2, leaderboards, guilds
+  with guild chat, billing (fake provider end to end, Paddle behind keys), trial and entitlement.
+- Next: M6 6.4 report, mute, block and the admin console; then the M6 done-when evidence.
+- The `TODO` strings in `apps/tools/src/content/new.ts` are scaffold template text for new modules,
+  not open work.
 
 ## Arcane Chess codebase path (step 2.8)
 
@@ -86,9 +88,9 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 
 ## M6 — Economy, social and billing
 
-- [ ] 6.1 Trading (TradeSession + transactions), item wagers with escrow, guilds, leaderboards.
-- [ ] 6.2 Ranked queues with slot brackets and Glicko-2.
-- [ ] 6.3 Billing: fake provider + Paddle sandbox, 7-day trial, verified webhooks, entitlement checks.
+- [x] 6.1 Trading (TradeSession + transactions), item wagers with escrow, guilds, leaderboards.
+- [x] 6.2 Ranked queues with slot brackets and Glicko-2.
+- [x] 6.3 Billing: fake provider + Paddle sandbox, 7-day trial, verified webhooks, entitlement checks (Paddle sandbox run itself is human-only: keys).
 - [ ] 6.4 Report, mute, block; minimal admin console.
 - Done when: concurrency tests show no item duplication; billing works end to end in test mode.
 
@@ -121,6 +123,14 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-09-25 M6 6.1–6.3: `pnpm check` 1,225 unit tests; `pnpm test:db` 165 (+76 PostgreSQL-only);
+  `pnpm test:db:pg` 241/241 including the concurrency tests (24 parallel two-way trades and 10
+  escrows on the same inventory rows, 8 racing settlements, guild member cap races: totals conserved,
+  no duplication); `pnpm test:workers` 37/37 (trade 5, billing 7, ranked, guild); `pnpm test:e2e`
+  19/19; `pnpm test:e2e:online` 6/6 (M4 battle, M5 first win and two players, a trade and a wager
+  battle, the fake checkout at 360x640, a guild with guild chat and the ranked panel);
+  `pnpm test:load` $0.0305 / $0.0149 per heavy subscriber-month; `pnpm test:firstwin` 14.7 minutes.
 
 - 2026-09-25 M5 done-when: `pnpm test:load` (50 bots in one zone for 60 s at 1 message per second
   each, against `wrangler dev`): all 50 connected, 3,000 messages in and 146,000 out, step fan-out

@@ -20,6 +20,26 @@ APP_ORIGIN=http://localhost:5173
 # DISCORD_CLIENT_ID=
 # DISCORD_CLIENT_SECRET=
 
+# Billing (M6 6.3, DEPLOY.md 5). Locally, with none of these set, the fake provider runs: checkout opens
+# a page the Worker serves, and paying sends signed webhooks to /api/billing/webhook (no money moves).
+# Paddle is used when both PADDLE_API_KEY and PADDLE_WEBHOOK_SECRET are set (sandbox keys first).
+# PADDLE_API_KEY=
+# The notification destination's secret key (verifies the Paddle-Signature header, R-SEC-007).
+# PADDLE_WEBHOOK_SECRET=
+# sandbox (default) or production.
+# PADDLE_ENV=sandbox
+# Price ids of the $4 monthly, $11 quarterly and $40 yearly plans (spec 14.3).
+# PADDLE_PRICE_MONTHLY=
+# PADDLE_PRICE_QUARTERLY=
+# PADDLE_PRICE_YEARLY=
+# Paddle.js client-side token for the pay page /api/billing/paddle/pay.
+# PADDLE_CLIENT_TOKEN=
+# The fake provider runs only on a local origin; FAKE_BILLING=on allows it elsewhere (a preview).
+# Never set it in production.
+# FAKE_BILLING=on
+# Signing key for the fake provider's checkout links and webhooks (default: derived from AUTH_SECRET).
+# FAKE_BILLING_SECRET=
+
 # Emails (comma-separated) that may open the cost dashboard at /admin/cost (14.2). Locally the seeded
 # level25@local.test account is the admin; in production set it with `wrangler secret put`.
 ADMIN_EMAILS=level25@local.test

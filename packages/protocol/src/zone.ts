@@ -133,6 +133,19 @@ export const ServerZone = {
     members: z.array(z.object({ p: Id, name: Name, zone: Id.nullable() })).max(4),
   }),
   partyInvite: z.object({ id: Id, from: Id, name: Name }),
+  /**
+   * A trade or wager invitation (10.4, 9.5; M6): accept by asking REST for a trade ticket
+   * (`POST /api/trades/:id/ticket`), decline with `POST /api/trades/:id/decline`.
+   */
+  tradeIn: z.object({ id: Id, from: Id, name: Name, mode: z.enum(['trade', 'wager']) }),
+  /** Your wager battle was settled (9.5): what you received, and loadouts now invalid (10.4). */
+  wagerEnd: z.object({
+    id: Id,
+    result: z.enum(['won', 'lost', 'draw', 'returned']),
+    items: z.array(z.object({ id: Id, qty: z.number().int().min(1) })).max(32),
+    cards: z.array(z.object({ id: Id, qty: z.number().int().min(1) })).max(32),
+    invalid: z.array(Name).max(5),
+  }),
   err: z.object({ code: z.string().max(32), msg: z.string().max(200).optional() }),
 };
 export type ServerZoneMap = typeof ServerZone;

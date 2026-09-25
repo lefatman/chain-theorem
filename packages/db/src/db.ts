@@ -16,11 +16,15 @@ import { loginTokenRepo } from './repos/login-tokens.ts';
 import { oauthAccountRepo } from './repos/oauth.ts';
 import { playerRepo } from './repos/players.ts';
 import { ratingRepo } from './repos/ratings.ts';
+import { rankedRepo } from './repos/ranked.ts';
+import { guildRepo } from './repos/guilds.ts';
 import { rewardRepo } from './repos/rewards.ts';
 import { sessionRepo } from './repos/sessions.ts';
 import { wagerRepo } from './repos/wagers.ts';
+import { tradeRepo } from './repos/trades.ts';
 import { worldRepo } from './repos/world.ts';
 import { socialRepo } from './repos/social.ts';
+import { billingRepo } from './repos/billing.ts';
 
 export interface CreateDbOptions {
   /** Clock for created/updated timestamps (epoch ms). Defaults to `Date.now`. */
@@ -89,12 +93,20 @@ export function createDb(
     inventory: inventoryRepo(ctx),
     loadouts: loadoutRepo(ctx),
     ratings: ratingRepo(ctx),
+    /** M6 6.2: rated battles, Glicko-2 updates, the same-opponent cap, leaderboards (9.3, R-SEC-008). */
+    ranked: rankedRepo(ctx),
+    /** M6 6.1: guilds, ranks, invitations, the guild leaderboard (10.4). */
+    guilds: guildRepo(ctx),
     battles: battleRepo(ctx),
     wagers: wagerRepo(ctx),
+    /** M6 6.1: direct trades in one atomic list (10.4, R-SEC-004). */
+    trades: tradeRepo(ctx),
     rewards: rewardRepo(ctx),
     audit: auditRepo(ctx),
     world: worldRepo(ctx),
     social: socialRepo(ctx),
+    /** M6 6.3: provider webhooks (idempotent, out-of-order safe) and billing accounts. */
+    billing: billingRepo(ctx),
     /** Closes the pool or database handle. */
     async destroy(): Promise<void> {
       await kysely.destroy();

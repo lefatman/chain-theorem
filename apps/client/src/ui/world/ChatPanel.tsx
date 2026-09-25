@@ -1,11 +1,12 @@
 /**
- * Chat (M5, spec 10.4, R-SEC-011): zone, party and whisper tabs. The zone filters each conversation
- * for its youngest participant; filtered lines carry a marker. Sending is rate-limit friendly: the
- * button pauses briefly after each line and while the 1/s allowance refills (R-SEC-005).
+ * Chat (M5, spec 10.4, R-SEC-011): zone, party, whisper and (M6) guild tabs. The zone filters each
+ * conversation for its youngest participant; filtered lines carry a marker. Sending is rate-limit
+ * friendly: the button pauses briefly after each line and while the 1/s allowance refills (R-SEC-005).
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Channel } from '@chain-theorem/protocol';
 import type { ChatLine, WorldController } from '../../world/controller.ts';
+import { guild } from '../../state/guild.ts';
 
 const LABEL: Record<Channel, string> = {
   zone: 'Zone',
@@ -66,7 +67,9 @@ export function ChatPanel({ c, channel, onChannel, target, onTarget }: ChatPanel
   const party = c.party.value;
   const lines = chat[channel];
   const tabs: Channel[] = ['zone', 'party', 'whisper'];
-  if (chat.guild.length > 0) tabs.push('guild');
+  // M6: the Guild tab shows while the player is in a guild (or a guild line arrived).
+  const inGuild = guild.value?.guild != null;
+  if (chat.guild.length > 0 || inGuild) tabs.push('guild');
 
   useEffect(() => {
     c.markRead(channel);
@@ -88,7 +91,7 @@ export function ChatPanel({ c, channel, onChannel, target, onTarget }: ChatPanel
   const recent = new Map<string, string>();
   for (const l of chat.whisper) if (!l.own) recent.set(l.from, l.name);
   for (const r of roster) recent.set(r.p, r.name);
-  const noParty = channel === 'party' && !party;
+  const noParty = (channel === 'party' && !party) || (channel === 'guild' && !inGuild);
   const noTarget = channel === 'whisper' && !target;
 
   const send = (e: Event) => {
@@ -138,7 +141,9 @@ export function ChatPanel({ c, channel, onChannel, target, onTarget }: ChatPanel
                 ? 'Say hello to the players in this zone.'
                 : channel === 'party'
                   ? 'Messages to your party appear here.'
-                  : 'Whispers go to one player only.'}
+                  : channel === 'guild'
+                    ? 'Messages to your guild appear here.'
+                    : 'Whispers go to one player only.'}
             </li>
           )}
           {lines.map((l) => (
@@ -179,7 +184,7 @@ export function ChatPanel({ c, channel, onChannel, target, onTarget }: ChatPanel
             value={text}
             placeholder={
               noParty
-                ? 'Join a party to use party chat'
+                ? `Join a ${channel === 'guild' ? 'guild' : 'party'} to use ${channel} chat`
                 : noTarget
                   ? 'Choose who to whisper to'
                   : `Message (${LABEL[channel].toLowerCase()})`

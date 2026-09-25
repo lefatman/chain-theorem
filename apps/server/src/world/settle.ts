@@ -13,6 +13,9 @@ import type { BattleOrigin } from './battles.ts';
 import { battleGrants, seatResults, zoneOutcome } from './outcome.ts';
 import { grantOnce, offlineBattleEnd, syncLevel } from './progress.ts';
 import { callPlayer } from './routing.ts';
+import { settleWager } from './wager.ts';
+import { settleRanked } from '../rating/settle.ts';
+import { telemetrySink } from '../telemetry.ts';
 
 export async function settleBattle(
   env: Env,
@@ -22,6 +25,24 @@ export async function settleBattle(
   origin: BattleOrigin,
   now: number,
 ): Promise<void> {
+  // M6 6.2: a ranked battle is rated once, both players in one atomic list (R-FMT-004, R-SEC-008).
+  // A failure here is logged and never holds back the rewards below.
+  if (origin.kind === 'ranked') {
+    try {
+      await settleRanked(db, summary, archive, origin.bracket, now, telemetrySink(env.TELEMETRY));
+    } catch (err) {
+      console.error(`battle ${summary.battleId}: rating failed: ${String(err)}`);
+    }
+  }
+  // M6 6.1: an item wager pays out its escrow once: the winner takes both stakes, a draw returns them
+  // (9.5, R-FMT-006). A failure is logged; the TradeSession's safety net settles it later.
+  if (origin.kind === 'wager') {
+    try {
+      await settleWager(env, db, origin.wagerId, summary, archive, now);
+    } catch (err) {
+      console.error(`battle ${summary.battleId}: wager settlement failed: ${String(err)}`);
+    }
+  }
   for (const seat of seatResults(summary, archive)) {
     const granted: Reward[] = [];
     for (const plan of battleGrants(origin, seat, summary)) {

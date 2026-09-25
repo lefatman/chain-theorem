@@ -5,12 +5,15 @@
  */
 import { useEffect, useState } from 'preact/hooks';
 import { FORMATS } from '@chain-theorem/content';
+import { api } from '../../net/api.ts';
+import { activeTrade, openTrade, tradeApiError } from '../../trade/session.ts';
 import type { Dir } from '@chain-theorem/protocol';
 import { worldIndex } from '../../world/content.ts';
-import type { Toast, WorldController } from '../../world/controller.ts';
+import type { Toast, TradeInvite, WagerEnd, WorldController } from '../../world/controller.ts';
 import type { InputDriver } from '../../world/input.ts';
 import { rewardText } from '../../world/rewards.ts';
 import { questLine } from './SocialPanels.tsx';
+import { moduleName } from './TradeWindow.tsx';
 
 const BANNER_MS = 6000;
 const TOAST_MS = 7000;
@@ -122,12 +125,106 @@ export function Toasts({ c }: { c: WorldController }) {
   );
 }
 
+/** An invitation lapses on the server after 2 minutes (TradeCore INVITE_TTL_MS). */
+const TRADE_INVITE_MS = 2 * 60_000;
+
+/** A trade or wager invitation (M6, 10.4, 9.5): open the window, or decline. */
+function TradePrompt({ x, c }: { x: TradeInvite; c: WorldController }) {
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => c.dismissTrade(x.id), TRADE_INVITE_MS);
+    return () => clearTimeout(t);
+  }, [x.id]);
+  const open = async () => {
+    setBusy(true);
+    try {
+      openTrade(await api.tradeTicket(x.id));
+      c.dismissTrade(x.id);
+    } catch (e) {
+      setNote(tradeApiError(e, x.name));
+      setBusy(false);
+    }
+  };
+  return (
+    <div class="world-prompt">
+      <span>
+        <span aria-hidden="true">{x.mode === 'wager' ? '⚔' : '⇄'}</span> <strong>{x.name}</strong>{' '}
+        {x.mode === 'wager' ? 'invites you to an item wager battle.' : 'wants to trade with you.'}
+        {note && <span class="note warn small-text"> {note}</span>}
+      </span>
+      <span class="row">
+        <button
+          type="button"
+          class="small primary"
+          disabled={busy || activeTrade.value !== null}
+          onClick={() => void open()}
+        >
+          {x.mode === 'wager' ? 'See the wager' : 'Open trade'}
+        </button>
+        <button
+          type="button"
+          class="small"
+          onClick={() => {
+            c.dismissTrade(x.id);
+            void api.declineTrade(x.id).catch(() => undefined);
+          }}
+        >
+          Decline
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/** A settled wager (9.5): what this player received. */
+function WagerResult({ x, c }: { x: WagerEnd; c: WorldController }) {
+  const got = [
+    ...x.items.map((i) => `${moduleName('items', i.id)} × ${i.qty}`),
+    ...x.cards.map((i) => `${moduleName('cards', i.id)} × ${i.qty}`),
+  ];
+  const head =
+    x.result === 'won'
+      ? 'You won the wager.'
+      : x.result === 'lost'
+        ? 'You lost the wager: your stake went to the winner.'
+        : x.result === 'draw'
+          ? 'The wager battle was a draw: stakes returned.'
+          : 'The wager battle did not start: stakes returned.';
+  return (
+    <div class="world-prompt">
+      <span>
+        <span aria-hidden="true">{x.result === 'won' ? '★' : '⚔'}</span> <strong>{head}</strong>
+        {got.length > 0 && <span class="small-text"> You received {got.join(', ')}.</span>}
+        {x.invalid.length > 0 && (
+          <span class="note warn small-text">
+            {' '}
+            Loadout {x.invalid.map((n) => `“${n}”`).join(', ')} is invalid until you fix it.
+          </span>
+        )}
+      </span>
+      <button type="button" class="small" onClick={() => c.dismissTrade(x.id)}>
+        OK
+      </button>
+    </div>
+  );
+}
+
 export function Prompts({ c }: { c: WorldController }) {
   const chal = c.challenges.value;
   const inv = c.invites.value;
-  if (chal.length === 0 && inv.length === 0) return null;
+  const trades = c.tradeInvites.value;
+  const wagers = c.wagerResults.value;
+  if (chal.length === 0 && inv.length === 0 && trades.length === 0 && wagers.length === 0)
+    return null;
   return (
     <div class="world-prompts" role="alert">
+      {trades.map((x) => (
+        <TradePrompt key={x.id} x={x} c={c} />
+      ))}
+      {wagers.map((x) => (
+        <WagerResult key={x.id} x={x} c={c} />
+      ))}
       {chal.map((x) => (
         <div key={x.id} class="world-prompt">
           <span>
