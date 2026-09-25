@@ -6,6 +6,14 @@ export interface Env {
   ASSETS: Fetcher;
   BATTLE_ROOM: DurableObjectNamespace;
   MATCHMAKER: DurableObjectNamespace;
+  /** One per zone channel (M5, 12.2): `zone:<zone>:<channel>`. */
+  ZONE_ROOM: DurableObjectNamespace;
+  /** Hourly usage rollups for the cost dashboard (14.2); one instance, `global`. */
+  METRICS: DurableObjectNamespace;
+  /** Workers Analytics Engine dataset (production); telemetry stays in METRICS without it. */
+  TELEMETRY?: AnalyticsEngineDataset;
+  /** Comma-separated emails allowed to open the cost dashboard (`/admin/cost`). */
+  ADMIN_EMAILS?: string;
   /** Local and test database (D1). */
   DB?: D1Database;
   /** Production database (PostgreSQL through Hyperdrive). */

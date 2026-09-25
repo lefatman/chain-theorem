@@ -137,6 +137,26 @@ describe('snapshot and restore (R-WORLD-001, R-COST-002)', () => {
     });
   }
 
+  it('R-COST-002 R-WORLD-001 positions mirrored by the host survive a restore from an older snapshot', () => {
+    const world = fixtureWorld();
+    const core = new ZoneCore(world, { zone: 'town', channel: 0 });
+    core.join(player('a', { x: 1, y: 1, dir: 's' }), T0);
+    const stored = core.snapshot();
+    // Steps do not ask for a save: the stored snapshot still has the old tile.
+    expect(core.message('a', frame('step', { dir: 's' }), T0 + 200).save).toBe(false);
+    const pos = core.position('a');
+    expect(pos).toEqual({ x: 1, y: 2, dir: 's' });
+    const back = ZoneCore.restore(world, stored);
+    expect(back.position('a')).toEqual({ x: 1, y: 1, dir: 's' });
+    if (pos) back.place('a', pos);
+    expect(back.position('a')).toEqual(pos);
+    // A wall or an unknown player is ignored.
+    back.place('a', { x: 0, y: 0, dir: 'n' });
+    back.place('nobody', { x: 1, y: 1, dir: 'n' });
+    expect(back.position('a')).toEqual(pos);
+    expect(back.position('nobody')).toBeNull();
+  });
+
   it('R-WORLD-001 restore refuses an unknown snapshot version or zone', () => {
     const world = fixtureWorld();
     const core = new ZoneCore(world, { zone: 'town', channel: 0 });

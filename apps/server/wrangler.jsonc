@@ -12,15 +12,20 @@
     "directory": "../client/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/ws/*"],
+    "run_worker_first": ["/api/*", "/ws/*", "/admin/*"],
   },
   "durable_objects": {
     "bindings": [
       { "name": "BATTLE_ROOM", "class_name": "BattleRoom" },
       { "name": "MATCHMAKER", "class_name": "Matchmaker" },
+      { "name": "ZONE_ROOM", "class_name": "ZoneRoom" },
+      { "name": "METRICS", "class_name": "Metrics" },
     ],
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BattleRoom", "Matchmaker"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["BattleRoom", "Matchmaker"] },
+    { "tag": "v2", "new_sqlite_classes": ["ZoneRoom", "Metrics"] },
+  ],
   // Local and test database (13.6): D1 (SQLite). Production uses PostgreSQL through Hyperdrive.
   "d1_databases": [
     {
@@ -49,8 +54,14 @@
         "bindings": [
           { "name": "BATTLE_ROOM", "class_name": "BattleRoom" },
           { "name": "MATCHMAKER", "class_name": "Matchmaker" },
+          { "name": "ZONE_ROOM", "class_name": "ZoneRoom" },
+          { "name": "METRICS", "class_name": "Metrics" },
         ],
       },
+      // Telemetry (14.2): Workers Analytics Engine; the cost dashboard reads the METRICS rollups.
+      "analytics_engine_datasets": [
+        { "binding": "TELEMETRY", "dataset": "chain_theorem_telemetry" },
+      ],
       "r2_buckets": [{ "binding": "BATTLE_LOGS", "bucket_name": "chain-theorem-battle-logs" }],
       "d1_databases": [],
     },

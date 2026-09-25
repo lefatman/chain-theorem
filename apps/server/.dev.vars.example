@@ -19,3 +19,7 @@ APP_ORIGIN=http://localhost:5173
 # GOOGLE_CLIENT_SECRET=
 # DISCORD_CLIENT_ID=
 # DISCORD_CLIENT_SECRET=
+
+# Emails (comma-separated) that may open the cost dashboard at /admin/cost (14.2). Locally the seeded
+# level25@local.test account is the admin; in production set it with `wrangler secret put`.
+ADMIN_EMAILS=level25@local.test

@@ -10,6 +10,7 @@ import { authRoutes } from './api/auth.ts';
 import { accountRoutes, viewLoadouts } from './api/account.ts';
 import { battleRoutes } from './api/battles.ts';
 import { socialRoutes } from './api/social.ts';
+import { worldRoutes, zoneSocket } from './api/world.ts';
 import { verifyTicket } from './auth/tickets.ts';
 import { getDb, releaseDb } from './db.ts';
 import type { Env } from './env.ts';
@@ -17,12 +18,15 @@ import { HttpError, Router, checkOrigin, errorResponse, json } from './http.ts';
 
 export { BattleRoom } from './rooms/battle-room.ts';
 export { Matchmaker } from './rooms/matchmaker.ts';
+export { Metrics } from './rooms/metrics.ts';
+export { ZoneRoom } from './rooms/zone-room.ts';
 
 const router = new Router<Ctx>();
 authRoutes(router);
 accountRoutes(router);
 battleRoutes(router);
 socialRoutes(router);
+worldRoutes(router);
 
 const FORMATS = new Set(Object.keys(engine.caps.FORMATS));
 
@@ -41,7 +45,10 @@ async function api(req: Request, env: Env): Promise<Response> {
   }
 }
 
-/** `/ws/battle/:id?t=` and `/ws/queue/:format/:loadoutId?t=`: check the ticket, then hand over. */
+/**
+ * `/ws/battle/:id?t=`, `/ws/queue/:format/:loadoutId?t=` and `/ws/zone/:zone?t=`: check the ticket,
+ * then hand over.
+ */
 async function socket(req: Request, env: Env): Promise<Response> {
   if (req.headers.get('upgrade') !== 'websocket') return json({ error: 'expected_websocket' }, 426);
   const url = new URL(req.url);
@@ -56,6 +63,14 @@ async function socket(req: Request, env: Env): Promise<Response> {
     headers.set('x-player-id', player);
     const stub = env.BATTLE_ROOM.get(env.BATTLE_ROOM.idFromName(battleId));
     return stub.fetch(new Request('https://room/ws', { headers }));
+  }
+  if (parts[1] === 'zone' && parts.length === 3) {
+    const db = await getDb(env);
+    try {
+      return await zoneSocket(req, env, db, parts[2] as string, token, now);
+    } finally {
+      await releaseDb(env, db);
+    }
   }
   if (parts[1] === 'queue' && parts.length === 4) {
     const format = parts[2] as string;
@@ -95,7 +110,7 @@ async function socket(req: Request, env: Env): Promise<Response> {
 export default {
   async fetch(req, env): Promise<Response> {
     const path = new URL(req.url).pathname;
-    if (path.startsWith('/api/')) return api(req, env);
+    if (path.startsWith('/api/') || path.startsWith('/admin/')) return api(req, env);
     if (path.startsWith('/ws/')) return socket(req, env);
     return env.ASSETS.fetch(req);
   },

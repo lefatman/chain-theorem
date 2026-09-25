@@ -6,6 +6,10 @@
  *
  * A challenge-link battle starts as a lobby holding its creator; `POST /join` seats the second player
  * and starts the battle.
+ *
+ * The init may carry the battle's origin (a wild encounter, a trainer, a lesson, a challenge, M5); it
+ * stays in storage, never reaches a client, and decides the rewards and quest progress when the
+ * battle ends (R-SEC-003).
  */
 import { DurableObject } from 'cloudflare:workers';
 import type { Side } from '@chain-theorem/rules';
@@ -19,7 +23,10 @@ import {
 } from '../battle/index.ts';
 import { getDb, releaseDb } from '../db.ts';
 import type { Env } from '../env.ts';
+import type { BattleOrigin } from '../world/battles.ts';
+import { battleUsage, settleBattle } from '../world/settle.ts';
 import { assignColours, type LobbyInit } from './init.ts';
+import { metricsStub } from './metrics.ts';
 
 interface Attachment {
   side: Side | 'lobby';
@@ -75,8 +82,10 @@ export class BattleRoom extends DurableObject<Env> {
     const url = new URL(req.url);
     if (req.headers.get('upgrade') === 'websocket') return this.accept(req);
     switch (`${req.method} ${url.pathname}`) {
-      case 'POST /init':
-        return this.init((await req.json()) as BattleInit);
+      case 'POST /init': {
+        const { origin, ...init } = (await req.json()) as BattleInit & { origin?: BattleOrigin };
+        return this.init(init, origin ?? { kind: 'pvp' });
+      }
       case 'POST /lobby':
         return this.openLobby((await req.json()) as LobbyInit);
       case 'POST /join':
@@ -114,7 +123,7 @@ export class BattleRoom extends DurableObject<Env> {
     return { status: 'empty' };
   }
 
-  private async init(init: BattleInit): Promise<Response> {
+  private async init(init: BattleInit, origin: BattleOrigin): Promise<Response> {
     if (this.core) return new Response('exists', { status: 409 });
     const now = Date.now();
     let started: { core: BattleCore; out: Outbox };
@@ -124,6 +133,7 @@ export class BattleRoom extends DurableObject<Env> {
       return new Response(`bad init: ${String(e)}`, { status: 400 });
     }
     this.core = started.core;
+    await this.ctx.storage.put('origin', origin);
     const db = await getDb(this.env);
     try {
       await db.battles.create({
@@ -153,7 +163,10 @@ export class BattleRoom extends DurableObject<Env> {
     if (playerOf(seat) === lobby.creator.playerId)
       return Response.json({ error: 'own_challenge' }, { status: 409 });
     const { white, black } = assignColours<SeatInit>(lobby.creator, seat);
-    const res = await this.init({ battleId: lobby.battleId, format: lobby.format, white, black });
+    const res = await this.init(
+      { battleId: lobby.battleId, format: lobby.format, white, black },
+      { kind: 'pvp' },
+    );
     if (!res.ok) return Response.json({ error: 'invalid_loadout' }, { status: 400 });
     this.lobby = null;
     await this.ctx.storage.delete('lobby');
@@ -267,8 +280,20 @@ export class BattleRoom extends DurableObject<Env> {
             endedAt: e.summary.endedAt,
             logKey: key,
           });
+          const origin = (await this.ctx.storage.get<BattleOrigin>('origin')) ?? { kind: 'pvp' };
+          await settleBattle(this.env, db, e.summary, e.archive, origin, Date.now());
+        } catch (err) {
+          console.error(`battle ${core.battleId}: settling failed: ${String(err)}`);
         } finally {
           await releaseDb(this.env, db);
+        }
+        try {
+          await metricsStub(this.env).fetch('https://metrics/battle', {
+            method: 'POST',
+            body: JSON.stringify(battleUsage(e.summary, e.archive)),
+          });
+        } catch (err) {
+          console.error(`battle ${core.battleId}: metrics failed: ${String(err)}`);
         }
       } else if (e.kind === 'error') console.error(`battle ${core.battleId}: ${e.message}`);
     }

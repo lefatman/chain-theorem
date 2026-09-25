@@ -84,6 +84,8 @@ export interface SideConn {
 }
 
 export interface SideStats {
+  /** Incoming socket frames (cost per battle, 14.2); absent in snapshots stored before M5. */
+  received?: number;
   /** Messages dropped by the rate limit (R-SEC-005). */
   rateLimited: number;
   /** Messages dropped as invalid (not JSON, unknown type, failed schema; R-NET-001). */

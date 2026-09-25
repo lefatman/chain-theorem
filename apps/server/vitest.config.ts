@@ -14,6 +14,7 @@ export default defineConfig({
         bindings: {
           AUTH_SECRET: 'workers-test-secret-0123456789abcdef0123456789abcdef',
           APP_ORIGIN: 'http://localhost',
+          ADMIN_EMAILS: 'boss@example.com',
         },
       },
     }),

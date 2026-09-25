@@ -53,6 +53,12 @@ describe.each(ENGINES)('world and social on $name', (engine) => {
         expect(await db().world.presence(p.id)).toBeNull();
         await db().world.setPresence(p.id, 'academy', 1);
         expect(await db().world.presence(p.id)).toEqual({ zone: 'academy', channel: 1 });
+        // R-COST-002: a late close of an old channel never clears a newer presence.
+        await db().world.clearPresence(p.id, 'route1', 1);
+        await db().world.clearPresence(p.id, 'academy', 0);
+        expect(await db().world.presence(p.id)).toEqual({ zone: 'academy', channel: 1 });
+        await db().world.clearPresence(p.id, 'academy', 1);
+        expect(await db().world.presence(p.id)).toBeNull();
         expect(await db().world.filterChat(p.id)).toBe(false);
         await db().world.setFilterChat(p.id, true);
         expect(await db().world.filterChat(p.id)).toBe(true);

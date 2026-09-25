@@ -100,7 +100,7 @@ const MAX_STEPS = 64;
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 const payload = (x: object): Record<string, unknown> => x as Record<string, unknown>;
 const isNpc = (seat: Seat): seat is NpcSeat => !('playerId' in seat);
-const zeroStats = (): SideStats => ({ rateLimited: 0, invalid: 0, rejected: 0 });
+const zeroStats = (): SideStats => ({ received: 0, rateLimited: 0, invalid: 0, rejected: 0 });
 const emptyOutbox = (): Outbox => ({ send: [], effects: [], save: false });
 
 function checkTime(now: number): number {
@@ -324,6 +324,8 @@ export class BattleCore {
     if (!this.s.conn[side].connected) this.markConnected(side);
     const b = this.s.buckets[side];
     const stats = this.s.stats[side];
+    // Every frame is billed (14.1), valid or not; snapshots from before M5 lack the counter.
+    stats.received = (stats.received ?? 0) + 1;
     const before = b.strikes;
     if (!take(b, LIMITS.battle, t)) {
       stats.rateLimited++;

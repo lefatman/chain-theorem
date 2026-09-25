@@ -116,6 +116,12 @@ export const ZoneErr = {
   no_guild: 'no_guild',
   friends_only: 'friends_only',
   whisper_refused: 'whisper_refused',
+  /** Host notices (parties span zones, so the host decides these; see `notice`). */
+  party_full: 'party_full',
+  in_party: 'in_party',
+  not_online: 'not_online',
+  invite_expired: 'invite_expired',
+  battle_failed: 'battle_failed',
 } as const;
 export type ZoneErrCode = (typeof ZoneErr)[keyof typeof ZoneErr];
 
@@ -304,6 +310,29 @@ export class ZoneCore {
 
   has(id: string): boolean {
     return this.byId.has(id);
+  }
+
+  /**
+   * A player's tile. Steps do not ask for a snapshot save (R-COST-002), so the host mirrors this
+   * into the player's socket attachment, which survives hibernation at no storage cost.
+   */
+  position(id: string): { x: number; y: number; dir: Dir } | null {
+    const p = this.byId.get(id);
+    return p ? { x: p.x, y: p.y, dir: p.dir } : null;
+  }
+
+  /**
+   * After a restore: put a player back on the tile its socket attachment recorded (newer than the
+   * stored snapshot). Ignored for unknown players and unwalkable tiles. Sends nothing.
+   */
+  place(id: string, pos: { x: number; y: number; dir: Dir }): void {
+    const p = this.byId.get(id);
+    if (!p || !Number.isInteger(pos.x) || !Number.isInteger(pos.y)) return;
+    if (!walkable(this.geo, pos.x, pos.y)) return;
+    p.x = pos.x;
+    p.y = pos.y;
+    p.dir = pos.dir;
+    p.inChallenge = this.inChallenge(pos.x, pos.y);
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -1061,6 +1090,14 @@ export class ZoneCore {
     this.begin(now);
     const p = this.byId.get(id);
     if (p) this.err(p, ZoneErr.whisper_refused);
+    return this.flush();
+  }
+
+  /** Tell the player why a host-side request failed (a party invite or reply, a battle start). */
+  notice(id: string, code: ZoneErrCode, now: number): Outbox {
+    this.begin(now);
+    const p = this.byId.get(id);
+    if (p) this.err(p, code);
     return this.flush();
   }
 

@@ -71,7 +71,13 @@ export function battleRoutes(r: Router<Ctx>): void {
       const { white, black } = assignColours<SeatInit>(me, them);
       const res = await room(ctx.env, battleId).fetch('https://room/init', {
         method: 'POST',
-        body: JSON.stringify({ battleId, format: input.format, white, black }),
+        body: JSON.stringify({
+          battleId,
+          format: input.format,
+          white,
+          black,
+          origin: { kind: 'npc', tier: input.tier },
+        }),
       });
       if (!res.ok) throw new HttpError(400, 'invalid_loadout');
       return json(await battleTicket(ctx, mine.playerId, battleId));

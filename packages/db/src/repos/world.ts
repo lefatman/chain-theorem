@@ -164,6 +164,19 @@ export function worldRepo(ctx: RepoContext) {
         .where('id', '=', playerId)
         .execute();
     },
+    /**
+     * Clears presence only while it still names this channel: a late close of an old socket must
+     * not erase the presence a newer channel (after a warp) already set.
+     */
+    async clearPresence(playerId: string, zone: string, channel: number): Promise<void> {
+      await k
+        .updateTable('players')
+        .set({ presence_zone: null, presence_channel: null })
+        .where('id', '=', playerId)
+        .where('presence_zone', '=', zone)
+        .where('presence_channel', '=', channel)
+        .execute();
+    },
     async presence(playerId: string): Promise<{ zone: string; channel: number } | null> {
       const r = await k
         .selectFrom('players')

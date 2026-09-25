@@ -32,8 +32,9 @@ export async function signUp(
   env: Env,
   name: string,
   dob = '2000-01-01',
+  emailOverride?: string,
 ): Promise<{ cookie: string; id: string; email: string }> {
-  const email = `${name.toLowerCase()}-${++counter}-${Date.now()}@example.com`;
+  const email = emailOverride ?? `${name.toLowerCase()}-${++counter}-${Date.now()}@example.com`;
   const start = await call('POST', '/api/auth/start', { email });
   if (start.status !== 200) throw new Error(`start ${start.status}`);
   const sent = (mailer(env) as ConsoleMailSender).sent;
