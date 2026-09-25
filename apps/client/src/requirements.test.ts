@@ -1,6 +1,6 @@
 /**
  * Client-side design requirements (spec 1, R-ART-003): original names everywhere a player reads them,
- * and a browser-first client. The server-side ones are in apps/server/src/requirements.unit.test.ts.
+ * and a browser-first client. The server-side ones live in the server package (requirements.unit.test).
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
