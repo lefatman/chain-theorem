@@ -82,18 +82,29 @@ class ReadHost implements Host {
   }
 }
 
+/**
+ * Is `ability` known to `viewer` on `side`'s pieces of `pieceType`? Knowledge is per piece type
+ * (8.2: an ability is revealed together with the piece type it was seen on), so a veiled type keeps
+ * its names hidden even when the same ability was revealed on another type (DD-28). Without a piece
+ * type (a side-wide source such as a passive) any type counts.
+ */
 export function knownAbility(
   state: GameState,
   side: Side,
   viewer: Side,
   ability: string | null,
+  pieceType?: PieceType,
 ): boolean {
   if (ability === null) return true;
   if (side === viewer) return true;
   const log = state.reveals[side];
+  if (pieceType !== undefined) return log.abilities[pieceType]?.includes(ability) ?? false;
   for (const list of Object.values(log.abilities)) if (list?.includes(ability)) return true;
   return false;
 }
+
+const typeOfPiece = (state: GameState, id: PieceId): PieceType | undefined =>
+  state.pieces[id]?.type;
 
 export function knownItem(state: GameState, side: Side, viewer: Side, item: string): boolean {
   if (side === viewer) return true;
@@ -152,7 +163,7 @@ export function project(rt: Runtime, state: GameState, viewer: Side, legal: stri
     const [pidStr, ability] = key.split(':') as [string, string];
     const p = state.pieces[Number(pidStr)];
     if (!p) continue;
-    if (knownAbility(state, p.side, viewer, ability)) usage[key] = n;
+    if (knownAbility(state, p.side, viewer, ability, p.type)) usage[key] = n;
   }
   const slices: Record<string, unknown> = {};
   for (const [id, hooks] of rt.slices) {
@@ -195,7 +206,8 @@ function maskSource(
 ): SourceRef | undefined {
   if (!src) return undefined;
   if (src.kind === 'ability') {
-    return knownAbility(state, src.side, viewer, src.id) ? src : { kind: 'hidden' };
+    const type = src.piece >= 0 ? typeOfPiece(state, src.piece) : undefined;
+    return knownAbility(state, src.side, viewer, src.id, type) ? src : { kind: 'hidden' };
   }
   if (src.kind === 'item') {
     return knownItem(state, src.side, viewer, src.id) ? src : { kind: 'hidden' };
@@ -204,17 +216,26 @@ function maskSource(
 }
 
 /** Project one event for `viewer` (whitelist; unknown opponent ids become null or 'hidden'). */
-export function projectEvent(state: GameState, ev: BattleEvent, viewer: Side): PublicEvent {
+export function projectEvent(
+  rt: Runtime,
+  state: GameState,
+  ev: BattleEvent,
+  viewer: Side,
+): PublicEvent {
   switch (ev.k) {
     case 'AbilityTriggered':
     case 'AbilitySilenced':
-      return knownAbility(state, ev.side, viewer, ev.ability) ? ev : { ...ev, ability: null };
+      return knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType)
+        ? ev
+        : { ...ev, ability: null };
     case 'AbilityNegated': {
-      const ability = knownAbility(state, ev.side, viewer, ev.ability) ? ev.ability : null;
+      const ability = knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType)
+        ? ev.ability
+        : null;
       return { ...ev, ability, source: maskSource(state, viewer, ev.source) ?? { kind: 'hidden' } };
     }
     case 'EffectFizzled': {
-      const known = knownAbility(state, ev.side, viewer, ev.ability);
+      const known = knownAbility(state, ev.side, viewer, ev.ability, typeOfPiece(state, ev.piece));
       const out = { ...ev, ability: known ? ev.ability : null };
       const src = maskSource(state, viewer, ev.source);
       if (src) out.source = src;
@@ -222,9 +243,23 @@ export function projectEvent(state: GameState, ev: BattleEvent, viewer: Side): P
       return out;
     }
     case 'ChargeSpent':
-      return knownAbility(state, ev.side, viewer, ev.ability)
+      return knownAbility(state, ev.side, viewer, ev.ability, typeOfPiece(state, ev.piece))
         ? ev
         : { ...ev, ability: null, remaining: -1 };
+    case 'Promoted': {
+      // Masquerade Mask: the new piece shows its displayed element, not the true one (DD-26).
+      if (ev.side === viewer) return ev;
+      const view: PieceView = {
+        id: ev.piece,
+        side: ev.side,
+        type: ev.to,
+        element: ev.element,
+        square: -1,
+        lastSquare: -1,
+        start: -1,
+      };
+      return { ...ev, element: displayElement(rt, new ReadHost(state), viewer, view) };
+    }
     case 'Captured':
     case 'PieceMoved':
     case 'PieceRevived': {
@@ -242,11 +277,12 @@ export function projectEvent(state: GameState, ev: BattleEvent, viewer: Side): P
 }
 
 export function projectEvents(
+  rt: Runtime,
   state: GameState,
   events: readonly BattleEvent[],
   viewer: Side,
 ): PublicEvent[] {
-  return events.map((e) => projectEvent(state, e, viewer));
+  return events.map((e) => projectEvent(rt, state, e, viewer));
 }
 
 export { opposite };

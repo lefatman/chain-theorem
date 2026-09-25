@@ -46,7 +46,23 @@ importers:
 
   apps/server: {}
 
-  apps/tools: {}
+  apps/tools:
+    dependencies:
+      '@chain-theorem/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
+      '@chain-theorem/content':
+        specifier: workspace:*
+        version: link:../../packages/content
+      '@chain-theorem/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@chain-theorem/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@chain-theorem/rules':
+        specifier: workspace:*
+        version: link:../../packages/rules
 
   packages/ai:
     dependencies:
@@ -54,7 +70,11 @@ importers:
         specifier: workspace:*
         version: link:../rules
 
-  packages/content: {}
+  packages/content:
+    dependencies:
+      '@chain-theorem/rules':
+        specifier: workspace:*
+        version: link:../rules
 
   packages/db: {}
 

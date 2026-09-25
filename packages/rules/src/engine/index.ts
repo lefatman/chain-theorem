@@ -260,7 +260,7 @@ export function createEngine(registry: ContentRegistry, caps: Caps): Engine {
           : [];
       return project(rt, state, viewer, legal);
     },
-    projectEvents: (state, events, viewer) => projectEvents(state, events, viewer),
+    projectEvents: (state, events, viewer) => projectEvents(rt, state, events, viewer),
     preview: (pub, own, move) => preview(engine, rt, pub, own, move),
     stateHash: (state) => rt.stateHash(state),
     validateLoadout: (loadout, player) =>

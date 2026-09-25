@@ -151,6 +151,7 @@ export class ActionRun extends EventHost {
   private preIdx: number;
   private promptN = 0;
   private seq = 0;
+  private captureN = 0;
   private readonly fired = new Set<string>();
   private readonly negations: Negation[] = [];
   private readonly protections: Protection[] = [];
@@ -219,7 +220,8 @@ export class ActionRun extends EventHost {
       const victim = s.pieces[vid];
       if (!victim) throw new RulesError('internal', 'victim missing');
       cap = {
-        id: -1,
+        // Unique within the battle and identical on replay (DD-11).
+        id: s.ply * 1000 + this.captureN++,
         captor: pid,
         victim: vid,
         from,
@@ -241,7 +243,7 @@ export class ActionRun extends EventHost {
     }
     let captured = false;
     if (cap && (s.pieces[vid] as { square: number }).square === victimSq) {
-      cap.id = this.capturePiece(vid, 'move', pid, undefined);
+      this.capturePiece(vid, 'move', pid, undefined);
       captured = true;
     }
     this.movePiece(m, bonus, captured);
@@ -475,10 +477,7 @@ export class ActionRun extends EventHost {
 
   private actionNegation(t: Trig): Negation | undefined {
     return this.negations.find(
-      (n) =>
-        n.piece === t.piece &&
-        n.categories.includes(t.category) &&
-        (n.capture === t.cap.id || n.capture === -1),
+      (n) => n.piece === t.piece && n.categories.includes(t.category) && n.capture === t.cap.id,
     );
   }
 
@@ -1265,10 +1264,15 @@ export class ActionRun extends EventHost {
 
   // ---- Stalwart observation (DD-32) ---------------------------------------------------------------
 
+  /** The module that makes `side`'s king Stalwart; works for a king that was just captured. */
   private stalwartSource(side: Side): HookEntry | null {
-    const map = new Map<Side, HookEntry>();
-    this.rt.moveRules(this, map);
-    return map.get(side) ?? null;
+    const king = this.s.pieces.find((p) => p.side === side && p.type === 'king');
+    if (!king) return null;
+    const view = this.rt.view(this, king.id);
+    for (const e of this.rt.hook(this.s, 'moveFilter')) {
+      if (e.hooks.moveFilter?.kingMode?.(this.rt.ctx(this, e), view) === 'stalwart') return e;
+    }
+    return null;
   }
 
   private revealStalwartIfRelaxed(m: number, side: Side): void {

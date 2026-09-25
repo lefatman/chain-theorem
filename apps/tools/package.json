@@ -5,5 +5,12 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@chain-theorem/rules": "workspace:*",
+    "@chain-theorem/content": "workspace:*",
+    "@chain-theorem/ai": "workspace:*",
+    "@chain-theorem/protocol": "workspace:*",
+    "@chain-theorem/db": "workspace:*"
   }
 }
