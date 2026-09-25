@@ -182,6 +182,43 @@ describe.each(ENGINES)('trades and wagers on $name', (engine) => {
         expect(await db().trades.listForPlayer(a.id, 200)).toHaveLength(x + y);
       });
 
+      it('R-SEC-004 R-SEC-003 reward grants racing trades on the same rows neither deadlock nor lose an item', async () => {
+        const a = await makePlayer(db());
+        const b = await makePlayer(db());
+        await db().inventory.grant(a.id, 'item', 'gem', 6);
+        await db().inventory.grant(a.id, 'card', 'shard', 6);
+        // Trades move gems and shards A -> B while rewards pay A the same ids in reverse order.
+        const jobs = Array.from({ length: 16 }, (_, i) =>
+          i % 2 === 0
+            ? db().trades.execute({
+                id: `mix-${i}`,
+                aId: a.id,
+                bId: b.id,
+                a: { items: [{ itemId: 'gem', qty: 1 }], cards: [{ abilityId: 'shard', qty: 1 }] },
+                b: { items: [], cards: [] },
+              })
+            : db().rewards.grant({
+                key: `mix-reward-${i}`,
+                playerId: a.id,
+                cards: [{ abilityId: 'shard', qty: 1 }],
+                items: [{ itemId: 'gem', qty: 1 }],
+              }),
+        );
+        const results = await Promise.all(jobs);
+        const trades = results.filter((r, i) => i % 2 === 0 && r.status === 'completed').length;
+        const rewards = results.filter((r, i) => i % 2 === 1 && r.status === 'granted').length;
+        expect(rewards).toBe(8);
+        const gems =
+          (await db().inventory.qty(a.id, 'item', 'gem')) +
+          (await db().inventory.qty(b.id, 'item', 'gem'));
+        const shards =
+          (await db().inventory.qty(a.id, 'card', 'shard')) +
+          (await db().inventory.qty(b.id, 'card', 'shard'));
+        expect(gems).toBe(6 + rewards);
+        expect(shards).toBe(6 + rewards);
+        expect(await db().inventory.qty(b.id, 'item', 'gem')).toBe(trades);
+      });
+
       async function escrowed(stakeA: ItemBundle, stakeB: ItemBundle) {
         const a = await makePlayer(db());
         const b = await makePlayer(db());

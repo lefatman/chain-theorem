@@ -11,6 +11,7 @@ import type { RepoContext } from '../db-types.ts';
 import { RewardPayload } from '../json.ts';
 import type { RewardGrantsTable } from '../schema.ts';
 import { inventoryRepo } from './inventory.ts';
+import { moveStatements, withLockRetry } from './moves.ts';
 import { worldRepo } from './world.ts';
 
 export interface RewardGrant {
@@ -88,12 +89,17 @@ export function rewardRepo(ctx: RepoContext) {
           at,
         })
         .compile(),
-      ...payload.items.map((i) =>
-        inventory.grantStatement(input.playerId, 'item', i.itemId, i.qty),
-      ),
-      ...payload.cards.map((c) =>
-        inventory.grantStatement(input.playerId, 'card', c.abilityId, c.qty),
-      ),
+      // Inventory rows in the global lock order trades and escrows use (moves.ts), so a reward
+      // racing a trade on PostgreSQL queues instead of deadlocking (R-SEC-004).
+      ...(payload.items.length + payload.cards.length > 0
+        ? moveStatements(inventory, [
+            {
+              playerId: input.playerId,
+              op: 'grant',
+              bundle: { items: payload.items, cards: payload.cards },
+            },
+          ])
+        : []),
     ];
     if (payload.coins > 0) statements.push(world.addCoinsStatement(input.playerId, payload.coins));
     for (const key of payload.keyItems)
@@ -117,7 +123,7 @@ export function rewardRepo(ctx: RepoContext) {
     async grant(input: RewardGrantInput): Promise<RewardGrantOutcome> {
       const { grant, statements } = build(input);
       try {
-        await ctx.atomic(statements);
+        await withLockRetry(() => ctx.atomic(statements));
         return { status: 'granted', grant };
       } catch (err) {
         if (isUniqueViolation(err, 'reward_grants')) return { status: 'duplicate' };
