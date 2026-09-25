@@ -20,7 +20,12 @@ export interface SimOutcome {
 }
 
 export function playSim(engine: Engine, g: SimGame): SimOutcome {
-  let { state } = engine.newBattle({ format: g.format, white: g.white, black: g.black });
+  let { state } = engine.newBattle({
+    format: g.format,
+    white: g.white,
+    black: g.black,
+    strict: true,
+  });
   let plies = 0;
   let lastReveals: GameState['reveals'] | null = null;
   let lastEvents: BattleEvent[] = [];

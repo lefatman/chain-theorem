@@ -100,7 +100,7 @@ export function evalPos(ctx: SearchCtx, stm: number): number {
   return stm === 0 ? s : -s;
 }
 
-interface Played {
+export interface Played {
   undo: ReturnType<Pos['make']>;
   killed: number;
   killedSq: number;
@@ -109,15 +109,16 @@ interface Played {
   terminal: number;
 }
 
+/** Budget check every 256 nodes: a clock read costs little next to 256 move generations. */
 function checkBudget(ctx: SearchCtx): void {
-  if ((ctx.nodes & 1023) === 0) {
+  if ((ctx.nodes & 255) === 0) {
     if (ctx.nodes >= ctx.maxNodes) ctx.aborted = true;
     else if (ctx.now && ctx.now() >= ctx.deadline) ctx.aborted = true;
   }
 }
 
 /** Make a move plus the known reactions. `bias` and `terminal` are from the mover's point of view. */
-function play(ctx: SearchCtx, m: number): Played {
+export function play(ctx: SearchCtx, m: number): Played {
   const pos = ctx.pos;
   const from = mFrom(m);
   const to = mTo(m);
@@ -181,7 +182,7 @@ function play(ctx: SearchCtx, m: number): Played {
   return out;
 }
 
-function unplay(ctx: SearchCtx, p: Played): void {
+export function unplay(ctx: SearchCtx, p: Played): void {
   const pos = ctx.pos;
   if (p.killed >= 0) {
     pos.board[p.killedSq] = p.killed;
@@ -207,6 +208,22 @@ function orderMoves(pos: Pos, moves: number[]): number[] {
   return keyed.map((x) => x.m);
 }
 
+/**
+ * Legal captures and promotions for `side`: the same list as `pos.legal(side)` filtered to
+ * tactical moves, but only tactical pseudo-moves pay for the king-safety check.
+ */
+function tacticalMoves(pos: Pos, side: number): number[] {
+  const pseudo: number[] = [];
+  pos.pseudo(side, pseudo);
+  const stalwart = pos.rules.stalwart[side] === true;
+  const out: number[] = [];
+  for (const m of pseudo) {
+    if (!(m & F_CAPTURE) && !mPromo(m)) continue;
+    if (stalwart || !pos.leavesInCheck(m, side)) out.push(m);
+  }
+  return out;
+}
+
 export function quiesce(ctx: SearchCtx, alpha: number, beta: number, qdepth: number): number {
   ctx.nodes++;
   checkBudget(ctx);
@@ -216,10 +233,7 @@ export function quiesce(ctx: SearchCtx, alpha: number, beta: number, qdepth: num
   if (stand >= beta) return stand;
   if (stand > alpha) alpha = stand;
   if (qdepth <= 0 || ctx.aborted) return alpha;
-  const moves = orderMoves(
-    pos,
-    pos.legal(stm).filter((m) => m & F_CAPTURE || mPromo(m)),
-  );
+  const moves = orderMoves(pos, tacticalMoves(pos, stm));
   for (const m of moves) {
     const p = play(ctx, m);
     const score =

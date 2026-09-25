@@ -29,6 +29,8 @@ interface Burn {
   sq: number;
   side: Side;
   turns: number;
+  /** Lit during the opponent's turn: that partial turn does not count (DD-42). */
+  fresh?: true;
 }
 interface PendingBurn {
   piece: number;
@@ -182,7 +184,8 @@ export function applyEventToPublic(
       const element = ev.promotion
         ? elementFor(loadoutElements, ev.promotion)
         : (ctx.trueElement?.(ev.piece) ?? pieces[ev.piece]?.element);
-      if (hf && ev.capture && element === 'ember') {
+      // A pending burn is projected only to its owner (DD-26).
+      if (hf && ev.capture && element === 'ember' && ev.side === pub.viewer) {
         hf = {
           ...hf,
           pending: [
@@ -226,7 +229,9 @@ export function applyEventToPublic(
         hf = {
           burning: [
             ...hf.burning.filter((b) => b.sq !== ev.square),
-            { sq: ev.square, side: ev.side, turns: ev.turns },
+            ev.side === turn
+              ? { sq: ev.square, side: ev.side, turns: ev.turns }
+              : { sq: ev.square, side: ev.side, turns: ev.turns, fresh: true },
           ],
           pending: hf.pending.filter((b) => b.sq !== ev.square),
         };
@@ -250,7 +255,10 @@ export function applyEventToPublic(
         hf = {
           ...hf,
           burning: hf.burning
-            .map((b) => (b.side === mover ? b : { ...b, turns: b.turns - 1 }))
+            .map((b): Burn => {
+              if (b.fresh) return { sq: b.sq, side: b.side, turns: b.turns };
+              return b.side === mover ? b : { ...b, turns: b.turns - 1 };
+            })
             .filter((b) => b.turns > 0),
         };
         hfChanged = true;

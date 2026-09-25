@@ -170,10 +170,11 @@ describe('masquerade mask (R-LOAD-002)', () => {
   });
 
   it('R-LOAD-002 DD-26 a capture without any silence keeps the Mask up and hidden', () => {
-    // Tide vs Tide: nothing is silenced; Poisoned Meat takes the knight, and the Mask stays.
+    // Tide vs Tide: nothing is silenced; Poisoned Meat takes the knight, and the Mask stays. (White
+    // carries no ability: an attuned Tide activation under an Ember mask would drop it, DD-44.)
     const r = scenario({
       fen: KNIGHT_FEN,
-      white: masked(['tide'], 'ember', { abilities: ['hit_and_run'] }),
+      white: masked(['tide'], 'ember'),
       black: { elements: ['tide'], abilities: ['poisoned_meat'] },
       moves: ['c3d5'],
     });
@@ -191,10 +192,11 @@ describe('masquerade mask (R-LOAD-002)', () => {
 
   it('R-LOAD-002 DD-26 DD-36 a negated trigger is not a silence event, so the Mask stays up', () => {
     // True Tide knight with Pierce takes an Ember pawn: Poisoned Meat would be silenced, but Pierce
-    // negates it first (negation takes precedence over silence).
+    // negates it first (negation takes precedence over silence). Veil keeps Pierce unnamed, so its
+    // attuned flag is not observable either (DD-44).
     const r = scenario({
       fen: KNIGHT_FEN,
-      white: masked(['tide'], 'grove', { abilities: ['pierce'] }),
+      white: masked(['tide'], 'grove', { abilities: ['veil', 'pierce'] }),
       black: { elements: ['ember'], abilities: ['poisoned_meat'] },
       moves: ['c3d5'],
     });
@@ -206,17 +208,63 @@ describe('masquerade mask (R-LOAD-002)', () => {
     expect(r.engine.project(r.state, 'black').armies.white.elements).toEqual(['grove']);
   });
 
+  it('R-LOAD-002 DD-44 a named attuned activation off the shown element drops the Mask', () => {
+    // Hit and Run (Tide) is attuned on the true Tide knight; shown Ember predicts it is not.
+    const r = scenario({
+      fen: KNIGHT_FEN,
+      white: masked(['tide'], 'ember', { abilities: ['hit_and_run'] }),
+      black: { elements: ['tide'] },
+      moves: ['c3d5'],
+    });
+    const trig = eventsOf(r.events, 'AbilityTriggered').find((e) => e.ability === 'hit_and_run');
+    expect(trig?.attuned).toBe(true);
+    expect(maskReveals(r.events, 'white')).toHaveLength(1);
+    expect(r.engine.project(r.state, 'black').armies.white.elements).toEqual(['tide']);
+  });
+
+  it('R-LOAD-002 DD-44 an unattuned activation of the shown affinity drops the Mask', () => {
+    // Cleave (Ember) on a true Tide knight is not attuned; shown Ember predicts that it is.
+    const r = scenario({
+      fen: KNIGHT_FEN,
+      white: masked(['tide'], 'ember', { abilities: ['cleave'] }),
+      black: { elements: ['tide'] },
+      moves: ['c3d5'],
+    });
+    const trig = eventsOf(r.events, 'AbilityTriggered').find((e) => e.ability === 'cleave');
+    expect(trig?.attuned).toBe(false);
+    expect(maskReveals(r.events, 'white')).toHaveLength(1);
+  });
+
+  it('R-LOAD-002 DD-44 an attunement explained by an Attunement Charm keeps the Mask', () => {
+    // True Grove knight, shown Ember, Attunement Charm (Tide): Hit and Run is attuned by the charm,
+    // which the shown element plus the charm explains.
+    const r = scenario({
+      fen: KNIGHT_FEN,
+      white: masked(['grove'], 'ember', {
+        abilities: ['hit_and_run'],
+        items: ['attunement_charm'],
+        itemParams: { attunement_charm: { element: 'tide' } },
+      }),
+      black: { elements: ['grove'] },
+      moves: ['c3d5'],
+    });
+    const trig = eventsOf(r.events, 'AbilityTriggered').find((e) => e.ability === 'hit_and_run');
+    expect(trig?.attuned).toBe(true);
+    expect(maskReveals(r.events, 'white')).toEqual([]);
+    expect(r.engine.project(r.state, 'black').armies.white.elements).toEqual(['ember']);
+  });
+
   it('R-LOAD-002 DD-26 DD-30 a silence prevented by Resonance Crystal does not happen, so the Mask stays up', () => {
     const r = scenario({
       fen: KNIGHT_FEN,
-      white: masked(['tide'], 'ember', { items: ['resonance_crystal'], abilities: ['cleave'] }),
+      white: masked(['tide'], 'grove', { items: ['resonance_crystal'], abilities: ['cleave'] }),
       black: { elements: ['grove'] },
       moves: ['c3d5'],
     });
     expect(eventsOf(r.events, 'AbilitySilenced')).toEqual([]);
     expect(eventsOf(r.events, 'AbilityTriggered').map((e) => e.ability)).toEqual(['cleave']);
     expect(maskReveals(r.events, 'white')).toEqual([]);
-    expect(r.engine.project(r.state, 'black').armies.white.elements).toEqual(['ember']);
+    expect(r.engine.project(r.state, 'black').armies.white.elements).toEqual(['grove']);
   });
 
   it('R-LOAD-002 DD-26 R-INFO-005 R-SEC-001 a masked promotion does not leak the true element through projected events', () => {

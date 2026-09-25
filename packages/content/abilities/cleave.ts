@@ -1,5 +1,5 @@
 /**
- * Cleave (5.7, PLAYTEST): Captures, Ember, all. Effect-capture one enemy pawn diagonally adjacent to
+ * Cleave (5.7, PLAYTEST; measured from the landing square even if the captor moved on, DD-41): Captures, Ember, all. Effect-capture one enemy pawn diagonally adjacent to
  * the landing square. Attuned: may pick an orthogonally adjacent pawn instead.
  */
 import { defineAbility, fx, target } from '@chain-theorem/rules/sdk';
@@ -7,7 +7,7 @@ import { defineAbility, fx, target } from '@chain-theorem/rules/sdk';
 export default defineAbility({
   id: 'cleave',
   name: 'Cleave',
-  version: 1,
+  version: 2,
   category: 'CAPTURES',
   affinity: 'ember',
   eligible: 'all',
@@ -17,7 +17,11 @@ export default defineAbility({
   limits: { perAction: 1 },
   effects: [
     fx.effectCapture(
-      target.chosen({ side: 'enemy', types: ['pawn'], near: { of: 'self', pattern: 'diagonal' } }),
+      target.chosen({
+        side: 'enemy',
+        types: ['pawn'],
+        near: { of: 'landing', pattern: 'diagonal' },
+      }),
     ),
   ],
   attuned: {
@@ -27,7 +31,7 @@ export default defineAbility({
         target.chosen({
           side: 'enemy',
           types: ['pawn'],
-          near: { of: 'self', pattern: 'adjacent' },
+          near: { of: 'landing', pattern: 'adjacent' },
         }),
       ),
     ],

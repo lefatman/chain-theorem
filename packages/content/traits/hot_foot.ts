@@ -15,6 +15,11 @@ export interface Burn {
   side: Side;
   /** Opponent turns left. */
   turns: number;
+  /**
+   * Ignited during the opponent's own turn (a Riposte capture moving the piece off its square):
+   * that partial turn does not count as one of the 3 (DD-42). Cleared when the turn ends.
+   */
+  fresh?: true;
 }
 export interface HotFootState {
   burning: Burn[];
@@ -27,13 +32,21 @@ export default defineTrait({
   id: ID,
   name: 'Hot Foot',
   element: 'ember',
-  version: 1,
+  version: 2,
   hooks: {
     stateSlice: {
       id: ID,
       init: (): HotFootState => ({ burning: [], pending: [] }),
-      // Public: drawn on the board and part of the repetition hash (R-ELEM-005).
-      project: (value) => value,
+      // Burning squares are public: drawn on the board and part of the repetition hash (R-ELEM-005).
+      // A pending burn is visible only to its owner, since it would expose an Ember piece whose
+      // element is masked (DD-26); everyone sees the square once it ignites.
+      project: (value, viewer, ctx) => {
+        const v = value as HotFootState;
+        return {
+          burning: v.burning,
+          pending: v.pending.filter((p) => ctx.piece(p.piece).side === viewer),
+        };
+      },
     },
     moveFilter: {
       blockedSquares: (ctx, piece) => {
@@ -56,10 +69,9 @@ export default defineTrait({
       if (pend && m.from === pend.sq && m.to !== pend.sq) {
         // Leaving the square ignites it; re-igniting a burning square resets its count.
         pending = pending.filter((p) => p !== pend);
-        burning = [
-          ...burning.filter((b) => b.sq !== pend.sq),
-          { sq: pend.sq, side: m.piece.side, turns: HOT_FOOT_TURNS },
-        ];
+        const burn: Burn = { sq: pend.sq, side: m.piece.side, turns: HOT_FOOT_TURNS };
+        if (m.piece.side !== ctx.state.turn) burn.fresh = true;
+        burning = [...burning.filter((b) => b.sq !== pend.sq), burn];
         ctx.emit({
           k: 'SquareIgnited',
           square: pend.sq,
@@ -92,6 +104,11 @@ export default defineTrait({
       if (s.burning.length === 0) return;
       const burning: Burn[] = [];
       for (const b of s.burning) {
+        if (b.fresh) {
+          const { fresh: _fresh, ...rest } = b;
+          burning.push(rest);
+          continue;
+        }
         if (b.side === side) {
           burning.push(b);
           continue;

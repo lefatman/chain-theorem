@@ -1,11 +1,13 @@
 /**
  * `pnpm content:validate` (13.5): checks every module — unique id matching its file name, minLevel
  * within 1..LEVEL_CAP, slotCost within the caps, known tags, affinities and piece types, rules text
- * present, and at least one scenario test next to the module. Also checks the registry is current.
+ * present, effects that match their tags with at most one bonus action (INV-01), and at least one
+ * scenario test next to the module. Also checks the registry is current.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ELEMENTS, PIECE_TYPES } from '@chain-theorem/rules';
+import type { AbilityDef, EffectSpec } from '@chain-theorem/rules/sdk';
 import { CAPS, abilities, items, traits } from '@chain-theorem/content';
 import { generate, moduleIds } from './index-gen.ts';
 
@@ -15,6 +17,42 @@ const STATUSES = ['COMMITTED', 'PROVISIONAL', 'PLAYTEST'];
 const TAGS = ['replay', 'revive'];
 const CATEGORIES = ['CAPTURING', 'CAPTURES', 'CAPTURED', 'PASSIVE'];
 const AFFINITIES = [...ELEMENTS, 'neutral'];
+
+/** Every effect op in a list, including those nested in fx.when and fx.atChainEnd. */
+function ops(list: readonly EffectSpec[]): EffectSpec['op'][] {
+  return list.flatMap((e) =>
+    e.op === 'when'
+      ? [e.op, ...ops(e.then)]
+      : e.op === 'atChainEnd'
+        ? [e.op, ...ops(e.effects)]
+        : [e.op],
+  );
+}
+
+/**
+ * Effect rules the type system cannot express: at most one bonus action per activation (INV-01) and
+ * tags that match the effects, since Warden's Stopwatch and the revive rules read the tags (5.6).
+ */
+export function effectProblems(a: AbilityDef): string[] {
+  const out: string[] = [];
+  const base = ops(a.effects);
+  const attuned = a.attuned
+    ? ops(a.attuned.mode === 'append' ? [...a.effects, ...a.attuned.effects] : a.attuned.effects)
+    : [];
+  const count = (list: string[], op: string) => list.filter((o) => o === op).length;
+  if (count(base, 'bonusAction') > 1 || count(attuned, 'bonusAction') > 1)
+    out.push('at most one bonusAction per activation (INV-01)');
+  const all = [...base, ...attuned];
+  const bonus = all.includes('bonusAction');
+  const revive = all.includes('revive');
+  if (bonus !== a.tags.includes('replay'))
+    out.push(bonus ? "a bonusAction needs the 'replay' tag" : "'replay' tag without a bonusAction");
+  if (revive !== a.tags.includes('revive'))
+    out.push(
+      revive ? "a revive effect needs the 'revive' tag" : "'revive' tag without a revive effect",
+    );
+  return out;
+}
 
 export function validateContent(): string[] {
   const errors: string[] = [];
@@ -73,6 +111,7 @@ export function validateContent(): string[] {
     if (a.affinity === 'neutral' && a.attuned)
       err(w, 'neutral abilities have no attuned version (6.3)');
     if (!STATUSES.includes(a.status)) err(w, `unknown status ${a.status}`);
+    for (const problem of effectProblems(a)) err(w, problem);
     text(w, a.text);
     if (!hasTest('abilities', a.id)) err(w, 'needs a scenario test abilities/<id>.test.ts');
   }

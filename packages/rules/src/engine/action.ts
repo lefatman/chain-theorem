@@ -67,6 +67,7 @@ import {
 } from '../types.ts';
 import { beats } from './elements.ts';
 import { EventHost } from './host.ts';
+import { type Change, rulesAfterTurnEnd, simulate } from './simulate.ts';
 import { type HookEntry, type Runtime, sourceOf } from './runtime.ts';
 
 export class NeedChoice {
@@ -91,6 +92,8 @@ interface Cap {
 interface Trig {
   piece: PieceId;
   side: Side;
+  /** Piece type whose set produced this trigger; a later promotion does not change it (8.2). */
+  setType: PieceType;
   def: AbilityDef;
   category: Category;
   cap: Cap;
@@ -156,6 +159,8 @@ export class ActionRun extends EventHost {
   private readonly negations: Negation[] = [];
   private readonly protections: Protection[] = [];
   private readonly chainEnd: { effects: EffectSpec[]; tc: TCtx }[] = [];
+  /** Activations that already spent their charge (DD-48). */
+  private readonly spent = new Set<Trig>();
   private readonly stalwartCaptured = new Set<Side>();
   private objectiveWinner: Side | null = null;
   private irreversible = false;
@@ -409,18 +414,23 @@ export class ActionRun extends EventHost {
     const view = this.rt.view(this, pid);
     for (const id of s.armies[p.side].sets[p.type]) {
       const def = this.rt.ability(id);
-      if (!def || def.retired || def.category !== category) continue;
+      // Retirement is a loadout rule (R-LOAD-004 rule 7): a battle keeps every module it started
+      // with, so it plays and replays the same way (13.5, DD-49).
+      if (!def || def.category !== category) continue;
       // An ability ineligible for this type does nothing here (7.3).
       if (!eligibleFor(def, p.type)) continue;
       if (this.fired.has(`${pid}:${id}`)) continue;
-      const attuned = this.attunement(view, def).attuned;
+      const { attuned, via } = this.attunement(view, def);
+      const baseOk = (def.conditions ?? []).every((c) => this.condHolds(c, cap));
       const conds: Condition[] =
         attuned && def.attuned?.conditions !== undefined
           ? def.attuned.conditions
           : (def.conditions ?? []);
       if (!conds.every((c) => this.condHolds(c, cap))) continue;
       if (def.limits.charges !== undefined && this.remainingCharges(view, def) <= 0) continue;
-      out.push({ piece: pid, side: p.side, def, category, cap, seq: this.seq++ });
+      // An item's attunement that alone lets this trigger happen is observable (8.2).
+      if (via && !baseOk) this.revealEntry(via, 'observed');
+      out.push({ piece: pid, side: p.side, setType: p.type, def, category, cap, seq: this.seq++ });
     }
     return out;
   }
@@ -449,6 +459,11 @@ export class ActionRun extends EventHost {
       if (e.hooks.attunement?.(this.rt.ctx(this, e), view, def)) return { attuned: true, via: e };
     }
     return { attuned: false };
+  }
+
+  /** The bearer as the trigger's own piece type sees it (reveals, Veil). */
+  private trigView(t: Trig): PieceView {
+    return { ...this.rt.view(this, t.piece), type: t.setType };
   }
 
   private triggerInfo(t: Trig): TriggerInfo {
@@ -504,7 +519,7 @@ export class ActionRun extends EventHost {
         if (e.hooks.silenceOverride?.(this.rt.ctx(this, e), info)) return 'allow';
       }
       const other = t.piece === t.cap.captor ? t.cap.victim : t.cap.captor;
-      const view = this.rt.view(this, t.piece);
+      const view = this.trigView(t);
       this.emit({
         k: 'AbilitySilenced',
         side: t.side,
@@ -536,7 +551,7 @@ export class ActionRun extends EventHost {
   }
 
   private emitNegated(t: Trig, source: SourceRef): void {
-    const view = this.rt.view(this, t.piece);
+    const view = this.trigView(t);
     this.emit({
       k: 'AbilityNegated',
       side: t.side,
@@ -584,8 +599,9 @@ export class ActionRun extends EventHost {
     const key = `${t.piece}:${t.def.id}`;
     if (this.fired.has(key)) return;
     this.fired.add(key);
-    const view = this.rt.view(this, t.piece);
-    const { attuned, via } = this.attunement(view, t.def);
+    const view = this.trigView(t);
+    // DD-36: attunement follows the bearer's element when the ability resolves.
+    const { attuned, via } = this.attunement(this.rt.view(this, t.piece), t.def);
     this.emit({
       k: 'AbilityTriggered',
       side: t.side,
@@ -619,9 +635,13 @@ export class ActionRun extends EventHost {
     if (this.resolveEffects(effects, tc)) this.spendCharge(t);
   }
 
-  /** Charges are spent only when at least one effect of the activation resolves (DD-17). */
+  /**
+   * Charges are spent only when at least one effect of the activation resolves (DD-17), and at most
+   * once per activation even when both an immediate and a chain-end effect resolve (DD-48).
+   */
   private spendCharge(t: Trig): void {
-    if (t.def.limits.charges === undefined) return;
+    if (t.def.limits.charges === undefined || this.spent.has(t)) return;
+    this.spent.add(t);
     const key = `${t.piece}:${t.def.id}`;
     this.s.usage = { ...this.s.usage, [key]: (this.s.usage[key] ?? 0) + 1 };
     const view = this.rt.view(this, t.piece);
@@ -629,6 +649,7 @@ export class ActionRun extends EventHost {
       k: 'ChargeSpent',
       side: t.side,
       piece: t.piece,
+      pieceType: t.setType,
       ability: t.def.id,
       remaining: Math.max(0, this.remainingCharges(view, t.def)),
     });
@@ -703,6 +724,7 @@ export class ActionRun extends EventHost {
       k: 'EffectFizzled',
       side: tc.owner,
       piece: tc.bearer,
+      pieceType: tc.trig.setType,
       ability: tc.trig.def.id,
       effect,
       reason,
@@ -725,6 +747,8 @@ export class ActionRun extends EventHost {
         return this.pieceSquare(tc.cap.victim);
       case 'origin':
         return tc.cap.from;
+      case 'landing':
+        return tc.cap.to;
     }
   }
 
@@ -755,7 +779,7 @@ export class ActionRun extends EventHost {
       }
       case 'chosen': {
         const options = this.pieceOptions(spec.filter, tc, purpose);
-        const choice = this.choose(tc.owner, 'target', options, tc, false);
+        const choice = this.choose(tc.owner, 'target', options, tc, false, { purpose });
         if (!choice || choice.kind !== 'piece') return null;
         return this.rt.view(this, choice.piece);
       }
@@ -783,7 +807,7 @@ export class ActionRun extends EventHost {
       if (f.near && !near(f.near.pattern, anchor, p.square)) continue;
       if (purpose === 'capture') {
         if (p.type === 'king') continue; // Royal Immunity: kings cannot be targeted (R-RULES-004).
-        if (this.inv03Fails({ remove: p.id })) continue;
+        if (this.inv03Verdict({ remove: p.id }, tc.owner) === 'fails') continue;
       }
       out.push({
         o: { kind: 'piece', piece: p.id, square: p.square },
@@ -802,7 +826,7 @@ export class ActionRun extends EventHost {
     if (spec.s === 'origin') return tc.cap.from;
     if (spec.s === 'start') return piece.start;
     const options = this.squareOptions(spec.filter, piece, tc, kind);
-    const choice = this.choose(tc.owner, 'square', options, tc, false);
+    const choice = this.choose(tc.owner, 'square', options, tc, false, { subject: piece.id });
     if (!choice || choice.kind !== 'square') return null;
     return choice.square;
   }
@@ -833,7 +857,7 @@ export class ActionRun extends EventHost {
       if (blocked.has(sq)) continue;
       const change =
         kind === 'move' ? { move: { id: piece.id, to: sq } } : { place: { id: piece.id, to: sq } };
-      if (this.inv03Fails(change)) continue;
+      if (this.inv03Verdict(change, tc.owner) === 'fails') continue;
       out.push({ o: { kind: 'square', square: sq }, key: relOrder(tc.owner, sq) });
     }
     return out.sort((a, b) => a.key - b.key).map((x) => x.o);
@@ -858,6 +882,7 @@ export class ActionRun extends EventHost {
     options: ChoiceOption[],
     tc: TCtx,
     optional: boolean,
+    about: Pick<ChoiceRequest, 'purpose' | 'subject'> = {},
   ): ChoiceOption | null {
     if (options.length === 0) return null;
     if (!optional && options.length === 1) return options[0] as ChoiceOption;
@@ -891,6 +916,7 @@ export class ActionRun extends EventHost {
         chooser,
         source: { ability: tc.trig.def.id, piece: tc.bearer, side: tc.owner },
         kind,
+        ...about,
         options: all,
         defaultOption: 0,
       });
@@ -1053,18 +1079,45 @@ export class ActionRun extends EventHost {
 
   // ---- bonus actions (INV-01) --------------------------------------------------------------------
 
-  private legalFor(side: Side): { pos: Pos; moves: number[] } {
-    const rules = this.rt.moveRules(this);
+  /** A position for move generation mid-action; own-king safety uses the rules after the turn ends. */
+  private positionFor(side: Side, strictSide: Side | null = null): Pos {
+    const kingSources = new Map<Side, HookEntry>();
+    const rules = this.rt.moveRules(this, kingSources);
     const pos = Pos.fromState(this.s, rules);
+    pos.safety = rulesAfterTurnEnd(this.rt, this.s, this.actor);
+    if (strictSide) {
+      // Judge `strictSide`'s king as ordinary, keeping the other side's rules (DD-32 comparisons).
+      const code = sideCode(strictSide);
+      const flip = (r: typeof rules) => {
+        const stalwart: [boolean, boolean] = [r.stalwart[0], r.stalwart[1]];
+        stalwart[code] = false;
+        return { ...r, stalwart };
+      };
+      pos.rules = flip(rules);
+      if (pos.safety) pos.safety = flip(pos.safety);
+    }
     if (side !== this.s.turn) pos.ep = -1;
-    return { pos, moves: pos.legal(sideCode(side)) };
+    return pos;
+  }
+
+  private legalFor(side: Side): number[] {
+    return this.positionFor(side).legal(sideCode(side));
+  }
+
+  /**
+   * Would this bonus move leave the acting player's ordinary king in check (INV-03)? Simulated on a
+   * draft so a promoted piece's new element (Flow, Hot Foot) counts. `viewer` judges the actor's
+   * king with public knowledge only when it is not the actor (DD-19).
+   */
+  private bonusExposesActor(m: number, viewer: Side): boolean {
+    return this.inv03Verdict({ chess: m }, viewer) === 'fails';
   }
 
   /** Legal bonus moves for `owner` that also keep the acting player's ordinary king safe (INV-03). */
   private bonusOptions(spec: BonusSpec, tc: TCtx): number[] {
     const s = this.s;
     const owner = tc.owner;
-    const { pos, moves } = this.legalFor(owner);
+    const moves = this.legalFor(owner);
     let allowedFrom: Set<Square> | null = null;
     let captorSq = -1;
     if (spec.capture === 'captor') {
@@ -1086,8 +1139,7 @@ export class ActionRun extends EventHost {
         }
       }
     }
-    const actorCode = sideCode(this.actor);
-    const checkActor = owner !== this.actor && !pos.rules.stalwart[actorCode];
+    const checkActor = owner !== this.actor;
     const out: number[] = [];
     for (const m of moves) {
       if (m & F_CASTLE) continue;
@@ -1097,7 +1149,7 @@ export class ActionRun extends EventHost {
         if (m & F_CAPTURE) continue;
         if (!allowedFrom?.has(mFrom(m))) continue;
       }
-      if (checkActor && pos.leavesInCheck(m, actorCode)) continue;
+      if (checkActor && this.bonusExposesActor(m, owner)) continue;
       out.push(m);
     }
     return out;
@@ -1144,6 +1196,10 @@ export class ActionRun extends EventHost {
     const idx = options.findIndex((o) => sameOption(o, choice));
     const m = (keyed[idx] as { m: number }).m;
     this.revealStalwartIfRelaxed(m, tc.owner);
+    if (tc.owner !== this.actor && this.inv03Verdict({ chess: m }, null) === 'relaxed') {
+      // The opponent's bonus capture leaves the actor's Stalwart king in check: observable (DD-32).
+      this.revealStalwartOf(this.actor);
+    }
     this.runMove(m, this.depth + 1, tc.owner, true);
     return true;
   }
@@ -1161,6 +1217,9 @@ export class ActionRun extends EventHost {
       return (this.s.pieces[id]?.square ?? -1) >= 0;
     }
     if ('noLegalCapturerOf' in c) {
+      // A captor already off the board (for example taken by the Riposte itself) is not "uncapturable".
+      const captor = this.s.pieces[tc.cap.captor];
+      if (!captor || captor.square < 0) return false;
       return (
         this.bonusOptions({ movers: 'anyFriendly', capture: 'captor', optional: true }, tc)
           .length === 0
@@ -1190,14 +1249,14 @@ export class ActionRun extends EventHost {
     if (info.kind === 'effectCapture' && info.target.type === 'king') {
       return { reason: 'royal_immunity', source: { kind: 'rule', id: 'royal_immunity' } };
     }
-    const change =
+    const change: Change =
       info.kind === 'effectCapture'
         ? { remove: info.target.id }
         : info.kind === 'move'
           ? { move: { id: info.target.id, to: info.to as Square } }
           : { place: { id: info.target.id, to: info.to as Square } };
-    if (this.inv03Fails(change, true))
-      return { reason: 'inv03', source: { kind: 'rule', id: 'inv03' } };
+    const inv03 = this.inv03Verdict(change, null);
+    if (inv03 === 'fails') return { reason: 'inv03', source: { kind: 'rule', id: 'inv03' } };
     for (const e of this.rt.hook(this.s, 'effectIntercept')) {
       const v = e.hooks.effectIntercept?.(this.rt.ctx(this, e), info);
       if (v && v !== 'allow') {
@@ -1212,54 +1271,41 @@ export class ActionRun extends EventHost {
         return { reason: 'protected', source: prot.source };
       }
     }
+    // Only an effect that really resolves makes a relaxed (Stalwart) king observable (DD-32).
+    if (inv03 === 'relaxed') this.revealStalwartOf(this.actor);
     return null;
   }
 
   /**
-   * INV-03: would this change leave the acting player's ordinary king in check? With a Stalwart king
-   * the effect resolves and Stalwart is revealed when `revealStalwart` is set (DD-32).
+   * INV-03 verdict for a change: 'ok' when the acting player's king stays safe, 'fails' when an
+   * ordinary king would be left in check, 'relaxed' when only a Stalwart king is. The change is
+   * applied to a draft and movement rules are recomputed there (revived and promoted pieces bring
+   * their own Flow and Hot Foot). `viewer` null judges with the true state; otherwise the actor's
+   * king counts as Stalwart only if the viewer is the actor or Stalwart is already revealed, so
+   * option lists never leak it (DD-19, DD-46, R-SEC-001).
    */
-  private inv03Fails(
-    change: {
-      remove?: PieceId;
-      move?: { id: PieceId; to: Square };
-      place?: { id: PieceId; to: Square };
-    },
-    revealStalwart = false,
-  ): boolean {
-    const kingSources = new Map<Side, HookEntry>();
-    const rules = this.rt.moveRules(this, kingSources);
-    const pos = Pos.fromState(this.s, rules);
-    if (change.remove !== undefined) {
-      const sq = pos.psq[change.remove] as number;
-      if (sq >= 0) pos.board[sq] = -1;
-      pos.psq[change.remove] = -1;
-    }
-    if (change.move) {
-      const sq = pos.psq[change.move.id] as number;
-      if (sq >= 0) pos.board[sq] = -1;
-      pos.board[change.move.to] = change.move.id;
-      pos.psq[change.move.id] = change.move.to;
-    }
-    if (change.place) {
-      pos.board[change.place.to] = change.place.id;
-      pos.psq[change.place.id] = change.place.to;
-    }
+  private inv03Verdict(change: Change, viewer: Side | null): 'ok' | 'fails' | 'relaxed' {
+    const sim = simulate(this.rt, this.s, change);
     const actorCode = sideCode(this.actor);
-    if (!pos.inCheck(actorCode)) return false;
-    if (rules.stalwart[actorCode]) {
-      const src = kingSources.get(this.actor);
-      if (revealStalwart && src) {
-        this.reveal(
-          this.actor,
-          { kind: 'ability', pieceType: 'king', ability: src.id },
-          'observed',
-          sourceOf(src),
-        );
-      }
-      return false;
-    }
-    return true;
+    if (!sim.pos.inCheck(actorCode)) return 'ok';
+    const src = this.stalwartSource(this.actor);
+    const relaxed =
+      src !== null &&
+      (viewer === null ||
+        viewer === this.actor ||
+        (this.s.reveals[this.actor].abilities.king ?? []).includes(src.id));
+    return relaxed ? 'relaxed' : 'fails';
+  }
+
+  private revealStalwartOf(side: Side): void {
+    const src = this.stalwartSource(side);
+    if (!src) return;
+    this.reveal(
+      side,
+      { kind: 'ability', pieceType: 'king', ability: src.id },
+      'observed',
+      sourceOf(src),
+    );
   }
 
   // ---- Stalwart observation (DD-32) ---------------------------------------------------------------
@@ -1276,22 +1322,11 @@ export class ActionRun extends EventHost {
   }
 
   private revealStalwartIfRelaxed(m: number, side: Side): void {
-    const kingSources = new Map<Side, HookEntry>();
-    const rules = this.rt.moveRules(this, kingSources);
-    const code = sideCode(side);
-    if (!rules.stalwart[code]) return;
-    const strict = { ...rules, stalwart: [false, false] as [boolean, boolean] };
-    const pos = Pos.fromState(this.s, strict);
-    if (side !== this.s.turn) pos.ep = -1;
-    if (pos.legal(code).includes(m)) return;
-    const src = kingSources.get(side);
-    if (src)
-      this.reveal(
-        side,
-        { kind: 'ability', pieceType: 'king', ability: src.id },
-        'observed',
-        sourceOf(src),
-      );
+    if (!this.stalwartSource(side)) return;
+    // Would this move be illegal for an ordinary king? Only `side`'s own flag is turned off (DD-32).
+    const strict = this.positionFor(side, side);
+    if (strict.legal(sideCode(side)).includes(m)) return;
+    this.revealStalwartOf(side);
   }
 
   // ---- Settle (phase 5) --------------------------------------------------------------------------
@@ -1312,6 +1347,8 @@ export class ActionRun extends EventHost {
     const kingSources = new Map<Side, HookEntry>();
     const rules = this.rt.moveRules(this, kingSources);
     const pos = Pos.fromState(s, rules);
+    // The next player's own king safety is judged as their own turn will end (R-ELEM-005).
+    pos.safety = rulesAfterTurnEnd(this.rt, s, next);
     const nextCode = sideCode(next);
     let nextLegal = -1;
     let nextInCheck = false;
@@ -1321,7 +1358,9 @@ export class ActionRun extends EventHost {
       if (nextLegal === 0 && nextInCheck && !rules.stalwart[nextCode]) defeated.add(next);
       if (rules.stalwart[nextCode] && nextInCheck && !defeated.has(mover)) {
         // Would-be checkmate survived: Stalwart is observable (DD-32).
-        const strict = Pos.fromState(s, { ...rules, stalwart: [false, false] });
+        const stalwart: [boolean, boolean] = [rules.stalwart[0], rules.stalwart[1]];
+        stalwart[nextCode] = false;
+        const strict = Pos.fromState(s, { ...rules, stalwart });
         if (strict.legal(nextCode).length === 0) {
           const src = kingSources.get(next);
           if (src)

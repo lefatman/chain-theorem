@@ -215,37 +215,49 @@ function maskSource(
   return src;
 }
 
-/** Project one event for `viewer` (whitelist; unknown opponent ids become null or 'hidden'). */
+/**
+ * Project one event for `viewer`, or null when the viewer must not receive it at all. A hidden
+ * ability (not revealed for the piece type that carries it, e.g. under Veil) is reduced to an
+ * opaque activation marker: no name, category or attuned flag, and its fizzles, charge spending and
+ * the owner's choices are not sent, so only board effects remain visible (8.2, DD-28, R-SEC-001).
+ */
 export function projectEvent(
   rt: Runtime,
   state: GameState,
   ev: BattleEvent,
   viewer: Side,
-): PublicEvent {
+): PublicEvent | null {
   switch (ev.k) {
     case 'AbilityTriggered':
+      return knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType)
+        ? ev
+        : { ...ev, ability: null, category: null, attuned: null };
     case 'AbilitySilenced':
       return knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType)
         ? ev
-        : { ...ev, ability: null };
+        : { ...ev, ability: null, category: null };
     case 'AbilityNegated': {
-      const ability = knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType)
-        ? ev.ability
-        : null;
-      return { ...ev, ability, source: maskSource(state, viewer, ev.source) ?? { kind: 'hidden' } };
+      const known = knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType);
+      return {
+        ...ev,
+        ability: known ? ev.ability : null,
+        category: known ? ev.category : null,
+        source: maskSource(state, viewer, ev.source) ?? { kind: 'hidden' },
+      };
     }
     case 'EffectFizzled': {
-      const known = knownAbility(state, ev.side, viewer, ev.ability, typeOfPiece(state, ev.piece));
-      const out = { ...ev, ability: known ? ev.ability : null };
+      if (!knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType)) return null;
+      const out = { ...ev };
       const src = maskSource(state, viewer, ev.source);
       if (src) out.source = src;
       else delete out.source;
       return out;
     }
     case 'ChargeSpent':
-      return knownAbility(state, ev.side, viewer, ev.ability, typeOfPiece(state, ev.piece))
-        ? ev
-        : { ...ev, ability: null, remaining: -1 };
+      return knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType) ? ev : null;
+    case 'ChoiceMade':
+      // A choice is the chooser's own business; its board effect follows as its own events.
+      return ev.side === viewer ? ev : null;
     case 'Promoted': {
       // Masquerade Mask: the new piece shows its displayed element, not the true one (DD-26).
       if (ev.side === viewer) return ev;
@@ -282,7 +294,12 @@ export function projectEvents(
   events: readonly BattleEvent[],
   viewer: Side,
 ): PublicEvent[] {
-  return events.map((e) => projectEvent(rt, state, e, viewer));
+  const out: PublicEvent[] = [];
+  for (const e of events) {
+    const p = projectEvent(rt, state, e, viewer);
+    if (p) out.push(p);
+  }
+  return out;
 }
 
 export { opposite };

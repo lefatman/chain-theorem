@@ -97,6 +97,10 @@ export interface ChoiceRequest {
   chooser: Side;
   source: { ability: string; piece: PieceId; side: Side };
   kind: 'target' | 'square' | 'bonusMove';
+  /** Target prompts: what the effect does to the chosen piece. */
+  purpose?: 'capture' | 'move' | 'revive' | 'protect';
+  /** Square prompts: the piece that will be moved or revived onto the chosen square. */
+  subject?: PieceId;
   options: ChoiceOption[];
   /** Index used when the chooser does not answer in time (5.4, DD-18). */
   defaultOption: number;
@@ -220,10 +224,12 @@ export type BattleEvent = EventBase &
         k: 'AbilityTriggered';
         side: Side;
         piece: PieceId;
+        /** The piece type whose set produced the trigger (R-INFO-002). */
         pieceType: PieceType;
         ability: string | null;
-        category: Category;
-        attuned: boolean;
+        /** Null in projections when the ability is hidden from the viewer (Veil, DD-28). */
+        category: Category | null;
+        attuned: boolean | null;
       }
     | {
         k: 'AbilitySilenced';
@@ -231,7 +237,7 @@ export type BattleEvent = EventBase &
         piece: PieceId;
         pieceType: PieceType;
         ability: string | null;
-        category: Category;
+        category: Category | null;
         by: PieceId;
       }
     | {
@@ -240,20 +246,28 @@ export type BattleEvent = EventBase &
         piece: PieceId;
         pieceType: PieceType;
         ability: string | null;
-        category: Category;
+        category: Category | null;
         source: SourceRef;
       }
     | {
         k: 'EffectFizzled';
         side: Side;
         piece: PieceId;
+        pieceType: PieceType;
         ability: string | null;
         effect: string;
         reason: FizzleReason;
         target?: PieceId;
         source?: SourceRef;
       }
-    | { k: 'ChargeSpent'; side: Side; piece: PieceId; ability: string | null; remaining: number }
+    | {
+        k: 'ChargeSpent';
+        side: Side;
+        piece: PieceId;
+        pieceType: PieceType;
+        ability: string | null;
+        remaining: number;
+      }
     | { k: 'SquareIgnited'; square: Square; side: Side; turns: number }
     | { k: 'SquareExtinguished'; square: Square }
     | { k: 'Revealed'; side: Side; info: RevealInfo; cause: RevealCause; source?: SourceRef }
@@ -284,6 +298,12 @@ export interface BattleSetup {
   black: { level: number; loadout: Loadout };
   /** Custom starting position (tests, Scenario Lab). Standard start when omitted. */
   fen?: string;
+  /**
+   * Validate both loadouts with R-LOAD-004 (INVARIANT at battle start) and throw on any error. Every
+   * real battle sets this (server, local play, simulator, fuzzer); tests and the Scenario Lab leave it
+   * off so they can use sandbox loadouts (DD-23).
+   */
+  strict?: boolean;
 }
 
 export interface PlayerFacts {
@@ -309,7 +329,8 @@ export type LoadoutErrorCode =
   | 'retired'
   | 'unknown_item'
   | 'unknown_ability'
-  | 'item_param';
+  | 'item_param'
+  | 'bad_level';
 
 export interface LoadoutError {
   rule: 1 | 2 | 3 | 4 | 5 | 6 | 7;

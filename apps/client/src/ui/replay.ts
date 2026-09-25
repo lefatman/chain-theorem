@@ -26,6 +26,8 @@ interface Burn {
   sq: number;
   side: Side;
   turns: number;
+  /** Lit during the opponent's turn: that partial turn does not count (DD-42). */
+  fresh?: true;
 }
 
 function readBurns(slices: Record<string, unknown>): Burn[] | null {
@@ -156,8 +158,16 @@ export function frameAt(
       }
       case 'TurnPassed': {
         // Hot Foot counts down burns of the side that did not just move (onTurnEnd, R-ELEM-005).
+        // A burn its side lit during this turn (a reaction on the opponent's move) was fresh and
+        // did not count down at this turn end (DD-42).
         const mover = opposite(ev.side);
-        if (burns) burns = burns.map((b) => (b.side !== mover ? { ...b, turns: b.turns + 1 } : b));
+        if (burns)
+          burns = burns.map((b): Burn => {
+            if (b.side === mover) return b;
+            return ignitedThisTurn(log, k, b.sq)
+              ? { ...b, fresh: true }
+              : { ...b, turns: b.turns + 1 };
+          });
         break;
       }
       default:
@@ -211,6 +221,16 @@ export function frameAt(
     legal: [],
     pending: null,
   };
+}
+
+/** Was `sq` ignited earlier in the turn that the TurnPassed at `k` closes? */
+function ignitedThisTurn(log: readonly LogEntry[], k: number, sq: number): boolean {
+  for (let j = k - 1; j >= 0; j--) {
+    const ev = log[j]?.event;
+    if (!ev || ev.k === 'TurnPassed') return false;
+    if (ev.k === 'SquareIgnited' && ev.square === sq) return true;
+  }
+  return false;
 }
 
 function nextTurnPassed(log: readonly LogEntry[], k: number): Side | null {

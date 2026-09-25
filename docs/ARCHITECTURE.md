@@ -227,11 +227,19 @@ export type FizzleReason =
   only: level, displayed element(s) and group mapping, consumed slots, and `reveals[opponent]`.
   Opponent usage counters are included only for revealed abilities. State slices are included only
   through each slice's own `project` function (default: omitted).
-- `projectEvents` whitelists fields per event type. Any opponent ability or item id that is not in
-  the viewer's reveal log is replaced by `null` (Veil works by blocking the reveal, so its ids are
-  stripped by the same rule). A pending choice's options go only to the chooser.
+- `projectEvents` whitelists fields per event type. Knowledge is per piece type (8.2): an opponent
+  ability id not in the viewer's reveal log for that type is replaced by `null` (Veil works by blocking
+  the reveal, so its ids are stripped by the same rule). A hidden activation keeps only the piece and
+  type (category and attunement are `null` too); fizzles and spent charges of unnamed abilities, and
+  every `ChoiceMade`, are sent only to the side entitled to them (DD-45). A pending choice's options go
+  only to the chooser.
+- Masquerade Mask: while it is up, pieces, promotions and group mappings show the chosen element and
+  the Hot Foot slice shows pending burns only to their owner; the Mask drops on the observations listed
+  in DD-44.
 - Safety test (R-SEC-001): the fuzzer serializes every projection and projected event and fails if a
-  string value equals an unrevealed opponent ability or item id.
+  string value equals an unrevealed opponent ability or item id, if a name appears on a piece type it
+  was not revealed for, if a hidden activation carries its category or attunement, or if a masked
+  element or an opponent's pending burn is visible (`apps/tools/src/fuzz/game.ts`).
 
 ### 2.6 The five-phase pipeline and suspended actions (5.3, 5.4)
 
@@ -338,8 +346,9 @@ each sorted by `priority` then `id`. Item and ability hooks run only for the sid
 ```ts
 export interface RuleHooks {
   priority?: number;
-  stateSlice: { id: string; init(ctx: SetupCtx): unknown; project?(v: unknown, viewer: Side, ctx: ReadCtx): unknown };
-  onBattleStart(ctx: MutCtx): void;
+  // init runs once at battle start for every registry module (owner null); project omitted = private.
+  stateSlice: { id: string; init(ctx: ReadCtx): unknown; project?(v: unknown, viewer: Side, ctx: ReadCtx): unknown; hash?: boolean };
+  onBattleStart(ctx: SetupCtx): void;
   moveFilter: {
     passThrough?(ctx: ReadCtx, piece: PieceView): boolean;          // Flow
     blockedSquares?(ctx: ReadCtx, piece: PieceView): Square[] | null; // Hot Foot: may not move to or
@@ -364,6 +373,14 @@ export interface RuleHooks {
 
 The silence rule (6.2), Royal Immunity (4.4), INV-03 (4.1) and PROTECT/NEGATE bookkeeping are engine
 invariants implemented in `rules` with the same hook shapes, so they always run first.
+
+Effect data (5.2) measures distances from an `Anchor`: `self`, `captor` (its current square), `victim`,
+`origin` (the square the captor moved from) or `landing` (the square it captured on, DD-41). INV-03
+checks run on a draft (`engine/simulate.ts`): the change is applied, movement rules are recomputed from
+the draft (a revived Tide rook or a promotion to a Tide queen brings Flow), and own-king safety uses the
+rules as they will stand after `onTurnEnd` (DD-47). For a chooser other than the acting player, the
+acting king counts as Stalwart only once Stalwart is revealed (DD-46). Target prompts carry `purpose`
+and square prompts `subject` (DD-53).
 
 ### 2.8 Other rules modules
 
@@ -397,18 +414,26 @@ applies moves and choices, and returns the events and final state for assertions
 
 ```ts
 export type Tier = 'wild' | 'trainer' | 'elite';
-export interface SearchBudget {
-  maxDepth: number;
-  maxNodes?: number;
-  ms?: number;
+export interface SearchOptions {
+  ms?: number; // time budget, requires now
   now?: () => number;
+  nodes?: number; // node budget (deterministic); default from the tier without a clock
+  depth?: number; // override the tier depth
+  seed?: number; // deterministic noise (Wild)
 }
+export function search(
+  engine: Engine,
+  pub: PublicState,
+  own: Loadout,
+  tier: Tier,
+  opts?: SearchOptions,
+): SearchResult;
 export function chooseMove(
   engine: Engine,
   pub: PublicState,
   own: Loadout,
   tier: Tier,
-  budget?: Partial<SearchBudget>,
+  opts?: SearchOptions,
 ): Move;
 export function chooseOption(
   engine: Engine,
@@ -417,7 +442,7 @@ export function chooseOption(
   req: ChoiceRequest,
   tier: Tier,
 ): number;
-export function evaluate(engine: Engine, state: GameState, side: Side, tier: Tier): number;
+export function evaluate(engine: Engine, state: GameState, side: Side, tier?: Tier): number;
 ```
 
 The AI never sees hidden data: it builds a belief state from its own projection (same path as preview).

@@ -135,22 +135,22 @@ export function deduce(rt: Runtime, pub: PublicState): Deductions {
     if (second) withBlended++;
   }
   const n = combos.length;
-  const certainItems =
-    n > 0
-      ? [...count.entries()]
-          .filter(([, c]) => c === n)
-          .map(([id]) => id)
-          .sort()
-      : [];
-  const impossibleItems = candidates.filter((i) => !count.has(i.id)).map((i) => i.id);
+  // With no consistent combination, or a truncated enumeration, nothing is provable (R-INFO-003).
+  const sound = n > 0 && !truncated;
+  const certainItems = sound
+    ? [...count.entries()]
+        .filter(([, c]) => c === n)
+        .map(([id]) => id)
+        .sort()
+    : [];
+  const impossibleItems = sound ? candidates.filter((i) => !count.has(i.id)).map((i) => i.id) : [];
   const tri = (k: number): 'yes' | 'no' | 'unknown' =>
-    n === 0 ? 'unknown' : k === n ? 'yes' : k === 0 ? 'no' : 'unknown';
+    !sound ? 'unknown' : k === n ? 'yes' : k === 0 ? 'no' : 'unknown';
   const schedule = tri(withSchedule);
   const blended = tri(withBlended);
-  const capacity =
-    n > 0
-      ? { min: capMin, max: capMax }
-      : { min: observedCapacity, max: caps.MAX_ABILITY_CAPACITY };
+  const capacity = sound
+    ? { min: capMin, max: capMax }
+    : { min: observedCapacity, max: caps.MAX_ABILITY_CAPACITY };
 
   const name = (id: string) => rt.items.get(id)?.name ?? id;
   const hints: string[] = [];
@@ -177,7 +177,7 @@ export function deduce(rt: Runtime, pub: PublicState): Deductions {
   if (schedule === 'no')
     hints.push("No Multitasker's Schedule: every piece type shares one ability set.");
   if (schedule === 'yes')
-    hints.push("Multitasker's Schedule is equipped: piece types have separate sets.");
+    hints.push("Multitasker's Schedule is equipped: piece types may use separate sets.");
   if (truncated) hints.push('Too many combinations to list them all; deductions are partial.');
   return {
     side,

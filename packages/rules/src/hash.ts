@@ -92,6 +92,7 @@ function hex(n: number): string {
 /** Zobrist hash of the board part of the state as two uint32 halves. */
 export function boardHash(
   state: Pick<GameState, 'pieces' | 'turn' | 'castling' | 'ep' | 'board'>,
+  epUsable?: boolean,
 ): [number, number] {
   let hi = 0;
   let lo = 0;
@@ -111,7 +112,7 @@ export function boardHash(
   }
   hi ^= CASTLE_KEYS[state.castling * 2] as number;
   lo ^= CASTLE_KEYS[state.castling * 2 + 1] as number;
-  if (state.ep >= 0 && epCapturable(state)) {
+  if (state.ep >= 0 && (epUsable ?? epCapturable(state))) {
     const f = state.ep & 7;
     hi ^= EP_KEYS[f * 2] as number;
     lo ^= EP_KEYS[f * 2 + 1] as number;
@@ -119,7 +120,10 @@ export function boardHash(
   return [hi >>> 0, lo >>> 0];
 }
 
-/** Only count the en passant square when a pawn of the side to move stands ready to use it. */
+/**
+ * Cheap approximation used when no legal-move information is supplied: a pawn of the side to move
+ * stands next to the double-pushed pawn. The runtime passes the exact answer (DD-33).
+ */
 function epCapturable(state: Pick<GameState, 'pieces' | 'turn' | 'ep' | 'board'>): boolean {
   const ep = state.ep;
   const f = ep & 7;
@@ -139,8 +143,12 @@ function epCapturable(state: Pick<GameState, 'pieces' | 'turn' | 'ep' | 'board'>
  * Hash of the full engine state used for repetition (4.5): board, side to move, castling and en
  * passant rights, revealed info, ability usage counters and hashed state slices.
  */
-export function stateHashOf(state: GameState, hashedSlices: readonly string[]): string {
-  const [bh, bl] = boardHash(state);
+export function stateHashOf(
+  state: GameState,
+  hashedSlices: readonly string[],
+  epUsable?: boolean,
+): string {
+  const [bh, bl] = boardHash(state, epUsable);
   const slices: Record<string, unknown> = {};
   for (const id of hashedSlices) slices[id] = state.slices[id];
   const [xh, xl] = fnv1a64(canonicalJson({ r: state.reveals, u: state.usage, s: slices }));

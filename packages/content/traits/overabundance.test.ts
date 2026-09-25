@@ -134,7 +134,7 @@ describe('overabundance (R-ELEM-007)', () => {
     expect(pieceAt(r.state, 'b4')?.id).toBe(knight);
   });
 
-  it('R-ELEM-007 DD-14 R-RULES-002 a promoted pawn follows its new element: Ember pawn to Grove queen doubles its charges', () => {
+  it('R-ELEM-007 DD-43 R-RULES-002 the doubling is fixed at battle start: an Ember pawn promoted to a Grove queen keeps single charges', () => {
     const r = scenario({
       fen: '4k3/6P1/8/8/8/8/8/4K3 w - - 0 1',
       white: { elements: ['ember', 'grove'], items: ['blended_family'], abilities: ['momentum'] },
@@ -145,6 +145,22 @@ describe('overabundance (R-ELEM-007)', () => {
     expect(r.engine.remainingCharges(r.initial, pawn, 'momentum')).toBe(2);
     expect(eventsOf(r.events, 'Promoted')).toEqual([
       expect.objectContaining({ piece: pawn, to: 'queen', element: 'grove' }),
+    ]);
+    // "A Grove piece starts each battle with double the charges": this piece did not start as one.
+    expect(r.engine.remainingCharges(r.state, pawn, 'momentum')).toBe(2);
+  });
+
+  it('R-ELEM-007 DD-43 R-RULES-002 a Grove pawn promoted to an Ember queen keeps its doubled charges', () => {
+    const r = scenario({
+      fen: '4k3/6P1/8/8/8/8/8/4K3 w - - 0 1',
+      white: { elements: ['grove', 'ember'], items: ['blended_family'], abilities: ['momentum'] },
+      black: { elements: ['neutral'] },
+      moves: ['g7g8q'],
+    });
+    const pawn = idAt(r.initial, 'g7');
+    expect(r.engine.remainingCharges(r.initial, pawn, 'momentum')).toBe(4);
+    expect(eventsOf(r.events, 'Promoted')).toEqual([
+      expect.objectContaining({ piece: pawn, to: 'queen', element: 'ember' }),
     ]);
     expect(r.engine.remainingCharges(r.state, pawn, 'momentum')).toBe(4);
   });

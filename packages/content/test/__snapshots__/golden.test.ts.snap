@@ -106,6 +106,7 @@ exports[`E1 Hit and Run knight captures a Poisoned Meat pawn (neutral elements) 
     "i": 9,
     "k": "EffectFizzled",
     "piece": 1,
+    "pieceType": "knight",
     "reason": "no_body",
     "side": "white",
     "target": 1,
@@ -321,6 +322,7 @@ exports[`E3 a king captures a Poisoned Meat pawn > E3 R-RULES-003 R-RULES-004 IN
     "i": 6,
     "k": "EffectFizzled",
     "piece": 1,
+    "pieceType": "pawn",
     "reason": "royal_immunity",
     "side": "black",
     "source": {
@@ -405,6 +407,7 @@ exports[`E3 a king captures a Poisoned Meat pawn > E3 R-RULES-004 INV-02 INV-07 
     "i": 6,
     "k": "EffectFizzled",
     "piece": 1,
+    "pieceType": "pawn",
     "reason": "royal_immunity",
     "side": "black",
     "source": {
@@ -584,6 +587,7 @@ exports[`E5 a rook shielding its king captures a Poisoned Meat pawn > E5 INV-03 
     "i": 6,
     "k": "EffectFizzled",
     "piece": 2,
+    "pieceType": "pawn",
     "reason": "inv03",
     "side": "black",
     "source": {
@@ -1228,6 +1232,7 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
     "i": 11,
     "k": "ChargeSpent",
     "piece": 0,
+    "pieceType": "bishop",
     "remaining": 1,
     "side": "white",
   },
@@ -1344,6 +1349,7 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
     "i": 22,
     "k": "ChargeSpent",
     "piece": 0,
+    "pieceType": "bishop",
     "remaining": 0,
     "side": "white",
   },

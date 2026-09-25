@@ -21,9 +21,10 @@ function eligible(a: AbilityDef, t: PieceType | 'all'): boolean {
   return a.eligible === 'all' || a.eligible.includes(t);
 }
 
-/** Pick up to `n` abilities for an element and piece type, preferring its own affinity. */
+/** Fill up to `n` slots with abilities for an element and piece type, preferring its own affinity. */
 export function pickAbilities(
   element: ElementId,
+  /** Capacity in slots. */
   n: number,
   level: number,
   type: PieceType | 'all' = 'all',
@@ -41,15 +42,22 @@ export function pickAbilities(
         a.minLevel / 100,
     }))
     .sort((x, y) => y.score - x.score || (x.a.id < y.a.id ? -1 : 1));
+  // `n` is the set's capacity in slots (7.3): abilities fill it by slotCost, not by count.
   const out: string[] = [];
   const cats = new Map<string, number>();
+  let used = 0;
   for (const { a } of pool) {
-    if (out.length >= n) break;
-    if ((cats.get(a.category) ?? 0) >= Math.ceil(n / 2)) continue;
+    if (used >= n) break;
+    if (used + a.slotCost > n) continue;
+    if ((cats.get(a.category) ?? 0) + a.slotCost > Math.ceil(n / 2)) continue;
     out.push(a.id);
-    cats.set(a.category, (cats.get(a.category) ?? 0) + 1);
+    used += a.slotCost;
+    cats.set(a.category, (cats.get(a.category) ?? 0) + a.slotCost);
   }
-  if (type === 'king' && n >= 2 && level >= 16) out[out.length - 1] = 'stalwart';
+  if (type === 'king' && n >= 2 && level >= 16 && out.length > 0) {
+    // Stalwart (1 slot) replaces the last pick, which costs at least 1.
+    out[out.length - 1] = 'stalwart';
+  }
   return out;
 }
 

@@ -29,6 +29,7 @@ import { expandSets, loadoutShape, validateLoadout } from './loadout.ts';
 import { type Preview, beliefState, preview } from './preview.ts';
 import { type PublicEvent, type PublicState, project, projectEvents } from './project.ts';
 import { Runtime } from './runtime.ts';
+import { rulesAfterTurnEnd } from './simulate.ts';
 
 export interface Engine {
   readonly registry: ContentRegistry;
@@ -95,12 +96,30 @@ export function createEngine(registry: ContentRegistry, caps: Caps): Engine {
     if (state.result || state.pending) return [];
     const pos = rulesPos(state);
     if (side !== state.turn) pos.ep = -1;
+    // Own king safety is judged with the rules as they stand once this turn ends (INV-03).
+    pos.safety = rulesAfterTurnEnd(rt, state, state.turn);
     return pos.legal(side === 'white' ? 0 : 1);
   }
 
   function newBattle(setup: BattleSetup): { state: GameState; events: BattleEvent[] } {
     if (!caps.FORMATS[setup.format])
       throw new RulesError('bad_setup', `unknown format ${setup.format}`);
+    if (setup.strict) {
+      // R-LOAD-004 is an invariant at battle start: every real battle validates both loadouts.
+      for (const side of ['white', 'black'] as const) {
+        const v = validateLoadout(
+          setup[side].loadout,
+          { level: setup[side].level },
+          rt.abilities,
+          rt.items,
+          caps,
+        );
+        if (!v.ok) {
+          const why = v.errors.map((e) => `rule ${e.rule} ${e.code}`).join(', ');
+          throw new RulesError('bad_setup', `${side} loadout invalid: ${why}`);
+        }
+      }
+    }
     const parsed = parseFen(setup.fen ?? START_FEN);
     const white = armyFor(rt, setup.white);
     const black = armyFor(rt, setup.black);

@@ -698,9 +698,11 @@ describe('R-INFO-005 R-SEC-001 server information contract', () => {
     expect(veiled.engine.project(veiled.state, 'white').usage).toEqual({});
     expect(veiled.engine.project(veiled.state, 'black').usage).toEqual({ [key]: 1 });
     const forWhite = veiled.engine.projectEvents(veiled.state, veiled.events, 'white');
-    expect(eventsOf(forWhite, 'ChargeSpent')).toEqual([
-      expect.objectContaining({ side: 'black', ability: null }),
-    ]);
+    // The spent charge of an unnamed ability is not sent at all (DD-45).
+    expect(eventsOf(forWhite, 'ChargeSpent')).toEqual([]);
+    expect(
+      eventsOf(veiled.engine.projectEvents(veiled.state, veiled.events, 'black'), 'ChargeSpent'),
+    ).toEqual([expect.objectContaining({ side: 'black', ability: 'rebirth', remaining: 0 })]);
     expect(eventsOf(forWhite, 'PieceRevived')).toEqual([
       expect.objectContaining({ piece: knight, source: { kind: 'hidden' } }),
     ]);

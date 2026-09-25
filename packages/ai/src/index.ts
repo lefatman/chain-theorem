@@ -14,14 +14,13 @@ import {
   type Move,
   type PublicState,
   type Side,
+  PIECE_TYPES,
   applyWithDefaults,
-  mFrom,
-  mPromo,
-  mTo,
+  decodeMove,
   uciToMove,
 } from '@chain-theorem/rules';
 import { sideKnowledge } from './knowledge.ts';
-import { type SearchCtx, WIN, evalPos, negamax, quiesce } from './fast.ts';
+import { type SearchCtx, VALUE, WIN, evalPos, negamax, play, quiesce, unplay } from './fast.ts';
 import type { Engine } from './types.ts';
 
 export type Tier = 'wild' | 'trainer' | 'elite';
@@ -65,6 +64,14 @@ export interface SearchResult {
   nodes: number;
   scores: { uci: string; score: number }[];
 }
+
+/** Quiescence node budget per prompt option (options are short tactical lines). */
+const OPTION_NODES = 20_000;
+/**
+ * Value of the extra move a bonus action grants. Quiescence only sees material, so without it a
+ * capture that could also be made on the next normal turn (E6 Riposte) would tie with Decline.
+ */
+const TEMPO = 10;
 
 function hash32(a: number, b: number): number {
   let h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab, 0xc2b2ae35);
@@ -175,26 +182,38 @@ export function search(
       const t = terminalScore(c.state, me);
       if (t !== null) {
         next.set(c, t);
+        if (t > alpha) alpha = t;
         continue;
       }
+      // Budget check between root moves too (R-FMT-005 ~50 ms): a wide root of shallow subtrees
+      // would otherwise never reach the in-search check.
+      if (nodes >= maxNodes || (now !== null && now() >= deadline)) {
+        aborted = true;
+        break;
+      }
       const ctx = makeCtx(engine, c.state, me, tier, { maxNodes: maxNodes - nodes, deadline, now });
+      // Every iteration, the first included, only asks whether this move beats the best so far.
+      // The window is shifted by this move's noise: a cut-off child scores at most alpha - 1
+      // after its noise is added, so a failed bound can never overtake the best move.
+      const nz = noise(c.move);
+      const beta = -(alpha - nz) + 1;
       const raw =
-        d === 0
-          ? -quiesce(ctx, -Infinity, Infinity, 6)
-          : -negamax(ctx, d, -Infinity, -alpha + 1, 1);
+        d === 0 ? -quiesce(ctx, -Infinity, beta, 6) : -negamax(ctx, d, -Infinity, beta, 1);
       nodes += ctx.nodes;
       if (ctx.aborted) {
         aborted = true;
         break;
       }
-      const score = raw + noise(c.move);
+      const score = raw + nz;
       next.set(c, score);
       if (score > alpha) alpha = score;
     }
+    // A partial first iteration still improves on the static ordering scores; deeper partial
+    // iterations are discarded.
     if (aborted && d > 0) break;
     for (const [c, s] of next) c.score = s;
-    completedDepth = d + 1;
     if (aborted) break;
+    completedDepth = d + 1;
   }
   const ranked = [...children].sort(
     (a, b) => b.score - a.score || moveKey(a.move) - moveKey(b.move),
@@ -237,6 +256,13 @@ export function evaluate(
 /**
  * Answer a mid-action prompt (5.4) from public information: bonus moves and squares by evaluation,
  * effect-capture targets by value. Ties go to the lowest option index (the default).
+ *
+ * A prompt arrives in the middle of an action, so the side to move in `pub` is the acting player
+ * and the other side moves once the chain settles. Every option is scored from the chooser's point
+ * of view with that next mover to move (a quiescence search), so a piece left en prise after a
+ * declined bonus move or on a chosen square is seen as lost. Bonus moves are played with the known
+ * reactions (fast.ts `play`): a revealed Poisoned Meat captor removes the capturing piece and a
+ * format objective reached in the chain ends the battle (E4).
  */
 export function chooseOption(
   engine: Engine,
@@ -249,56 +275,70 @@ export function chooseOption(
   const me = req.chooser;
   const belief = engine.beliefState(pub, own);
   const base = makeCtx(engine, belief, me, tier, {
-    maxNodes: 20_000,
+    maxNodes: OPTION_NODES,
     deadline: Infinity,
     now: null,
   });
+  const pos = base.pos;
   const meCode = me === 'white' ? 0 : 1;
+  const actor = pos.turn;
+  /** Score the current scratch position for the chooser, with `mover` to move next. */
+  const settle = (mover: number): number => {
+    const saved = pos.turn;
+    pos.turn = mover;
+    base.nodes = 0;
+    base.aborted = false;
+    const q = quiesce(base, -Infinity, Infinity, 4);
+    pos.turn = saved;
+    return mover === meCode ? q : -q;
+  };
   let best = req.defaultOption;
   let bestScore = -Infinity;
   req.options.forEach((opt, i) => {
     let score: number;
-    const pos = base.pos;
     switch (opt.kind) {
       case 'decline':
-        score = evalPos(base, meCode);
+        score = settle(actor ^ 1);
         break;
       case 'piece': {
+        // Harm the most valuable enemy piece, shield the most valuable own piece; a piece that
+        // will be moved or revived scores level (its square prompt decides).
         const p = belief.pieces[opt.piece];
-        const v = p
-          ? ([100, 320, 330, 500, 900, 0][
-              ['pawn', 'knight', 'bishop', 'rook', 'queen', 'king'].indexOf(p.type)
-            ] ?? 0)
-          : 0;
-        score = p && p.side !== me ? v : -v;
+        const v = p ? (VALUE[PIECE_TYPES.indexOf(p.type)] ?? 0) : 0;
+        const mine = p?.side === me;
+        if (req.purpose === 'protect') score = mine ? v : -v;
+        else if (req.purpose === 'move' || req.purpose === 'revive') score = 0;
+        else score = mine ? -v : v;
         break;
       }
       case 'square': {
-        const id = req.source.piece;
+        // Place the piece the effect moves (the captor for a push, the bearer for a step back).
+        const id = req.subject ?? req.source.piece;
         const from = pos.psq[id] as number;
-        if (from >= 0) {
-          pos.board[from] = -1;
-        }
+        const there = pos.board[opt.square] as number;
+        if (from >= 0) pos.board[from] = -1;
         pos.board[opt.square] = id;
         pos.psq[id] = opt.square;
-        score = evalPos(base, meCode);
-        pos.board[opt.square] = -1;
+        score = settle(actor ^ 1);
+        pos.board[opt.square] = there;
         pos.psq[id] = from;
         if (from >= 0) pos.board[from] = id;
         break;
       }
       case 'move': {
-        const moves = pos.legal(meCode);
-        const m = moves.find(
-          (x) => mFrom(x) === opt.from && mTo(x) === opt.to && (mPromo(x) === 0) === !opt.promotion,
-        );
+        const m = pos.legal(meCode).find((x) => {
+          const d = decodeMove(x);
+          return d.from === opt.from && d.to === opt.to && d.promotion === opt.promotion;
+        });
         if (m === undefined) {
           score = -Infinity;
           break;
         }
-        const u = pos.make(m);
-        score = -quiesce(base, -Infinity, Infinity, 4);
-        pos.unmake(u);
+        // The bonus move is the chooser's; `play` flips the side to move to the next mover.
+        const played = play(base, m);
+        if (played.terminal !== 0) score = played.terminal;
+        else score = settle(pos.turn) + played.bias + TEMPO;
+        unplay(base, played);
         break;
       }
     }

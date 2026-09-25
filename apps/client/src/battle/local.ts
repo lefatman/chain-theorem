@@ -44,6 +44,8 @@ export interface LocalBattleOptions {
   engine?: Engine;
   /** NPC thinking time in ms (9.4: about 50 ms). */
   npcMs?: number;
+  /** Skip loadout validation (sandbox positions and loadouts, DD-23). */
+  sandbox?: boolean;
 }
 
 export class LocalController implements BattleController {
@@ -67,6 +69,8 @@ export class LocalController implements BattleController {
       white: { level: opts.white.level, loadout: opts.white.loadout },
       black: { level: opts.black.level, loadout: opts.black.loadout },
       ...(opts.fen ? { fen: opts.fen } : {}),
+      // R-LOAD-004 at battle start for every real battle; the Scenario Lab passes sandbox.
+      strict: !opts.sandbox,
     });
     this.state = state;
     this.allEvents.push(...events);

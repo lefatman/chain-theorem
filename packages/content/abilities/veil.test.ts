@@ -133,10 +133,14 @@ describe('veil (R-ABIL-005, R-INFO-002)', () => {
     ]);
     expect(pieceAt(r.state, 'd4')?.type).toBe('king');
     expect(abilityReveals(r.events, 'black')).toHaveLength(0);
+    // A veiled fizzle has no effect to show, so the opponent gets no fizzle event at all; the
+    // activation itself stays an opaque marker (DD-28, DD-45).
     const white = projected(r.engine, r.state, r.events, 'white');
-    expect(white.find((e) => e.k === 'EffectFizzled')).toMatchObject({
+    expect(white.find((e) => e.k === 'EffectFizzled')).toBeUndefined();
+    expect(white.find((e) => e.k === 'AbilityTriggered')).toMatchObject({
       ability: null,
-      reason: 'royal_immunity',
+      category: null,
+      attuned: null,
     });
     expect(JSON.stringify(white)).not.toContain('"poisoned_meat"');
   });
@@ -219,11 +223,9 @@ describe('veil (R-ABIL-005, R-INFO-002)', () => {
     expect(eventsOf(r.events, 'ChargeSpent')).toEqual([
       expect.objectContaining({ ability: 'momentum', remaining: 1 }),
     ]);
+    // The charge count of an unnamed ability is not public, so the event is not sent (DD-45).
     const black = projected(r.engine, r.state, r.events, 'black');
-    expect(black.find((e) => e.k === 'ChargeSpent')).toMatchObject({
-      ability: null,
-      remaining: -1,
-    });
+    expect(black.find((e) => e.k === 'ChargeSpent')).toBeUndefined();
     expect(black.find((e) => e.k === 'MoveMade' && e.bonus)).toMatchObject({
       from: sq('d5'),
       to: sq('e3'),

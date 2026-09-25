@@ -1132,25 +1132,34 @@ describe('R-ABIL-004 resolution rules', () => {
   });
 
   it("R-ABIL-004 triggers of the same piece resolve in the owner's loadout order, which changes the outcome", () => {
-    const fen = '7k/8/4p3/3p4/3p4/2N5/8/7K w - - 0 1';
-    // Cleave first: measured from d5, it takes e6; then Hit and Run returns to c3.
-    const a = scenario({ fen, white: { abilities: ['cleave', 'hit_and_run'] }, moves: ['c3d5'] });
+    // Both abilities move the knight, so the final square depends on which resolves last.
+    const fen = '7k/8/8/3p4/8/2N5/8/7K w - - 0 1';
+    // Momentum first: the bonus move leaves d5 for b6, then Hit and Run returns to c3.
+    const a = scenario({
+      fen,
+      white: { abilities: ['momentum', 'hit_and_run'] },
+      moves: ['c3d5'],
+      answers: [{ kind: 'move', from: sq('d5'), to: sq('b6') }],
+    });
     expect(triggered(a.events)).toEqual([
-      'white cleave CAPTURES d0',
+      'white momentum CAPTURES d0',
       'white hit_and_run CAPTURES d0',
     ]);
-    expect(pieceAt(a.state, 'e6')).toBeUndefined();
-    expect(pieceAt(a.state, 'd4')?.type).toBe('pawn');
     expect(pieceAt(a.state, 'c3')?.type).toBe('knight');
-    // Hit and Run first: back on c3, Cleave is measured from c3 and takes d4 instead.
-    const b = scenario({ fen, white: { abilities: ['hit_and_run', 'cleave'] }, moves: ['c3d5'] });
+    expect(pieceAt(a.state, 'b6')).toBeUndefined();
+    // Hit and Run first: back on c3, the bonus move then leaves from c3 (to b5).
+    const b = scenario({
+      fen,
+      white: { abilities: ['hit_and_run', 'momentum'] },
+      moves: ['c3d5'],
+      answers: [{ kind: 'move', from: sq('c3'), to: sq('b5') }],
+    });
     expect(triggered(b.events)).toEqual([
       'white hit_and_run CAPTURES d0',
-      'white cleave CAPTURES d0',
+      'white momentum CAPTURES d0',
     ]);
-    expect(pieceAt(b.state, 'd4')).toBeUndefined();
-    expect(pieceAt(b.state, 'e6')?.type).toBe('pawn');
-    expect(pieceAt(b.state, 'c3')?.type).toBe('knight');
+    expect(pieceAt(b.state, 'b5')?.type).toBe('knight');
+    expect(pieceAt(b.state, 'c3')).toBeUndefined();
   });
 
   it("R-ABIL-004 across sides the victim's triggers resolve first, whichever side is moving", () => {

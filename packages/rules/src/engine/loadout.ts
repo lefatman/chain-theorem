@@ -63,6 +63,22 @@ export function validateLoadout(
 ): LoadoutValidation {
   const errors: LoadoutError[] = [];
   const level = player.level;
+  if (!Number.isInteger(level) || level < 1 || level > caps.LEVEL_CAP) {
+    // Without a valid level, rules 1 and 2 cannot be checked: reject outright.
+    return {
+      ok: false,
+      errors: [
+        {
+          rule: 2,
+          code: 'bad_level',
+          message: `level must be an integer from 1 to ${caps.LEVEL_CAP}`,
+        },
+      ],
+      consumedSlots: 0,
+      unlockedSlots: 0,
+      capacity: caps.BASE_ABILITY_CAPACITY,
+    };
+  }
   const unlockedSlots = caps.itemSlots(level);
   const err = (
     rule: LoadoutError['rule'],

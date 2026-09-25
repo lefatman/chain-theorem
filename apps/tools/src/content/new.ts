@@ -57,13 +57,16 @@ export default defineItem({
   status: 'PLAYTEST',
 });
 `,
-  trait: `/** ${title} (element trait): describe the rule and cite the spec section. */
+  trait: `/**
+ * ${title} (element trait): describe the rule and cite the spec section. Every element has exactly
+ * one trait (6.1), so a new trait replaces its element's current module (delete that file).
+ */
 import { defineTrait } from '@chain-theorem/rules/sdk';
 
 export default defineTrait({
   id: '${id}',
   name: '${title}',
-  element: 'neutral',
+  element: 'ember', // ember | tide | grove | storm | stone | frost
   version: 1,
   hooks: {},
   text: { short: 'TODO one line.', rules: 'TODO full rules text.' },
