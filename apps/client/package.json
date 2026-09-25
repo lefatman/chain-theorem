@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:online": "playwright test --config playwright.online.config.ts"
   },
   "dependencies": {
     "@chain-theorem/ai": "workspace:*",

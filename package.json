@@ -24,6 +24,7 @@
     "test:db:pg": "tsx scripts/test-db-pg.ts",
     "test:workers": "pnpm --filter @chain-theorem/server test:workers",
     "test:e2e": "pnpm --filter @chain-theorem/client test:e2e",
+    "test:e2e:online": "pnpm --filter @chain-theorem/client test:e2e:online",
     "measure:client": "tsx scripts/measure-client.ts",
     "test:load": "tsx apps/tools/src/load/cli.ts",
     "sim": "tsx apps/tools/src/sim/cli.ts",

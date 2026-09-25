@@ -128,3 +128,6 @@ jobs:
         run: pnpm --filter @chain-theorem/client exec playwright install --with-deps chromium
       - if: steps.detect.outputs.present == 'true'
         run: pnpm test:e2e
+      # M4 done-when: two browsers against the real Worker (wrangler dev, local D1/R2/DOs).
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm test:e2e:online
