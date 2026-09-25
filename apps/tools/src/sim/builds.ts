@@ -8,6 +8,12 @@ import type { AbilityDef } from '@chain-theorem/rules/sdk';
 import { abilities, engine } from '@chain-theorem/content';
 
 export type Archetype = 'maximum' | 'flexible' | 'focused' | 'starter';
+/** Ability pool for simulator builds: 'any' ranks every ability, 'affinity' keeps each element to its own and neutral abilities. */
+export type Pool = 'any' | 'affinity';
+let POOL: Pool = 'any';
+export function setPool(p: Pool): void {
+  POOL = p;
+}
 export const ARCHETYPES: Archetype[] = ['maximum', 'flexible', 'focused', 'starter'];
 
 function eligible(a: AbilityDef, t: PieceType | 'all'): boolean {
@@ -26,6 +32,7 @@ export function pickAbilities(
     .filter(
       (a) => !a.retired && a.minLevel <= level && a.category !== 'PASSIVE' && eligible(a, type),
     )
+    .filter((a) => POOL === 'any' || a.affinity === element || a.affinity === 'neutral')
     .map((a) => ({
       a,
       score:

@@ -205,6 +205,7 @@ export function BattleView({ controller }: { controller: BattleController }) {
   const myTurn =
     snap.status === 'playing' &&
     !snap.handoff &&
+    !snap.prompt &&
     !snap.pub.pending &&
     snap.pub.turn === snap.viewer &&
     snap.controls.includes(snap.viewer);

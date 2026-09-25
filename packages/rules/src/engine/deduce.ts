@@ -85,7 +85,10 @@ export function deduce(rt: Runtime, pub: PublicState): Deductions {
     }
     if (capacity < observedCapacity) return false;
     if (scheduleProven && !perType) return false;
-    if (!disguise && second !== displayedTwo) return false;
+    // Two displayed elements can only come from Blended Family: a disguise shows one element (DD-26).
+    if (displayedTwo && !second) return false;
+    // One displayed element rules Blended Family out unless a disguise could be hiding it.
+    if (!displayedTwo && second && !disguise) return false;
     return true;
   };
 

@@ -185,9 +185,14 @@ a {
 .setup > * {
   min-width: 0;
 }
-input:not([type='checkbox']):not([type='radio']) {
+input:not([type='checkbox']):not([type='radio']),
+select {
   min-width: 0;
   max-width: 100%;
+}
+.set-editor > *,
+.card-grid > * {
+  min-width: 0;
 }
 .setup.wide {
   max-width: 1120px;
@@ -204,6 +209,8 @@ label.check {
 }
 label.inline {
   display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   gap: 0.4em;
   align-items: center;
 }
@@ -905,11 +912,13 @@ fieldset {
 }
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   padding: 4px !important;
 }
 .tabs [role='tab'] {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   border-radius: 6px;
   border-width: 2px;
   background: transparent;
@@ -1245,7 +1254,14 @@ fieldset {
     grid-template-columns: 1fr;
   }
   .set-editor {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .set-item {
+    grid-template-columns: auto auto minmax(0, 1fr);
+  }
+  .set-item .row-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
   }
   .set-list {
     position: static;

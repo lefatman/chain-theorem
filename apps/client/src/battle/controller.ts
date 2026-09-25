@@ -4,7 +4,14 @@
  * sees projections (R-INFO-005): `pub` is `project()` output for the current viewer.
  */
 import type { Signal } from '@preact/signals';
-import type { BattleResult, ChoiceRequest, Loadout, PublicEvent, PublicState, Side } from '@chain-theorem/rules';
+import type {
+  BattleResult,
+  ChoiceRequest,
+  Loadout,
+  PublicEvent,
+  PublicState,
+  Side,
+} from '@chain-theorem/rules';
 
 export interface Clocks {
   white: number;

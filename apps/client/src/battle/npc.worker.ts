@@ -9,21 +9,39 @@ import type { ChoiceRequest, Loadout, PublicState } from '@chain-theorem/rules';
 
 export type NpcRequest =
   | { id: number; kind: 'move'; pub: PublicState; own: Loadout; tier: Tier; ms: number }
-  | { id: number; kind: 'option'; pub: PublicState; own: Loadout; tier: Tier; request: ChoiceRequest };
+  | {
+      id: number;
+      kind: 'option';
+      pub: PublicState;
+      own: Loadout;
+      tier: Tier;
+      request: ChoiceRequest;
+    };
 
-export type NpcResponse = { id: number; move?: { from: number; to: number; promotion?: string }; option?: number; error?: string };
+export type NpcResponse = {
+  id: number;
+  move?: { from: number; to: number; promotion?: string };
+  option?: number;
+  error?: string;
+};
 
 self.onmessage = (e: MessageEvent<NpcRequest>) => {
   const req = e.data;
   try {
     if (req.kind === 'move') {
-      const r = search(engine, req.pub, req.own, req.tier, { ms: req.ms, now: () => performance.now() });
+      const r = search(engine, req.pub, req.own, req.tier, {
+        ms: req.ms,
+        now: () => performance.now(),
+      });
       (self as unknown as Worker).postMessage({ id: req.id, move: r.move } satisfies NpcResponse);
     } else {
       const option = chooseOption(engine, req.pub, req.own, req.request, req.tier);
       (self as unknown as Worker).postMessage({ id: req.id, option } satisfies NpcResponse);
     }
   } catch (err) {
-    (self as unknown as Worker).postMessage({ id: req.id, error: err instanceof Error ? err.message : String(err) } satisfies NpcResponse);
+    (self as unknown as Worker).postMessage({
+      id: req.id,
+      error: err instanceof Error ? err.message : String(err),
+    } satisfies NpcResponse);
   }
 };

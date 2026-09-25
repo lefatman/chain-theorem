@@ -178,10 +178,13 @@ export function registerCreatureSheet(
   sheets.set(creatureKey(type, element), { canvas, size });
 }
 
-/** Board display scale for a creature texture (integer; 2 for the 24 px procedural sprites). */
+/**
+ * Board display scale for a creature texture: the largest integer scale that fits the 48 px
+ * creature box (2 for the 24 px procedural sprites; 1 for 48 px drop-in art).
+ */
 export function creatureScale(type: PieceType, element: ElementId): number {
   const size = sheets.get(creatureKey(type, element))?.size ?? SPRITE;
-  return Math.max(1, Math.round((SPRITE * ART_SCALE) / size));
+  return Math.max(1, Math.floor((SPRITE * ART_SCALE) / size));
 }
 
 /**

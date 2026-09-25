@@ -20,7 +20,11 @@ export const STARTER: SavedLoadout[] = [
     id: 'starter-grove',
     name: 'Grove Starter',
     level: 5,
-    loadout: { elements: ['grove'], items: ['dual_adepts_glove'], sets: [['poisoned_meat', 'last_word']] },
+    loadout: {
+      elements: ['grove'],
+      items: ['dual_adepts_glove'],
+      sets: [['poisoned_meat', 'last_word']],
+    },
   },
   {
     id: 'starter-tide',
@@ -32,7 +36,11 @@ export const STARTER: SavedLoadout[] = [
     id: 'starter-ember',
     name: 'Ember Raider',
     level: 8,
-    loadout: { elements: ['ember'], items: ['triple_adepts_gloves'], sets: [['cleave', 'backdraft', 'momentum']] },
+    loadout: {
+      elements: ['ember'],
+      items: ['triple_adepts_gloves'],
+      sets: [['cleave', 'backdraft', 'momentum']],
+    },
   },
 ];
 
@@ -63,7 +71,8 @@ effect(() => {
 
 export function saveLoadout(l: SavedLoadout): { ok: boolean; reason?: string } {
   const list = profile.value.loadouts.filter((x) => x.id !== l.id);
-  if (list.length >= MAX_SAVED_LOADOUTS) return { ok: false, reason: `You can keep up to ${MAX_SAVED_LOADOUTS} loadouts.` };
+  if (list.length >= MAX_SAVED_LOADOUTS)
+    return { ok: false, reason: `You can keep up to ${MAX_SAVED_LOADOUTS} loadouts.` };
   profile.value = { ...profile.value, loadouts: [...list, l] };
   return { ok: true };
 }

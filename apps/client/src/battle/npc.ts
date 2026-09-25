@@ -31,10 +31,16 @@ function call(req: NpcCall): Promise<NpcResponse> {
   if (!w) {
     // Fallback: search on this thread.
     if (req.kind === 'move') {
-      const r = search(engine, req.pub, req.own, req.tier, { ms: req.ms, now: () => performance.now() });
+      const r = search(engine, req.pub, req.own, req.tier, {
+        ms: req.ms,
+        now: () => performance.now(),
+      });
       return Promise.resolve({ id, move: r.move });
     }
-    return Promise.resolve({ id, option: chooseOption(engine, req.pub, req.own, req.request, req.tier) });
+    return Promise.resolve({
+      id,
+      option: chooseOption(engine, req.pub, req.own, req.request, req.tier),
+    });
   }
   return new Promise((resolve) => {
     pending.set(id, resolve);
@@ -48,7 +54,12 @@ export async function npcMove(pub: PublicState, own: Loadout, tier: Tier, ms = 5
   return r.move as Move;
 }
 
-export async function npcOption(pub: PublicState, own: Loadout, tier: Tier, request: ChoiceRequest): Promise<number> {
+export async function npcOption(
+  pub: PublicState,
+  own: Loadout,
+  tier: Tier,
+  request: ChoiceRequest,
+): Promise<number> {
   const r = await call({ kind: 'option', pub, own, tier, request });
   return r.option ?? request.defaultOption;
 }

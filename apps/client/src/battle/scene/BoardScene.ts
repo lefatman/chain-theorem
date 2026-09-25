@@ -97,9 +97,12 @@ interface Track {
 interface Run {
   tracks: Track[];
   total: number;
-  elapsed: number;
+  /** Wall-clock start (performance.now); elapsed time is real time, not Phaser's smoothed delta. */
+  t0: number;
   resolve: () => void;
 }
+
+const wallClock = (): number => performance.now();
 
 interface HotFootView {
   burning?: { sq: number; turns: number }[];
@@ -130,6 +133,8 @@ export class BoardScene extends Phaser.Scene {
   private snapshot: BattleSnapshot | null = null;
   /** State pinned by showPublic (replay / lab); live snapshots wait until showLive(). */
   private pinned: { pub: PublicState; viewer: Side } | null = null;
+  /** Bumped by showPublic/showLive so a settling replay step never re-pins over them. */
+  private pinGen = 0;
   private shown: { pub: PublicState; viewer: Side; classic: boolean } | null = null;
   private highlights: Highlights = EMPTY_HIGHLIGHTS;
   private flip = false;
@@ -177,6 +182,8 @@ export class BoardScene extends Phaser.Scene {
     this.fxLayer = this.add.container(0, 0).setDepth(7);
     this.hoverG = this.add.graphics().setDepth(8);
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      // Tapping the board fast-forwards any animation (skippable, 11.2); the click still counts.
+      if (this.pending > 0) this.skipAnimations();
       const sq = this.pointerSquare(p);
       if (sq !== null) this.host?.onSquare(sq);
     });
@@ -198,7 +205,7 @@ export class BoardScene extends Phaser.Scene {
 
   override update(_time: number, delta: number): void {
     this.clock += delta;
-    if (this.run) this.step(delta);
+    if (this.run) this.step();
     if (this.checkPulse) {
       this.checkPulse.setAlpha(this.motion() ? 0.6 + 0.4 * Math.sin(this.clock / 170) : 1);
     }
@@ -234,12 +241,14 @@ export class BoardScene extends Phaser.Scene {
    */
   showPublic(pub: PublicState, viewer: Side): void {
     this.skipAnimations();
+    this.pinGen++;
     this.pinned = { pub, viewer };
     this.refresh();
   }
 
   /** Leave a pinned view and show the latest live snapshot again. */
   showLive(): void {
+    this.pinGen++;
     this.pinned = null;
     this.refresh();
   }
@@ -247,7 +256,7 @@ export class BoardScene extends Phaser.Scene {
   /** Finish every running and queued animation immediately (animations are skippable, 11.2). */
   skipAnimations(): void {
     this.skipGen++;
-    if (this.run) this.step(Number.POSITIVE_INFINITY);
+    if (this.run) this.step(true);
   }
 
   isAnimating(): boolean {
@@ -289,7 +298,9 @@ export class BoardScene extends Phaser.Scene {
 
   /** Draw what should be visible now: the pinned view, else the latest live snapshot. */
   private refresh(): void {
-    if (!this.ready) return;
+    // Never redraw under a running animation (its tracks hold the current piece views); play()
+    // refreshes once the queue drains.
+    if (!this.ready || this.run) return;
     const target =
       this.pinned ??
       (this.snapshot ? { pub: this.snapshot.pub, viewer: this.snapshot.viewer } : null);
@@ -620,6 +631,7 @@ export class BoardScene extends Phaser.Scene {
       // A live update while a replay view is pinned does not disturb it; a replay step (starting
       // from the pinned state) animates and then pins its result.
       const pin = this.pinned;
+      const pinGen = this.pinGen;
       const continuesPin = pin !== null && pin.pub.eventSeq === u.before.eventSeq;
       if (pin && !continuesPin) return;
       const hidden = typeof document !== 'undefined' && document.hidden;
@@ -641,7 +653,8 @@ export class BoardScene extends Phaser.Scene {
           );
         }
       }
-      if (continuesPin) this.pinned = { pub: u.after, viewer: u.after.viewer };
+      if (continuesPin && pinGen === this.pinGen)
+        this.pinned = { pub: u.after, viewer: u.after.viewer };
     } finally {
       this.pending--;
       if (this.pending === 0 || this.pinned) this.refresh();
@@ -650,29 +663,34 @@ export class BoardScene extends Phaser.Scene {
 
   private runTracks(tracks: Track[], total: number): Promise<void> {
     return new Promise((resolve) => {
-      this.run = { tracks, total, elapsed: 0, resolve };
-      this.step(0);
+      this.run = { tracks, total, t0: wallClock(), resolve };
+      this.step();
     });
   }
 
-  private step(dt: number): void {
+  /**
+   * Advance the running timeline to the current wall-clock time (or to its end when `finish`).
+   * Tracks are processed in start order, so a slow frame still applies every step in sequence and
+   * the chain ends on time (fast mode < 1 s, 11.2).
+   */
+  private step(finish = false): void {
     const r = this.run;
     if (!r) return;
-    r.elapsed += dt;
+    const elapsed = finish ? Number.POSITIVE_INFINITY : wallClock() - r.t0;
     for (const tr of r.tracks) {
-      if (tr.done || r.elapsed < tr.start) continue;
+      if (tr.done || elapsed < tr.start) continue;
       if (!tr.begun) {
         tr.begun = true;
         tr.begin?.();
       }
-      const t = tr.dur <= 0 ? 1 : Math.min(1, (r.elapsed - tr.start) / tr.dur);
+      const t = tr.dur <= 0 ? 1 : Math.min(1, (elapsed - tr.start) / tr.dur);
       tr.apply?.(t);
       if (t >= 1) {
         tr.done = true;
         tr.end?.();
       }
     }
-    if (r.elapsed >= r.total && r.tracks.every((t) => t.done)) {
+    if (elapsed >= r.total && r.tracks.every((t) => t.done)) {
       this.run = null;
       this.fxLayer?.removeAll(true);
       r.resolve();

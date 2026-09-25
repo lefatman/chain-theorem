@@ -1,12 +1,25 @@
 /** Local battle setup (M3 done-when): any format, any NPC tier or hot-seat, any saved loadout. */
 import { useState } from 'preact/hooks';
-import { FORMATS } from '@chain-theorem/content';
+import { FORMATS, engine } from '@chain-theorem/content';
 import type { FormatId } from '@chain-theorem/rules';
 import { go } from '../app/router.ts';
-import { profile } from '../state/profile.ts';
+import { profile, type SavedLoadout } from '../state/profile.ts';
 import { startLocalBattle } from './battleSession.ts';
 
 type Opp = 'wild' | 'trainer' | 'elite' | 'human';
+
+/** R-LOAD-004 check shown before battle; local play still allows sandbox loadouts. */
+function Validity({ l }: { l: SavedLoadout | undefined }) {
+  if (!l) return null;
+  const v = engine.validateLoadout(l.loadout, { level: l.level });
+  if (v.ok) return null;
+  return (
+    <p class="note warn">
+      <span aria-hidden="true">{'\u26A0\uFE0E'}</span> {l.name} breaks rule {v.errors[0]?.rule}:{' '}
+      {v.errors[0]?.message}. Local play allows it; online play will not.
+    </p>
+  );
+}
 
 export function PlaySetup() {
   const loadouts = profile.value.loadouts;
@@ -58,6 +71,7 @@ export function PlaySetup() {
           ))}
         </select>
       </label>
+      <Validity l={loadouts.find((l) => l.id === mine)} />
       <label>
         Opponent loadout
         <select value={theirs} onChange={(e) => setTheirs((e.target as HTMLSelectElement).value)}>
@@ -68,6 +82,7 @@ export function PlaySetup() {
           ))}
         </select>
       </label>
+      <Validity l={loadouts.find((l) => l.id === theirs)} />
       <label>
         Play as
         <select

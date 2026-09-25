@@ -16,7 +16,8 @@ export interface Settings {
 }
 
 const KEY = 'ct.settings.v1';
-const prefersReduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const prefersReduced =
+  typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const DEFAULTS: Settings = {
   classicView: false,
   fastMode: false,

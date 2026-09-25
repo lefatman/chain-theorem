@@ -1,7 +1,8 @@
 /** Tiny hash router: '#/battle' -> { name: 'battle', params }. No dependency, works offline. */
 import { signal } from '@preact/signals';
 
-export type RouteName = 'title' | 'play' | 'battle' | 'loadouts' | 'lab' | 'settings' | 'world' | 'login' | 'online';
+export type RouteName =
+  'title' | 'play' | 'battle' | 'loadouts' | 'lab' | 'settings' | 'world' | 'login' | 'online';
 
 export interface Route {
   name: RouteName;

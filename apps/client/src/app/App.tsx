@@ -8,7 +8,9 @@ import { LoadoutsScreen } from '../ui/LoadoutsScreen.tsx';
 import { SettingsScreen } from '../ui/SettingsScreen.tsx';
 
 // Dev-only Scenario Lab: this branch is removed from production builds (BUILD_PROMPT M3).
-const ScenarioLab = import.meta.env.DEV ? lazy(() => import('../lab/ScenarioLab.tsx').then((m) => ({ default: m.ScenarioLab }))) : null;
+const ScenarioLab = import.meta.env.DEV
+  ? lazy(() => import('../lab/ScenarioLab.tsx').then((m) => ({ default: m.ScenarioLab })))
+  : null;
 
 export function App() {
   const r = route.value;

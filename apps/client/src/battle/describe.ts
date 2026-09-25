@@ -4,7 +4,12 @@
  * unknown ability".
  */
 import { abilityById, itemById, traitById } from '@chain-theorem/content';
-import { squareName, type PublicEvent, type PublicState, type SourceRef } from '@chain-theorem/rules';
+import {
+  squareName,
+  type PublicEvent,
+  type PublicState,
+  type SourceRef,
+} from '@chain-theorem/rules';
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -64,7 +69,8 @@ export function describe(ev: PublicEvent, pub: PublicState): string {
       return `${cap(ev.side)} moves ${squareName(ev.move.from)} to ${squareName(ev.move.to)}.`;
     case 'MoveMade': {
       const who = `${cap(ev.side)} ${ev.pieceType}`;
-      if (ev.castle) return `${cap(ev.side)} castles ${ev.castle === 'K' ? 'king side' : 'queen side'}.`;
+      if (ev.castle)
+        return `${cap(ev.side)} castles ${ev.castle === 'K' ? 'king side' : 'queen side'}.`;
       const verb = ev.capture ? 'captures on' : 'moves to';
       const bonus = ev.bonus ? ' (bonus move)' : '';
       const promo = ev.promotion ? ` and promotes to a ${ev.promotion}` : '';

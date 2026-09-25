@@ -17,7 +17,13 @@ import {
   opposite,
   uciToMove,
 } from '@chain-theorem/rules';
-import type { BattleController, BattleSnapshot, BattleUpdate, Clocks, LogEntry } from './controller.ts';
+import type {
+  BattleController,
+  BattleSnapshot,
+  BattleUpdate,
+  Clocks,
+  LogEntry,
+} from './controller.ts';
 import { describe } from './describe.ts';
 import { npcMove, npcOption } from './npc.ts';
 
@@ -69,7 +75,12 @@ export class LocalController implements BattleController {
     const f = this.engine.caps.FORMATS[opts.format];
     this.clocks =
       opts.timed && f
-        ? { white: f.clock.initialMs, black: f.clock.initialMs, running: state.turn, at: performance.now() }
+        ? {
+            white: f.clock.initialMs,
+            black: f.clock.initialMs,
+            running: state.turn,
+            at: performance.now(),
+          }
         : null;
     this.snapshot = signal<BattleSnapshot>(this.build(null));
     this.armFlag();
@@ -93,7 +104,12 @@ export class LocalController implements BattleController {
   private build(handoff: Side | null): BattleSnapshot {
     const pub = this.engine.project(this.state, this.viewer);
     const pending = this.state.pending;
-    const prompt = pending && pending.request.chooser === this.viewer && this.opts[this.viewer].control === 'human' ? pending.request : null;
+    const prompt =
+      pending &&
+      pending.request.chooser === this.viewer &&
+      this.opts[this.viewer].control === 'human'
+        ? pending.request
+        : null;
     return {
       pub,
       viewer: this.viewer,
@@ -127,10 +143,13 @@ export class LocalController implements BattleController {
     const c = this.clocks;
     if (!c || !c.running || this.state.result) return;
     const side = c.running;
-    this.flagTimer = setTimeout(() => {
-      this.chargeClock();
-      if (c[side] <= 0 && !this.state.result) this.commit({ kind: 'timeout', side });
-    }, Math.max(0, c[side]) + 5);
+    this.flagTimer = setTimeout(
+      () => {
+        this.chargeClock();
+        if (c[side] <= 0 && !this.state.result) this.commit({ kind: 'timeout', side });
+      },
+      Math.max(0, c[side]) + 5,
+    );
   }
 
   /** Apply one action and publish projected updates. */
@@ -151,8 +170,13 @@ export class LocalController implements BattleController {
     if (this.clocks) {
       this.chargeClock();
       const f = this.engine.caps.FORMATS[this.opts.format];
-      if (r.kind === 'done' && this.state.turn !== prevTurn && f) this.clocks[prevTurn] += f.clock.incrementMs;
-      this.clocks.running = this.state.result ? null : r.kind === 'needsChoice' ? r.request.chooser : this.state.turn;
+      if (r.kind === 'done' && this.state.turn !== prevTurn && f)
+        this.clocks[prevTurn] += f.clock.incrementMs;
+      this.clocks.running = this.state.result
+        ? null
+        : r.kind === 'needsChoice'
+          ? r.request.chooser
+          : this.state.turn;
       this.clocks.at = performance.now();
       this.armFlag();
     }
@@ -161,7 +185,11 @@ export class LocalController implements BattleController {
     let handoff: Side | null = null;
     if (this.controls.includes(next) && next !== this.viewer && !this.state.result) {
       this.viewer = next;
-      handoff = this.controls.length > 1 && (globalThis as { ctPassDevice?: boolean }).ctPassDevice !== false ? next : null;
+      handoff =
+        this.controls.length > 1 &&
+        (globalThis as { ctPassDevice?: boolean }).ctPassDevice !== false
+          ? next
+          : null;
     }
     const after = this.engine.project(this.state, this.viewer);
     const events = this.engine.projectEvents(this.state, r.events, this.viewer);

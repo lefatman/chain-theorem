@@ -9,11 +9,24 @@
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { CAPS, engine } from '@chain-theorem/content';
+import { CAPS, makeEngine } from '@chain-theorem/content';
+import type { SilenceScope } from '@chain-theorem/rules/sdk';
 import { beats, type ElementId, type FormatId, type Side } from '@chain-theorem/rules';
 import type { Tier } from '@chain-theorem/ai';
-import { ARCHETYPES, assertValid, buildLoadout, elementLoadout } from './builds.ts';
+import {
+  ARCHETYPES,
+  assertValid,
+  buildLoadout,
+  elementLoadout,
+  setPool,
+  type Pool,
+} from './builds.ts';
 import { playSim, type SimGame, type SimOutcome } from './play.ts';
+
+interface Options {
+  silence: SilenceScope;
+  pool: Pool;
+}
 
 interface Job {
   suite: 'elements' | 'archetypes';
@@ -34,7 +47,9 @@ function arg(name: string, def: string): string {
 }
 
 if (!isMainThread) {
-  const jobs = workerData as Job[];
+  const { jobs, options } = workerData as { jobs: Job[]; options: Options };
+  setPool(options.pool);
+  const engine = makeEngine({ SILENCE_SCOPE: options.silence });
   const done: Done[] = [];
   for (const j of jobs) {
     const out = playSim(engine, j.game);
@@ -57,6 +72,11 @@ if (!isMainThread) {
     Number(arg('workers', String(Math.max(1, availableParallelism() - 1)))),
   );
   const maxPlies = Number(arg('max-plies', '240'));
+  const options: Options = {
+    silence: arg('silence', CAPS.SILENCE_SCOPE) as SilenceScope,
+    pool: arg('pool', 'any') as Pool,
+  };
+  setPool(options.pool);
   const jobs: Job[] = [];
   let seed = seed0;
   const els = CAPS.ENABLED_ELEMENTS as readonly ElementId[];
@@ -126,7 +146,7 @@ if (!isMainThread) {
       (chunk) =>
         new Promise<void>((resolve, reject) => {
           const w = new Worker(new URL(import.meta.url), {
-            workerData: chunk,
+            workerData: { jobs: chunk, options },
             execArgv: ['--import', 'tsx'],
           });
           w.on('message', (m: { tick?: number; done?: Done[] }) => {
@@ -157,7 +177,7 @@ if (!isMainThread) {
   const lines: string[] = [];
   lines.push(`# Balance simulator report`, '');
   lines.push(
-    `Format ${format}, tier ${tier}, ${nodes} nodes per move, ${games} games per pairing, seeds from ${seed0}. Draws count as half a win.`,
+    `Format ${format}, tier ${tier}, ${nodes} nodes per move, ${games} games per pairing, seeds from ${seed0}, silenceScope ${options.silence}, ability pool ${options.pool}. Draws count as half a win.`,
     '',
   );
   const el = results.filter((r) => r.job.suite === 'elements');
@@ -263,10 +283,11 @@ if (!isMainThread) {
   );
   const md = lines.join('\n');
   mkdirSync('reports/sim', { recursive: true });
-  writeFileSync(`reports/sim/${format}-${tier}.md`, md + '\n');
+  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}`;
+  writeFileSync(`reports/sim/${tag}.md`, md + '\n');
   writeFileSync(
-    `reports/sim/${format}-${tier}.json`,
-    JSON.stringify({ format, tier, nodes, games, results }, null, 1),
+    `reports/sim/${tag}.json`,
+    JSON.stringify({ format, tier, nodes, games, options, results }, null, 1),
   );
   console.log(md);
 }
