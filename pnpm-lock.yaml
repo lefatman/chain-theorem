@@ -127,6 +127,13 @@ importers:
       '@chain-theorem/rules':
         specifier: workspace:*
         version: link:../../packages/rules
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20260925.1
+        version: 5.20260925.1
+      wrangler:
+        specifier: ^4.139.0
+        version: 4.139.0(@cloudflare/workers-types@5.20260925.1)(@types/node@22.20.4)
 
   packages/ai:
     dependencies:

@@ -7,12 +7,14 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
 
 (Top of file. Updated whenever a session ends mid-step.)
 
-- Current step: M4 (online battles): protocol package first, then db, server and online client.
+- Current step: M5 (overworld vertical slice).
 - Done so far: M0, M1, M2 (23 review findings fixed, DD-41..DD-55, 100k fuzz re-run green), M3
   (board scene, overlay, AI, simulator, Scenario Lab, e2e, budgets all passing), Playtest Gate 1
   report (designer questions open; the build continues per BUILD_PROMPT 6).
-- Next: M4 4.2 protocol schemas, 4.4 db package, 4.1/4.2/4.3 server, online client and the
-  two-browser e2e; then M5.
+- M4 complete: protocol, db (PostgreSQL/SQLite/D1), Worker with auth, BattleRoom and Matchmaker
+  Durable Objects, online client, drop-in art pipeline; `pnpm test:e2e:online` is the done-when.
+- Next: M5 5.1 Tiled maps and ZoneRoom, 5.2 encounters and rewards, 5.3 NPC trainers, quests and
+  the Chess Academy, 5.4 chat and social, 5.5 telemetry.
 
 ## Arcane Chess codebase path (step 2.8)
 
@@ -64,11 +66,11 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 
 ## M4 — Online battles
 
-- [ ] 4.1 Worker entry, passwordless email (console locally) and OAuth (when keys exist), sessions (R-SEC-006).
-- [ ] 4.2 `@chain-theorem/protocol` and BattleRoom: hibernating sockets, projection, alarm clocks, reconnect replay, prompts.
-- [ ] 4.3 Matchmaker DO: casual queues and challenge links.
-- [ ] 4.4 Database package: Kysely schema, migrations, repositories; SQLite/D1 local, PostgreSQL prod; logs to R2.
-- [ ] 4.5 18 creature sprite sets (procedural pixel sprites + drop-in pipeline; `assets/LICENSES.md`).
+- [x] 4.1 Worker entry, passwordless email (console locally) and OAuth (when keys exist), sessions (R-SEC-006).
+- [x] 4.2 `@chain-theorem/protocol` and BattleRoom: hibernating sockets, projection, alarm clocks, reconnect replay, prompts.
+- [x] 4.3 Matchmaker DO: casual queues and challenge links.
+- [x] 4.4 Database package: Kysely schema, migrations, repositories; SQLite/D1 local, PostgreSQL prod; logs to R2.
+- [x] 4.5 18 creature sprite sets (procedural pixel sprites + drop-in pipeline; `assets/LICENSES.md`).
 - Done when: two browsers complete timed battles with a mid-battle disconnect and reconnect; R-SEC-001 payload scan passes.
 
 ## M5 — Overworld vertical slice
@@ -117,6 +119,17 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-09-25 M4 done-when: `pnpm test:e2e:online` 1/1 (three consecutive runs): two browser contexts
+  against `wrangler dev` sign up by magic link, play a timed Full Battle from a challenge link, one
+  reloads mid-battle and rejoins (reconnect replay, the other sees the grace countdown), the battle
+  ends by resignation, and no WebSocket frame either browser received contains the other's
+  unrevealed ability id. "Different networks" is covered by separate browser contexts on one machine;
+  a two-machine run needs a deployed Worker (human-only).
+- 2026-09-25 M4 tests: `pnpm check` 982 unit tests (battle core 30 incl. a 48-battle sweep with 4,956
+  messages scanned, auth 9, pairing 4, protocol 13, NPC builds 3, online controller 4);
+  `pnpm test:db` 89 (SQLite and D1); `pnpm test:db:pg` 127/127 on a local PostgreSQL 16;
+  `pnpm test:workers` 7/7 inside workerd; `pnpm test:e2e` 19/19; CI green.
 
 - 2026-09-25 M3 budgets: `pnpm measure:client` 9 of 9 pass after on-demand board rendering (the Phaser
   loop sleeps while the board is still): initial JS 66.4 kB gzip, first playable 462.7 kB, minimum

@@ -10,8 +10,9 @@ which prerequisites are present and what is still missing.
    storage and the 20:1 WebSocket billing need it; spec 14.1).
 2. `pnpm --filter @chain-theorem/server exec wrangler login`.
 3. Create the R2 bucket for battle logs: `wrangler r2 bucket create chain-theorem-battle-logs`.
-4. Create the Analytics Engine dataset binding (declared in `apps/server/wrangler.jsonc` as
-   `TELEMETRY`); it is created on first deploy.
+4. Set your domain in `apps/server/wrangler.jsonc` under `env.production.vars.APP_ORIGIN` (replace
+   `https://REPLACE_WITH_YOUR_DOMAIN`); magic links and OAuth callbacks use it.
+5. Telemetry (M5) adds an Analytics Engine dataset binding; it is created on first deploy.
 
 ## 2. Neon PostgreSQL and Hyperdrive (step 0.4)
 
@@ -19,8 +20,9 @@ which prerequisites are present and what is still missing.
    major Neon offers. Copy the pooled connection string.
 2. Create the Hyperdrive configuration:
    `wrangler hyperdrive create chain-theorem-db --connection-string="postgres://USER:PASSWORD@HOST/DB?sslmode=require"`
-3. Put the returned id into `apps/server/wrangler.jsonc` under `hyperdrive[0].id` (replace
-   `REPLACE_WITH_HYPERDRIVE_ID`).
+3. Put the returned id into `apps/server/wrangler.jsonc` under `env.production.hyperdrive[0].id`
+   (replace `REPLACE_WITH_HYPERDRIVE_ID`). Production sets `DB_KIND=postgres`; local development and
+   the Worker tests use D1 (`DB_KIND=d1`), which the Worker migrates on first use.
 4. Pull-request previews: create a Neon branch of the staging database per PR and a Hyperdrive config
    pointing at it (or use the Neon GitHub integration).
 
@@ -29,24 +31,26 @@ which prerequisites are present and what is still missing.
 Migrations are forward-only and identical on SQLite and PostgreSQL (spec 13.6).
 
 ```sh
-DATABASE_URL="postgres://…" pnpm --filter @chain-theorem/tools exec tsx src/db/migrate.ts
+DATABASE_URL="postgres://…" pnpm db:migrate
 ```
 
-CI runs every migration on SQLite and on a PostgreSQL service container before merge.
+Run it before each deploy that adds a migration (it is idempotent; `db:migrate: up to date` means
+nothing to do). CI runs every migration on SQLite, D1 and a PostgreSQL service container before
+merge (`pnpm test:db`, `pnpm test:db:pg`).
 
 ## 4. Secrets
 
 Every variable is documented in `apps/server/.dev.vars.example`. In production set them with
 `wrangler secret put <NAME>` (never commit them; R-SEC-009):
 
-| Secret                                                                        | Purpose                                                                 |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `SESSION_SECRET`                                                              | HMAC key for session cookies and 60-second WebSocket tokens (R-SEC-006) |
-| `MAIL_API_KEY`, `MAIL_FROM`                                                   | transactional email provider for magic links                            |
-| `OAUTH_GOOGLE_ID/SECRET`, `OAUTH_GITHUB_ID/SECRET`, `OAUTH_DISCORD_ID/SECRET` | optional OAuth                                                          |
-| `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_ENV`                       | billing (sandbox first)                                                 |
-| `PADDLE_PRICE_MONTHLY/QUARTERLY/YEARLY`                                       | Paddle price ids                                                        |
-| `ADMIN_EMAILS`                                                                | comma-separated admin console allow-list                                |
+| Secret                                                                           | Purpose                                                                                                             |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `AUTH_SECRET`                                                                    | HMAC key for 60-second WebSocket tickets and OAuth state (R-SEC-006); 32+ random bytes, e.g. `openssl rand -hex 32` |
+| `MAIL_ENDPOINT`, `MAIL_API_KEY`, `MAIL_FROM`                                     | transactional email provider for magic links (a JSON `send` endpoint with bearer auth)                              |
+| `GITHUB_CLIENT_ID/SECRET`, `GOOGLE_CLIENT_ID/SECRET`, `DISCORD_CLIENT_ID/SECRET` | optional OAuth; the callback URL is `https://<domain>/api/auth/oauth/<provider>/callback`                           |
+| `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_ENV`                          | billing (sandbox first)                                                                                             |
+| `PADDLE_PRICE_MONTHLY/QUARTERLY/YEARLY`                                          | Paddle price ids                                                                                                    |
+| `ADMIN_EMAILS`                                                                   | comma-separated admin console allow-list                                                                            |
 
 ## 5. Paddle Billing
 
@@ -60,9 +64,10 @@ Every variable is documented in `apps/server/.dev.vars.example`. In production s
 ## 6. Deploy
 
 ```sh
-pnpm check && pnpm test:workers && pnpm test:e2e
+pnpm check && pnpm test:db && pnpm test:workers && pnpm test:e2e && pnpm test:e2e:online
+DATABASE_URL="postgres://…" pnpm db:migrate
 pnpm --filter @chain-theorem/client build
-pnpm --filter @chain-theorem/server exec wrangler deploy
+pnpm --filter @chain-theorem/server exec wrangler deploy --env production
 ```
 
 GitHub Actions runs the same checks on every pull request; add a deploy job with a

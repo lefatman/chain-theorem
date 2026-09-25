@@ -22,7 +22,12 @@ if (!existsSync(devVars)) {
 
 const children: ChildProcess[] = [];
 function start(name: string, args: string[]): void {
-  const child = spawn('pnpm', args, { cwd: root, stdio: 'inherit', env: process.env });
+  const child = spawn('pnpm', args, {
+    cwd: root,
+    stdio: 'inherit',
+    // No wrangler telemetry from local development.
+    env: { ...process.env, WRANGLER_SEND_METRICS: 'false' },
+  });
   child.on('exit', (code) => {
     console.log(`dev: ${name} exited with ${code}; stopping`);
     for (const c of children) if (c !== child) c.kill('SIGTERM');

@@ -29,6 +29,7 @@
     "test:load": "tsx apps/tools/src/load/cli.ts",
     "sim": "tsx apps/tools/src/sim/cli.ts",
     "seed": "tsx apps/tools/src/seed/cli.ts",
+    "db:migrate": "tsx apps/tools/src/db/migrate.ts",
     "dev": "tsx scripts/dev.ts",
     "content:new": "tsx apps/tools/src/content/new.ts",
     "content:index": "tsx apps/tools/src/content/index-gen.ts",

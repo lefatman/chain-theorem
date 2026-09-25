@@ -59,7 +59,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       cwd: ROOT,
       stdio: ['ignore', out, out],
       detached: true,
-      env: { ...process.env, NO_COLOR: '1' },
+      env: { ...process.env, NO_COLOR: '1', WRANGLER_SEND_METRICS: 'false' },
     },
   );
   await waitUp(`${origin}/api/me`, 120_000);
