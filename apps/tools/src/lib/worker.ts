@@ -4,7 +4,7 @@
  * through the real REST flow. Used by the load test (and usable by other tools).
  */
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync, openSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, openSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -29,8 +29,12 @@ async function freePort(): Promise<number> {
   });
 }
 
-export async function startWorker(opts: { build?: boolean } = {}): Promise<LocalWorker> {
+export async function startWorker(
+  opts: { build?: boolean; vars?: Record<string, string> } = {},
+): Promise<LocalWorker> {
   const port = await freePort();
+  // wrangler serves the client build as static assets; the folder must exist even when unbuilt.
+  mkdirSync(join(ROOT, 'apps/client/dist'), { recursive: true });
   const dir = mkdtempSync(join(tmpdir(), 'ct-worker-'));
   const log = join(dir, 'worker.log');
   const out = openSync(log, 'a');
@@ -63,6 +67,7 @@ export async function startWorker(opts: { build?: boolean } = {}): Promise<Local
       'AUTH_SECRET:local-tool-secret-0123456789abcdef0123456789abcdef',
       '--var',
       'MAIL_MODE:console',
+      ...Object.entries(opts.vars ?? {}).flatMap(([k, v]) => ['--var', `${k}:${v}`]),
     ],
     {
       cwd: ROOT,

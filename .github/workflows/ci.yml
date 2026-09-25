@@ -106,6 +106,20 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:workers
 
+  load:
+    name: load (50 bots in one zone, cost guardrail)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # M5 done-when: 50 simulated clients in one zone stay inside the 14.2 guardrail.
+      - run: pnpm test:load
+
   e2e:
     name: end to end (Playwright)
     runs-on: ubuntu-latest
