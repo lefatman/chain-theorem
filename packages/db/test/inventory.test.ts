@@ -140,7 +140,14 @@ describe.each(ENGINES)('inventory, atomic lists and rewards on $name', (engine) 
           id: first.status === 'granted' ? first.grant.id : '',
           key: grant.key,
           playerId: p.id,
-          payload: { items: grant.items, cards: grant.cards, xp: 40 },
+          payload: {
+            items: grant.items,
+            cards: grant.cards,
+            xp: 40,
+            coins: 0,
+            keyItems: [],
+            flags: [],
+          },
           at: grant.at,
         });
       });

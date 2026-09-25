@@ -7,10 +7,11 @@
 import type { CompiledQuery } from 'kysely';
 import type { Db } from './db.ts';
 import { m0001Initial } from './migrations/0001_initial.ts';
+import { m0002World } from './migrations/0002_world.ts';
 import { columnTypes, type Migration } from './migrations/types.ts';
 
 /** All migrations in order. Append only; never edit or reorder an applied migration. */
-export const MIGRATIONS: readonly Migration[] = [m0001Initial];
+export const MIGRATIONS: readonly Migration[] = [m0001Initial, m0002World];
 
 /** Applied migration ids, or null when the ledger table does not exist (yet). */
 async function readLedger(db: Db): Promise<Set<string> | null> {

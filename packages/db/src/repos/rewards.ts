@@ -11,6 +11,7 @@ import type { RepoContext } from '../db-types.ts';
 import { RewardPayload } from '../json.ts';
 import type { RewardGrantsTable } from '../schema.ts';
 import { inventoryRepo } from './inventory.ts';
+import { worldRepo } from './world.ts';
 
 export interface RewardGrant {
   id: string;
@@ -27,6 +28,12 @@ export interface RewardGrantInput {
   items?: { itemId: string; qty: number }[];
   cards?: { abilityId: string; qty: number }[];
   xp?: number;
+  /** Soft currency (10.5). */
+  coins?: number;
+  /** Key items (10.2); owning one twice is a no-op. */
+  keyItems?: string[];
+  /** Progress flags to set in the same atomic list (a lesson done, a trainer defeated). */
+  flags?: string[];
   at?: number;
 }
 
@@ -49,12 +56,20 @@ export function toRewardGrant(
 export function rewardRepo(ctx: RepoContext) {
   const { kysely: k } = ctx;
   const inventory = inventoryRepo(ctx);
+  const world = worldRepo(ctx);
 
   function build(input: RewardGrantInput): { grant: RewardGrant; statements: CompiledQuery[] } {
     if (input.key.length === 0 || input.key.length > 200)
       throw new RangeError('reward key must be 1..200 chars');
     const at = input.at ?? ctx.now();
-    const payload = RewardPayload.parse({ items: input.items, cards: input.cards, xp: input.xp });
+    const payload = RewardPayload.parse({
+      items: input.items,
+      cards: input.cards,
+      xp: input.xp,
+      coins: input.coins,
+      keyItems: input.keyItems,
+      flags: input.flags,
+    });
     const grant: RewardGrant = {
       id: uuidv7(at),
       key: input.key,
@@ -80,6 +95,11 @@ export function rewardRepo(ctx: RepoContext) {
         inventory.grantStatement(input.playerId, 'card', c.abilityId, c.qty),
       ),
     ];
+    if (payload.coins > 0) statements.push(world.addCoinsStatement(input.playerId, payload.coins));
+    for (const key of payload.keyItems)
+      statements.push(world.keyItemStatement(input.playerId, key, at));
+    for (const flag of payload.flags)
+      statements.push(world.flagStatement(input.playerId, flag, at));
     if (payload.xp > 0) {
       statements.push(
         k

@@ -40,6 +40,9 @@ export type ItemBundle = z.infer<typeof ItemBundle>;
 /** What one reward grant gave (R-SEC-003). */
 export const RewardPayload = ItemBundle.extend({
   xp: z.number().int().min(0).max(1_000_000).default(0),
+  coins: z.number().int().min(0).max(1_000_000).default(0),
+  keyItems: z.array(ContentId).max(16).default([]),
+  flags: z.array(z.string().min(1).max(120)).max(16).default([]),
 });
 export type RewardPayload = z.infer<typeof RewardPayload>;
 

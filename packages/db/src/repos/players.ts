@@ -68,6 +68,10 @@ export interface PlayerExport {
   quests: { questId: string; step: number; data: JsonObject; updatedAt: number }[];
   rewardGrants: RewardGrant[];
   auditLog: AuditEntry[];
+  coins: number;
+  keyItems: { keyId: string; acquiredAt: number }[];
+  progressFlags: { flag: string; at: number }[];
+  partyId: string | null;
 }
 
 export function normalizeEmail(email: string): string {
@@ -304,6 +308,22 @@ export function playerRepo(ctx: RepoContext) {
           .execute(),
         k.selectFrom('audit_log').selectAll().where('player_id', '=', id).orderBy('id').execute(),
       ]);
+      const [wallet, keyItems, flags, membership] = await Promise.all([
+        k.selectFrom('wallets').select('coins').where('player_id', '=', id).executeTakeFirst(),
+        k
+          .selectFrom('key_items')
+          .selectAll()
+          .where('player_id', '=', id)
+          .orderBy('key_id')
+          .execute(),
+        k
+          .selectFrom('progress_flags')
+          .selectAll()
+          .where('player_id', '=', id)
+          .orderBy('flag')
+          .execute(),
+        k.selectFrom('party_members').selectAll().where('player_id', '=', id).executeTakeFirst(),
+      ]);
       const battleIds = battles.map((b) => b.id);
       const wagers =
         battleIds.length === 0
@@ -370,6 +390,10 @@ export function playerRepo(ctx: RepoContext) {
           updatedAt: q.updated_at,
         })),
         rewardGrants: grants.map((g) => toRewardGrant(ctx, g)),
+        coins: wallet?.coins ?? 0,
+        keyItems: keyItems.map((r) => ({ keyId: r.key_id, acquiredAt: r.acquired_at })),
+        progressFlags: flags.map((f) => ({ flag: f.flag, at: f.at })),
+        partyId: membership?.party_id ?? null,
         auditLog: audit.map((a) => ({
           id: a.id,
           playerId: a.player_id,
@@ -403,10 +427,22 @@ export function playerRepo(ctx: RepoContext) {
         'quest_progress',
         'reward_grants',
         'audit_log',
+        'wallets',
+        'key_items',
+        'progress_flags',
+        'party_members',
       ] as const;
       const statements: CompiledQuery[] = [
         ...byPlayer.map((t) => k.deleteFrom(t).where('player_id', '=', id).compile()),
         k.deleteFrom('login_tokens').where('email', '=', player.email).compile(),
+        // A party this player leads dissolves (its other members leave it).
+        k
+          .deleteFrom('party_members')
+          .where('party_id', 'in', (eb) =>
+            eb.selectFrom('parties').select('id').where('leader_id', '=', id),
+          )
+          .compile(),
+        k.deleteFrom('parties').where('leader_id', '=', id).compile(),
         k
           .deleteFrom('friends')
           .where((eb) => eb.or([eb('a_id', '=', id), eb('b_id', '=', id)]))

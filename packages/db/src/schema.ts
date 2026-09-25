@@ -35,6 +35,11 @@ export interface PlayersTable {
   /** The instant the account turns 18 (epoch ms). The only age data stored (R-SEC-011). */
   adult_from: number;
   created_at: number;
+  /** Zone the player is online in (null when offline); presence for friends (10.4). */
+  presence_zone: string | null;
+  presence_channel: number | null;
+  /** 1 when an adult turned chat filtering on for themselves (R-SEC-011). */
+  filter_chat: Generated<number>;
 }
 
 export interface SessionsTable {
@@ -185,6 +190,40 @@ export interface RewardGrantsTable {
   at: number;
 }
 
+export interface WalletsTable {
+  player_id: string;
+  /** Soft currency (10.5); CHECK (coins >= 0). */
+  coins: Generated<number>;
+}
+
+export interface KeyItemsTable {
+  player_id: string;
+  key_id: string;
+  acquired_at: number;
+}
+
+export interface ProgressFlagsTable {
+  player_id: string;
+  /** `lesson:<id>`, `npc:<id>` (a once-only trainer defeated), ... */
+  flag: string;
+  at: number;
+}
+
+export interface PartiesTable {
+  id: string;
+  leader_id: string;
+  /** CHECK (size <= 4) enforces the party cap inside each join (DD-15). */
+  size: Generated<number>;
+  created_at: number;
+}
+
+export interface PartyMembersTable {
+  /** One party per player. */
+  player_id: string;
+  party_id: string;
+  joined_at: number;
+}
+
 export interface Schema {
   schema_migrations: SchemaMigrationsTable;
   players: PlayersTable;
@@ -204,6 +243,11 @@ export interface Schema {
   quest_progress: QuestProgressTable;
   audit_log: AuditLogTable;
   reward_grants: RewardGrantsTable;
+  wallets: WalletsTable;
+  key_items: KeyItemsTable;
+  progress_flags: ProgressFlagsTable;
+  parties: PartiesTable;
+  party_members: PartyMembersTable;
 }
 
 /** Every table of spec 13.3 plus the auth and reward tables, in creation order. */
@@ -225,4 +269,9 @@ export const TABLES = [
   'quest_progress',
   'audit_log',
   'reward_grants',
+  'wallets',
+  'key_items',
+  'progress_flags',
+  'parties',
+  'party_members',
 ] as const satisfies readonly (keyof Schema)[];

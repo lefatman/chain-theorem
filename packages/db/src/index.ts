@@ -56,3 +56,11 @@ export type {
 } from './repos/rewards.ts';
 export type { Session, SessionRepo } from './repos/sessions.ts';
 export type { Wager, WagerRepo, WagerStatus } from './repos/wagers.ts';
+export type { QuestRow, WorldRepo } from './repos/world.ts';
+export {
+  PARTY_MAX,
+  type FriendView,
+  type Party,
+  type PartyMember,
+  type SocialRepo,
+} from './repos/social.ts';

@@ -19,6 +19,8 @@ import { ratingRepo } from './repos/ratings.ts';
 import { rewardRepo } from './repos/rewards.ts';
 import { sessionRepo } from './repos/sessions.ts';
 import { wagerRepo } from './repos/wagers.ts';
+import { worldRepo } from './repos/world.ts';
+import { socialRepo } from './repos/social.ts';
 
 export interface CreateDbOptions {
   /** Clock for created/updated timestamps (epoch ms). Defaults to `Date.now`. */
@@ -91,6 +93,8 @@ export function createDb(
     wagers: wagerRepo(ctx),
     rewards: rewardRepo(ctx),
     audit: auditRepo(ctx),
+    world: worldRepo(ctx),
+    social: socialRepo(ctx),
     /** Closes the pool or database handle. */
     async destroy(): Promise<void> {
       await kysely.destroy();

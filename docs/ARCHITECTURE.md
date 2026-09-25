@@ -569,24 +569,28 @@ export interface Db {
   wagers: WagerRepo;
   rewards: RewardRepo;
   audit: AuditRepo;
+  world: WorldRepo; // M5: coins, key items, progress flags, quests, positions, presence, chat filter
+  social: SocialRepo; // M5: friends, parties
   destroy(): Promise<void>;
 }
 export function migrate(db: Db): Promise<string[]>; // ids applied by this call; [] when up to date
 ```
 
-| Repository      | Methods (M4)                                                                                                                                                                                                                                     |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `players`       | `create({ email, displayName, adultFrom })`, `getById`, `getByEmail`, `rename`, `addXp(id, delta, levelForXp?)`, `syncLevel(id, levelForXp)` (level only rises), `addXpStatement`, `exportData(id)`, `delete(id)` (R-SEC-010)                    |
-| `sessions`      | `create(playerId, { ttlMs })` returns the raw 32-byte token once and stores its SHA-256, `getValid(token, now)`, `delete(token)`, `deleteForPlayer`, `deleteExpired(now)` (R-SEC-006)                                                            |
-| `loginTokens`   | `issue({ email, purpose, ttlMs, data? })` (magic link; hashed; `data` carries display name, `adultFrom` and a pending `oauth` identity), `consume(token, now, purpose?)` exactly once, `countIssuedSince(email, since)`, `deleteExpired(now)`    |
-| `oauthAccounts` | `link(playerId, provider, providerUserId)` (false if already linked), `findPlayerId(provider, providerUserId)`, `listForPlayer`                                                                                                                  |
-| `inventory`     | `list(playerId)`, `qty`, `grant(playerId, 'item' \| 'card', id, qty)`, `spend(...)` (conditional, boolean), `grantStatement`, `spendStatements` (for atomic lists)                                                                               |
-| `loadouts`      | `list(playerId)`, `get(playerId, id)`, `count`, `save(playerId, { id?, name, loadout, isValid })` (null if the id is not the player's), `setValid`, `delete(playerId, id)`                                                                       |
-| `battles`       | `create({ id?, format, whiteId, blackId })` (result null; `id` may be any 1..128 char string, e.g. `c-<code>`), `get`, `finish(id, { result, reason, endedAt, logKey })` (once), `finishStatement`, `listRecentForPlayer`, `listActiveForPlayer` |
-| `wagers`        | `create({ battleId, whiteStake, blackStake, status? })`, `get`, `getByBattle` (escrow and settlement: M6)                                                                                                                                        |
-| `rewards`       | `grant({ key, playerId, items?, cards?, xp? })` returns `granted` or `duplicate`, `grantStatements` (to compose with `finishStatement`), `get(key, playerId)`                                                                                    |
-| `ratings`       | `get(playerId, format, bracket)`, `listForPlayer`, `upsert(...)` (Glicko-2 update: M6)                                                                                                                                                           |
-| `audit`         | `append({ playerId, kind, payload })`, `appendStatement`, `listForPlayer`                                                                                                                                                                        |
+| Repository      | Methods (M4)                                                                                                                                                                                                                                                                |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `players`       | `create({ email, displayName, adultFrom })`, `getById`, `getByEmail`, `rename`, `addXp(id, delta, levelForXp?)`, `syncLevel(id, levelForXp)` (level only rises), `addXpStatement`, `exportData(id)`, `delete(id)` (R-SEC-010)                                               |
+| `sessions`      | `create(playerId, { ttlMs })` returns the raw 32-byte token once and stores its SHA-256, `getValid(token, now)`, `delete(token)`, `deleteForPlayer`, `deleteExpired(now)` (R-SEC-006)                                                                                       |
+| `loginTokens`   | `issue({ email, purpose, ttlMs, data? })` (magic link; hashed; `data` carries display name, `adultFrom` and a pending `oauth` identity), `consume(token, now, purpose?)` exactly once, `countIssuedSince(email, since)`, `deleteExpired(now)`                               |
+| `oauthAccounts` | `link(playerId, provider, providerUserId)` (false if already linked), `findPlayerId(provider, providerUserId)`, `listForPlayer`                                                                                                                                             |
+| `inventory`     | `list(playerId)`, `qty`, `grant(playerId, 'item' \| 'card', id, qty)`, `spend(...)` (conditional, boolean), `grantStatement`, `spendStatements` (for atomic lists)                                                                                                          |
+| `loadouts`      | `list(playerId)`, `get(playerId, id)`, `count`, `save(playerId, { id?, name, loadout, isValid })` (null if the id is not the player's), `setValid`, `delete(playerId, id)`                                                                                                  |
+| `battles`       | `create({ id?, format, whiteId, blackId })` (result null; `id` may be any 1..128 char string, e.g. `c-<code>`), `get`, `finish(id, { result, reason, endedAt, logKey })` (once), `finishStatement`, `listRecentForPlayer`, `listActiveForPlayer`                            |
+| `wagers`        | `create({ battleId, whiteStake, blackStake, status? })`, `get`, `getByBattle` (escrow and settlement: M6)                                                                                                                                                                   |
+| `rewards`       | `grant({ key, playerId, items?, cards?, xp?, coins?, keyItems?, flags? })` returns `granted` or `duplicate`, `grantStatements` (to compose with `finishStatement`), `get(key, playerId)`                                                                                    |
+| `world`         | `coins`, `addCoinsStatement`, `spendCoins` (conditional), `keyItems`, `keyItemStatement`, `flags`, `flagStatement`, `setFlag`, `quests`, `questStatement`, `setQuest`, `setPosition`, `setPresence`, `presence`, `filterChat`, `setFilterChat`, `setLevel` (migration 0002) |
+| `social`        | `requestFriend` (a mutual request makes friends), `removeFriend`, `areFriends`, `friendIds`, `friends` (with presence for friends), `createParty`, `joinParty` (race-safe cap of 4 by `CHECK (size <= 4)`), `leaveParty`, `party`, `partyOf`                                |
+| `ratings`       | `get(playerId, format, bracket)`, `listForPlayer`, `upsert(...)` (Glicko-2 update: M6)                                                                                                                                                                                      |
+| `audit`         | `append({ playerId, kind, payload })`, `appendStatement`, `listForPlayer`                                                                                                                                                                                                   |
 
 Later milestones add repositories for guilds, trades, friends, quests, billing, social and tournaments; the
 guild, guild member, trade, friend and quest progress tables already exist.
