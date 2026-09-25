@@ -322,6 +322,34 @@ describe('quests through the zone (R-WORLD-005)', () => {
     expect(route.problems).toEqual([]);
   });
 
+  it('R-WORLD-005 accepting a quest completes a leading talk step to its giver', () => {
+    const base = fixtureWorld();
+    const world = {
+      ...base,
+      quests: base.quests.map((q) =>
+        q.id === 'first-steps'
+          ? {
+              ...q,
+              steps: [
+                { kind: 'talk' as const, npc: 'elder', text: 'Hear the Elder out.' },
+                ...q.steps,
+              ],
+            }
+          : q,
+      ),
+    };
+    h = Harness.of(world);
+    h.enter(player('a', { x: 7, y: 2, dir: 's' }));
+    h.send('a', 'interact', { npc: 'elder' });
+    const out = h.send('a', 'choose', { npc: 'elder', option: 'quest:first-steps' });
+    expect(effects(out, 'quest').at(-1)?.quest).toEqual({
+      id: 'first-steps',
+      step: 1,
+      done: false,
+    });
+    expect(msgs(out, 'a', 'quest').at(-1)?.d.text).toBe('Talk to Pip.');
+  });
+
   it('R-WORLD-005 a reach step completes on arrival in the area; a finished quest is not offered', () => {
     h = Harness.of();
     const out = h.enter(

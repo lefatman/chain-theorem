@@ -29,6 +29,17 @@ describe('NPC loadouts (R-FMT-005)', () => {
     expect(npcBuild('trainer', 5, 2).name).toMatch(/^Trainer (Ember|Tide|Grove) NPC$/);
   });
 
+  it('R-FMT-005 R-WORLD-002 a wild encounter entry fixes the army element; a disabled one falls back to the seed', () => {
+    for (const element of ['ember', 'tide', 'grove'] as const) {
+      for (let level = 1; level <= 30; level += 7) {
+        const b = npcBuild('wild', level, 5, element);
+        expect(b.loadout.elements).toEqual([element]);
+        expect(engine.validateLoadout(b.loadout, { level: b.level }).errors).toEqual([]);
+      }
+    }
+    expect(npcBuild('wild', 3, 5, 'frost')).toEqual(npcBuild('wild', 3, 5));
+  });
+
   it('R-FMT-005 the build is deterministic per seed', () => {
     expect(npcBuild('trainer', 12, 7)).toEqual(npcBuild('trainer', 12, 7));
   });

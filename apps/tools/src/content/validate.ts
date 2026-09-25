@@ -2,13 +2,15 @@
  * `pnpm content:validate` (13.5): checks every module — unique id matching its file name, minLevel
  * within 1..LEVEL_CAP, slotCost within the caps, known tags, affinities and piece types, rules text
  * present, effects that match their tags with at most one bonus action (INV-01), and at least one
- * scenario test next to the module. Also checks the registry is current.
+ * scenario test next to the module. Also checks the registry is current and the world content
+ * (maps, warps, NPCs, lessons, quests, rewards, loadouts; 10.1-10.5) with `validateWorld`.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ELEMENTS, PIECE_TYPES } from '@chain-theorem/rules';
 import type { AbilityDef, EffectSpec } from '@chain-theorem/rules/sdk';
 import { CAPS, abilities, items, traits } from '@chain-theorem/content';
+import { validateWorld, world } from '@chain-theorem/content/world';
 import { generate, moduleIds } from './index-gen.ts';
 
 const ROOT = new URL('../../../../', import.meta.url).pathname;
@@ -154,6 +156,7 @@ export function validateContent(): string[] {
   if (!existsSync(registryFile) || readFileSync(registryFile, 'utf8') !== generate()) {
     err('registry.generated.ts', 'stale: run pnpm content:index');
   }
+  for (const problem of validateWorld(world)) errors.push(`world ${problem}`);
   return errors;
 }
 
@@ -165,6 +168,8 @@ if (process.argv[1]?.endsWith('validate.ts')) {
     process.exit(1);
   }
   console.log(
-    `content:validate ok: ${abilities.length} abilities, ${items.length} items, ${traits.length} traits`,
+    `content:validate ok: ${abilities.length} abilities, ${items.length} items, ${traits.length} traits; ` +
+      `world: ${world.zones.length} zones, ${world.npcs.length} NPCs, ${world.lessons.length} lessons, ` +
+      `${world.quests.length} quests, ${world.keyItems.length} key items`,
   );
 }

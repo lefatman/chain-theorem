@@ -65,20 +65,27 @@ function fill(element: ElementId, level: number, capacity: number): string[] {
 }
 
 /**
- * A legal loadout for an NPC of `tier` at `level` (1..LEVEL_CAP). `seed` picks the element. Throws
- * only if the catalogue cannot produce a legal loadout at all (a content bug).
+ * A legal loadout for an NPC of `tier` at `level` (1..LEVEL_CAP). `seed` picks the element unless
+ * `element` names an enabled one (a wild encounter entry's army, 10.2). Throws only if the catalogue
+ * cannot produce a legal loadout at all (a content bug).
  */
-export function npcBuild(tier: NpcTier, level: number, seed: number): NpcBuild {
+export function npcBuild(
+  tier: NpcTier,
+  level: number,
+  seed: number,
+  element?: ElementId,
+): NpcBuild {
   const lvl = Math.max(1, Math.min(CAPS.LEVEL_CAP, Math.floor(level)));
-  const element = pickElement(seed);
+  const enabled = CAPS.ENABLED_ELEMENTS as readonly ElementId[];
+  const el = element && enabled.includes(element) ? element : pickElement(seed);
   const slots = CAPS.itemSlots(lvl);
   let loadout: Loadout;
   if (tier === 'wild') {
     // 1–2 abilities (9.4): a Dual Adept's Glove when it fits, else one ability.
     const glove = items.find((i) => i.id === 'dual_adepts_glove' && i.minLevel <= lvl);
     loadout = glove
-      ? { elements: [element], items: [glove.id], sets: [fill(element, lvl, 2)] }
-      : { elements: [element], items: [], sets: [fill(element, lvl, 1)] };
+      ? { elements: [el], items: [glove.id], sets: [fill(el, lvl, 2)] }
+      : { elements: [el], items: [], sets: [fill(el, lvl, 1)] };
   } else {
     // Trainer: themed around one element with the best capacity item; Elite also adds utility items.
     const cap = capacityItem(lvl, slots);
@@ -94,15 +101,15 @@ export function npcBuild(tier: NpcTier, level: number, seed: number): NpcBuild {
       }
     }
     loadout = {
-      elements: [element],
+      elements: [el],
       items: chosen,
-      sets: [fill(element, lvl, cap?.capacity ?? 1)],
+      sets: [fill(el, lvl, cap?.capacity ?? 1)],
     };
   }
   const v = engine.validateLoadout(loadout, { level: lvl });
   if (!v.ok) throw new Error(`npcBuild produced an illegal loadout: ${JSON.stringify(v.errors)}`);
   return {
-    name: `${TIER_NAME[tier]} ${ELEMENT_NAME[element] ?? element} NPC`,
+    name: `${TIER_NAME[tier]} ${ELEMENT_NAME[el] ?? el} NPC`,
     level: lvl,
     loadout,
   };

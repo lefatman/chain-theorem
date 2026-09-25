@@ -807,7 +807,9 @@ export class ZoneCore {
         p.quests = r.list;
         this.questUpdate(p, r.update);
         this.out.save = true;
-        this.questEvent(p, null, t);
+        // Accepting from the giver is also talking to them: a leading `talk` step to this NPC
+        // completes at once (DD-72), so the player is not sent back to the NPC they just spoke to.
+        this.questEvent(p, { kind: 'talk', npc: npcId }, t);
         return true;
       }
     }
