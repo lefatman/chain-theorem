@@ -99,11 +99,18 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 
 ## Release checklist (spec 17.3)
 
-- [ ] All INVARIANT requirements have passing tests.
-- [ ] R-SEC-001 payload scan passes across 10,000 fuzzed battles.
-- [ ] Balance targets met in simulator (closed beta is human-only).
-- [ ] Measured infrastructure cost ≤ $0.10 per subscriber per month.
-- [ ] The designer has reviewed the delegated decisions log (section 18) — human-only.
+- [x] All INVARIANT requirements have passing tests (`pnpm req:coverage`: all 83 requirement IDs,
+      11 of them INVARIANT, have named tests; every suite green).
+- [ ] R-SEC-001 payload scan passes across 10,000 fuzzed battles (`pnpm test:fuzz:full` scans 10,000
+      of 100,000 games for players and spectators; a separate 20,000-game run scanned all of them).
+- [ ] Balance targets met in simulator (closed beta is human-only). Partly: White win rate and Full
+      Battle surprise losses meet 17.2; the advantaged-element rate (64% First Blood, 73% Full
+      against 55–60%), First Blood surprise losses and the Focused build do not. The fixes are
+      kit-level design calls: five questions in `docs/BALANCE_M7.md` section 5 (and Playtest Gate 1).
+- [x] Measured infrastructure cost ≤ $0.10 per subscriber per month (`pnpm test:load`: $0.0305
+      from bot traffic, $0.0149 from server telemetry, per heavy subscriber-month; re-measure in
+      production from the cost dashboard, R-COST-003).
+- [ ] The designer has reviewed the delegated decisions log (section 18, DD-01..DD-95) — human-only.
 
 ## Human-only items
 
