@@ -27,6 +27,7 @@
     "test:e2e:online": "pnpm --filter @chain-theorem/client test:e2e:online",
     "measure:client": "tsx scripts/measure-client.ts",
     "test:load": "tsx apps/tools/src/load/cli.ts",
+    "test:firstwin": "tsx apps/tools/src/firstwin/cli.ts",
     "sim": "tsx apps/tools/src/sim/cli.ts",
     "seed": "tsx apps/tools/src/seed/cli.ts",
     "db:migrate": "tsx apps/tools/src/db/migrate.ts",

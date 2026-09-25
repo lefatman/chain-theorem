@@ -107,7 +107,7 @@ jobs:
       - run: pnpm test:workers
 
   load:
-    name: load (50 bots in one zone, cost guardrail)
+    name: load and first win (M5 done-when)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -119,6 +119,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # M5 done-when: 50 simulated clients in one zone stay inside the 14.2 guardrail.
       - run: pnpm test:load
+      # M5 done-when: a new account reaches its first win within 30 minutes of play.
+      - run: pnpm test:firstwin
 
   e2e:
     name: end to end (Playwright)
