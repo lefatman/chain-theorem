@@ -228,6 +228,21 @@ describe('flow (R-ELEM-006)', () => {
     );
   });
 
+  it('R-ELEM-006 an attack through an ally pins: a Tide rook behind its own pawn pins the enemy bishop to its king', () => {
+    const fen = 'r6k/p7/8/8/B7/8/8/K7 w - - 0 1';
+    const tide = setup({ fen, white: { elements: ['neutral'] }, black: { elements: ['tide'] } });
+    expect(tide.state.inCheck).toBeNull();
+    expect(sorted(legal(tide.engine, tide.state, 'white'))).toEqual(['a1a2', 'a1b1', 'a1b2']);
+    const plain = setup({
+      fen,
+      white: { elements: ['neutral'] },
+      black: { elements: ['neutral'] },
+    });
+    expect(dests(plain.engine, plain.state, 'white', 'a4')).toEqual(
+      sorted(['b5', 'c6', 'd7', 'e8', 'b3', 'c2', 'd1']),
+    );
+  });
+
   it('R-ELEM-006 a check through an ally can be blocked by an enemy piece, because Flow never passes enemies', () => {
     // Black Tide rook a8 checks the white king a1 through its own a7 pawn.
     const s = setup({

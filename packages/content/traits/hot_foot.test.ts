@@ -119,6 +119,29 @@ describe('hot_foot (R-ELEM-005)', () => {
     expect(quiet.steps.flatMap((s) => eventsOf(s.events, 'SquareIgnited'))).toEqual([]);
   });
 
+  it('R-ELEM-005 an Ember pawn capturing en passant leaves the pending burn on its landing square', () => {
+    const w = walk(
+      {
+        fen: '4k3/3p4/8/4P3/8/8/8/4K3 b - - 0 1',
+        white: { elements: ['ember'] },
+        black: { elements: ['neutral'] },
+      },
+      ['d7d5', 'e5d6', 'e8f7', 'd6d7'],
+    );
+    const pawn = idAt(w.states[0] as GameState, 'e5');
+    expect(eventsOf((w.steps[1] as ScenarioStep).events, 'MoveMade')).toEqual([
+      expect.objectContaining({ to: sq('d6'), capture: true, enPassant: true }),
+    ]);
+    expect(hot(w.states[2] as GameState)).toEqual({
+      burning: [],
+      pending: [{ piece: pawn, sq: sq('d6') }],
+    });
+    expect(eventsOf((w.steps[3] as ScenarioStep).events, 'SquareIgnited')).toEqual([
+      expect.objectContaining({ square: sq('d6'), side: 'white', turns: 3 }),
+    ]);
+    expect(hot(w.state)).toEqual({ burning: [burn('d6', 'white', 3)], pending: [] });
+  });
+
   it('R-ELEM-005 Hit and Run ignites the capture square immediately, and non-Ember pieces then cannot stop there but slide over it', () => {
     // Ember knight (Hit and Run is Tide-affine, so the base version: back to c3) takes d5.
     const w = walk(
@@ -330,8 +353,83 @@ describe('hot_foot (R-ELEM-005)', () => {
     expect(eventsOf(r.step.events, 'Check')).toEqual([]);
 
     // An Ember rook uses the square normally, so it does attack e4.
-    const ember = walk({ fen, white: { elements: ['ember'] }, black: { elements: ['ember'] } }, moves);
+    const ember = walk(
+      { fen, white: { elements: ['ember'] }, black: { elements: ['ember'] } },
+      moves,
+    );
     expect(legal(ember.engine, ember.state, 'white')).not.toContain('d3e4');
+  });
+
+  it('R-ELEM-005 DD-19 DD-21 a bonus-action capture (Riposte) cannot take an Ember captor on a burning square with a non-Ember piece', () => {
+    // White burns d5; the black Ember pawn double-pushes onto it and the white Ember knight takes it
+    // there. Black's Grove queen (Blended Family group B) could otherwise riposte along rank 5.
+    const fen = '4k3/3p4/8/q2p4/8/2N5/8/6K1 w - - 0 1';
+    const moves = ['c3d5', 'e8f7', 'd5c3', 'd7d5', 'c3d5'];
+    const grove = walk(
+      {
+        fen,
+        white: { elements: ['ember'] },
+        black: { elements: ['ember', 'grove'], items: ['blended_family'], abilities: ['riposte'] },
+      },
+      moves,
+    );
+    const knight = idAt(grove.states[0] as GameState, 'c3');
+    // The first capture (d5 not yet burning) offers the queen's riposte; it is declined by default.
+    expect((grove.steps[0] as ScenarioStep).prompts[0]?.options).toEqual([
+      { kind: 'decline' },
+      { kind: 'move', from: sq('a5'), to: sq('d5') },
+    ]);
+    const last = grove.steps[4] as ScenarioStep;
+    expect(hot(grove.states[4] as GameState).burning).toEqual([burn('d5', 'white', 2)]);
+    expect(eventsOf(last.events, 'AbilityTriggered').map((e) => e.ability)).toEqual(['riposte']);
+    expect(last.prompts).toEqual([]);
+    expect(eventsOf(last.events, 'EffectFizzled')).toEqual([
+      expect.objectContaining({ ability: 'riposte', reason: 'no_target' }),
+    ]);
+    expect(pieceAt(grove.state, 'd5')?.id).toBe(knight);
+
+    // An Ember queen uses the burning square normally, so the riposte is offered.
+    const ember = walk(
+      {
+        fen,
+        white: { elements: ['ember'] },
+        black: { elements: ['ember'], abilities: ['riposte'] },
+      },
+      moves,
+    );
+    expect((ember.steps[4] as ScenarioStep).prompts[0]?.options).toEqual([
+      { kind: 'decline' },
+      { kind: 'move', from: sq('a5'), to: sq('d5') },
+    ]);
+  });
+
+  it('R-ELEM-005 DD-25 the countdown runs before adjudication: when the burn ends, the Ember king standing there is in check at once', () => {
+    // The white Ember king stands on its own burning e4 in line with a black (neutral) rook.
+    const w = walk(
+      {
+        fen: 'k3r3/8/8/8/4n3/2NK4/8/8 w - - 0 1',
+        white: { elements: ['ember'] },
+        black: { elements: ['neutral'] },
+      },
+      ['c3e4', 'a8b8', 'e4c3', 'b8a8', 'd3e4', 'a8b8', 'c3b1'],
+    );
+    expect(hot(w.state).burning).toEqual([burn('e4', 'white', 1)]);
+    expect(w.state.inCheck).toBeNull();
+    const r = play(w.engine, w.state, 'b8a8');
+    const ev = r.step.events;
+    expect(eventsOf(ev, 'SquareExtinguished')).toEqual([
+      expect.objectContaining({ square: sq('e4') }),
+    ]);
+    expect(eventsOf(ev, 'Check')).toEqual([
+      expect.objectContaining({ side: 'white', square: sq('e4') }),
+    ]);
+    expect(kinds(ev).indexOf('SquareExtinguished')).toBeLessThan(kinds(ev).indexOf('Check'));
+    expect(r.state.inCheck).toBe('white');
+    expect(r.state.result).toBeNull();
+    const moves = legal(w.engine, r.state, 'white');
+    expect(moves).not.toContain('e4e3');
+    expect(moves).toContain('e4d4');
+    expect(moves.every((m) => m.startsWith('e4'))).toBe(true);
   });
 
   it('R-ELEM-005 DD-19 effect captures still reach an Ember piece on a burning square (Cleave)', () => {
@@ -515,7 +613,13 @@ describe('hot_foot (R-ELEM-005)', () => {
       { burn: 'g1', knight: 'h3', fen: '4k3/8/8/8/8/7N/8/R3K1nR w KQ - 0 1', ks: false, qs: true },
       { burn: 'f1', knight: 'g3', fen: '4k3/8/8/8/8/6N1/8/R3Kn1R w KQ - 0 1', ks: false, qs: true },
       { burn: 'd1', knight: 'c3', fen: '4k3/8/8/8/8/2N5/8/R2nK2R w KQ - 0 1', ks: true, qs: false },
-      { burn: 'c1', knight: 'b3', fen: '4k3/8/8/8/8/1N6/8/R1n1K2R w KQ - 0 1', ks: true, qs: false },
+      {
+        burn: 'c1',
+        knight: 'b3',
+        fen: '4k3/8/8/8/8/1N6/8/R1n1K2R w KQ - 0 1',
+        ks: true,
+        qs: false,
+      },
       { burn: 'b1', knight: 'c3', fen: '4k3/8/8/8/8/2N5/8/Rn2K2R w KQ - 0 1', ks: true, qs: true },
     ];
     for (const c of cases) {
@@ -548,7 +652,10 @@ describe('hot_foot (R-ELEM-005)', () => {
     // Black burns d5, then its Ember pawn double-pushes onto it.
     const fen = '7k/3p4/1n6/3NP3/8/8/8/7K b - - 0 1';
     const moves = ['b6d5', 'h1g1', 'd5b6', 'g1h1', 'd7d5'];
-    const neutral = walk({ fen, white: { elements: ['neutral'] }, black: { elements: ['ember'] } }, moves);
+    const neutral = walk(
+      { fen, white: { elements: ['neutral'] }, black: { elements: ['ember'] } },
+      moves,
+    );
     expect(hot(neutral.state).burning).toEqual([burn('d5', 'black', 2)]);
     expect(pieceAt(neutral.state, 'd5')).toMatchObject({ side: 'black', type: 'pawn' });
     const wm = legal(neutral.engine, neutral.state, 'white');
@@ -556,7 +663,10 @@ describe('hot_foot (R-ELEM-005)', () => {
     expect(wm).toContain('e5e6');
 
     // An Ember pawn uses the square normally, so it may capture en passant.
-    const ember = walk({ fen, white: { elements: ['ember'] }, black: { elements: ['ember'] } }, moves);
+    const ember = walk(
+      { fen, white: { elements: ['ember'] }, black: { elements: ['ember'] } },
+      moves,
+    );
     expect(legal(ember.engine, ember.state, 'white')).toContain('e5d6');
   });
 
@@ -590,10 +700,12 @@ describe('hot_foot (R-ELEM-005)', () => {
       slices: { ...w.state.slices, hot_foot: v },
     });
     expect(w.engine.stateHash(withSlice({ burning: [], pending: [] }))).not.toBe(h);
-    expect(w.engine.stateHash(withSlice({ burning: [burn('e5', 'white', 2)], pending: [] }))).not.toBe(
+    expect(
+      w.engine.stateHash(withSlice({ burning: [burn('e5', 'white', 2)], pending: [] })),
+    ).not.toBe(h);
+    expect(w.engine.stateHash(withSlice({ burning: [burn('e5', 'white', 3)], pending: [] }))).toBe(
       h,
     );
-    expect(w.engine.stateHash(withSlice({ burning: [burn('e5', 'white', 3)], pending: [] }))).toBe(h);
   });
 
   it('R-ELEM-005 DD-33 R-RULES-005 a board that recurs with a different burn does not count toward threefold repetition', () => {
@@ -615,18 +727,18 @@ describe('hot_foot (R-ELEM-005)', () => {
     const opening = ['f3e5', 'e8d8', 'e5f3'];
     const fen = '4k3/8/8/4p3/8/5N2/8/4K3 w - - 0 1';
     // Without a burn, the position after the knight's return recurs a third time after 8 plies.
-    const tide = walk(
-      { fen, white: { elements: ['tide'] }, black: { elements: ['neutral'] } },
-      [...opening, ...shuffle.slice(0, 8)],
-    );
+    const tide = walk({ fen, white: { elements: ['tide'] }, black: { elements: ['neutral'] } }, [
+      ...opening,
+      ...shuffle.slice(0, 8),
+    ]);
     expect(tide.state.result).toEqual({ winner: null, reason: 'repetition' });
 
     // With e5 burning (3, then 1, then out) those three boards differ; the first threefold
     // repetition is the board after black's move that recurs with no burn at plies 5, 9 and 13.
-    const ember = walk(
-      { fen, white: { elements: ['ember'] }, black: { elements: ['neutral'] } },
-      [...opening, ...shuffle.slice(0, 12)],
-    );
+    const ember = walk({ fen, white: { elements: ['ember'] }, black: { elements: ['neutral'] } }, [
+      ...opening,
+      ...shuffle.slice(0, 12),
+    ]);
     expect(ember.state.result).toBeNull();
     const last = play(ember.engine, ember.state, shuffle[12] as string);
     expect(last.state.result).toEqual({ winner: null, reason: 'repetition' });
