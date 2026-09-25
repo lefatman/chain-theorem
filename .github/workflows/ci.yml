@@ -109,14 +109,22 @@ jobs:
   e2e:
     name: end to end (Playwright)
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('apps/client/playwright.config.ts') != '' }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - id: detect
+        name: Playwright suite present?
+        run: |
+          if [ -f apps/client/playwright.config.ts ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; echo "no Playwright suite yet (arrives in M3)"; fi
+      - if: steps.detect.outputs.present == 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @chain-theorem/client exec playwright install --with-deps chromium
-      - run: pnpm test:e2e
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm --filter @chain-theorem/client exec playwright install --with-deps chromium
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm test:e2e
