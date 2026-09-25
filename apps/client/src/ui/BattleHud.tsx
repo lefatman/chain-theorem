@@ -11,6 +11,7 @@ import { opposite, type ResultReason, type Side } from '@chain-theorem/rules';
 import type { BattleController } from '../battle/controller.ts';
 import { go } from '../app/router.ts';
 import { rematch } from './battleSession.ts';
+import { worldBattle } from '../world/session.ts';
 import { ElementBadge, PieceGlyph } from './bits.tsx';
 import { Clocks } from './Clocks.tsx';
 import { Dossier } from './Dossier.tsx';
@@ -106,7 +107,11 @@ export function BattleHud({ controller, compact, move, inspect, replay, onPrompt
             {s.result.reason === 'objective' ? `${formatName} objective` : REASON[s.result.reason]}
           </p>
           <div class="row start">
-            {s.connection === undefined ? (
+            {worldBattle.value === controller ? (
+              <button class="primary" onClick={() => go('world')}>
+                Return to the world
+              </button>
+            ) : s.connection === undefined ? (
               <>
                 <button class="primary" onClick={() => rematch() || go('play')}>
                   Rematch (swap colours)

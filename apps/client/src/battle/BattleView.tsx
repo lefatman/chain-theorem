@@ -113,7 +113,10 @@ export function BattleView({ controller }: { controller: BattleController }) {
     return () => {
       disposed = true;
       unsub();
+      // Phaser destroys on the next loop step; wake a sleeping loop (on-demand rendering) so the
+      // game, its WebGL context and the scene's idle timer go now, not never.
       board.current?.game.destroy(true);
+      board.current?.game.loop.wake();
       board.current = null;
     };
   }, [controller]);

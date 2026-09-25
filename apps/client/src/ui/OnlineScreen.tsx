@@ -143,6 +143,14 @@ export function OnlineScreen() {
           {error}
         </p>
       )}
+      <section aria-label="The world">
+        <button class="primary" onClick={() => go('world')}>
+          Enter the world
+        </button>{' '}
+        <span class="muted small-text">
+          Explore towns and routes, meet players, learn at the Chess Academy.
+        </span>
+      </section>
       {active.length > 0 && (
         <section aria-label="Battles in progress">
           <h3>Battles in progress</h3>

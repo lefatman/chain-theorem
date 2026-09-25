@@ -1,6 +1,7 @@
 import { go } from '../app/router.ts';
 import { activeBattle } from './battleSession.ts';
 import { account } from '../state/account.ts';
+import { worldSession } from '../world/session.ts';
 
 export function Title() {
   const battle = activeBattle.value;
@@ -14,6 +15,11 @@ export function Title() {
           {resumable && (
             <button class="primary" onClick={() => go('battle')}>
               Resume battle
+            </button>
+          )}
+          {worldSession.value && (
+            <button class={resumable ? '' : 'primary'} onClick={() => go('world')}>
+              Return to the world
             </button>
           )}
           <button class={resumable ? '' : 'primary'} onClick={() => go('play')}>

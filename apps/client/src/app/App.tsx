@@ -9,6 +9,11 @@ import { SettingsScreen } from '../ui/SettingsScreen.tsx';
 import { LoginScreen } from '../ui/LoginScreen.tsx';
 import { OnlineScreen } from '../ui/OnlineScreen.tsx';
 
+// The overworld (M5) is its own lazy chunk; its Phaser scene is a further lazy chunk (12.3).
+const WorldScreen = lazy(() =>
+  import('../ui/world/WorldScreen.tsx').then((m) => ({ default: m.WorldScreen })),
+);
+
 // Dev-only Scenario Lab: this branch is removed from production builds (BUILD_PROMPT M3).
 const ScenarioLab = import.meta.env.DEV
   ? lazy(() => import('../lab/ScenarioLab.tsx').then((m) => ({ default: m.ScenarioLab })))
@@ -35,6 +40,9 @@ export function App() {
       break;
     case 'online':
       screen = <OnlineScreen />;
+      break;
+    case 'world':
+      screen = <WorldScreen />;
       break;
     case 'lab':
       screen = ScenarioLab ? <ScenarioLab /> : <Title />;

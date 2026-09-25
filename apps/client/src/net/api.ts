@@ -2,7 +2,7 @@
  * REST client for the Worker (ARCHITECTURE 6). Same-origin requests carry the HttpOnly session
  * cookie automatically; the client never sees or stores the session token (R-SEC-006).
  */
-import type { BattleTicket, LoadoutBody } from '@chain-theorem/protocol';
+import type { BattleTicket, LoadoutBody, WorldTicket } from '@chain-theorem/protocol';
 import type { FormatId, Loadout, LoadoutError } from '@chain-theorem/rules';
 
 export class ApiError extends Error {
@@ -59,6 +59,25 @@ export interface ServerLoadout {
   errors: LoadoutError[];
 }
 
+/** A friend or a pending friend request (10.4); `zone` is where they are, null when offline. */
+export interface Friend {
+  id: string;
+  name: string;
+  status: 'friends' | 'incoming' | 'outgoing';
+  zone: string | null;
+}
+
+/** The player's progress for the world HUD (`GET /api/progress`). */
+export interface Progress {
+  level: number;
+  xp: number;
+  xpToNext: number;
+  coins: number;
+  keyItems: string[];
+  quests: { id: string; step: number; done: boolean }[];
+  lessonsDone: string[];
+}
+
 export type VerifyAnswer =
   { status: 'signed_in'; me: Me } | { status: 'needs_profile'; signup: string };
 
@@ -103,6 +122,13 @@ export const api = {
       'GET',
       '/api/battles/active',
     ),
+  // M5 overworld (ARCHITECTURE 6).
+  worldTicket: () => call<WorldTicket>('POST', '/api/world/ticket'),
+  friends: () => call<{ friends: Friend[] }>('GET', '/api/friends'),
+  addFriend: (to: string) =>
+    call<{ status: 'requested' | 'friends' }>('POST', '/api/friends', { to }),
+  removeFriend: (id: string) => call<void>('DELETE', `/api/friends/${encodeURIComponent(id)}`),
+  progress: () => call<Progress>('GET', '/api/progress'),
 };
 
 /** Absolute WebSocket URL for a server-relative socket path. */
