@@ -7,12 +7,17 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
 
 (Top of file. Updated whenever a session ends mid-step.)
 
-- Current step: release (spec 17.3 checklist and the final report).
+- Status: the build is complete. M0–M7 are done and the final report has been posted. What remains
+  of the release checklist (17.3) is human-only: balance sign-off and the review of section 18.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
   know), Storm, Stone and Frost with 12 abilities, 2 items, 18 creatures and Highcairn Pass.
 - Open for the designer: balance targets partly missed (`docs/BALANCE_M7.md` section 5, five
-  questions), Playtest Gate 1 questions, review of spec section 18 (DD-01..DD-95).
+  questions), Playtest Gate 1 questions, review of spec section 18 (DD-01..DD-95; DD-10 onwards each
+  have a record in `docs/decisions/`).
+- Next for the human: `corepack enable && pnpm install && pnpm check`, then `pnpm seed` and
+  `pnpm dev` and the manual steps in `TESTING.md`; for production, the human-only items below and
+  `DEPLOY.md`.
 - The `TODO` strings in `apps/tools/src/content/new.ts` are scaffold template text for new modules,
   not open work.
 
@@ -126,6 +131,10 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-09-25 Release: CI run 54 on `fb97bb1` green on all 8 jobs (check, perft, quick fuzz, SQLite,
+  PostgreSQL, Durable Objects, Playwright local and online, and load, first win and both tournament
+  formats). `pnpm check` on the final tree: 1,468 unit tests (2 skipped), `req:coverage` 83/83.
 
 - 2026-09-25 Release: `pnpm test:fuzz:full` on the final catalogue (26 abilities, 13 items, six
   elements): 100,000 games, 8,780,184 plies, 0 failures, replays identical, 10,000 games
