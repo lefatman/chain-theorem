@@ -519,6 +519,25 @@ M5 additions (overworld):
 | `GET /api/admin/cost`     | —               | the cost dashboard as JSON (hourly rollups, cost per player-hour, per battle, per zone-hour; emails in `ADMIN_EMAILS` only)                                    |
 | `GET /admin/cost`         | —               | the same as a server-rendered page (DD-81)                                                                                                                     |
 
+M6 billing (6.3; `apps/server/src/billing/`, DD-83..DD-85). `/api/me` adds `me.access: { status:
+'trial' | 'subscriber' | 'expired', subStatus, trialEndsAt, subExpiresAt, canPlay, canTrade }`.
+
+| Method and path                                | Body                | Answer                                                                                                               |
+| ---------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/billing/plans`                       | —                   | `{ provider: 'fake' \| 'paddle' \| 'none', plans: { id, name, priceCents, months }[], cancel, portal }`              |
+| `GET /api/billing/subscription`                | —                   | `{ access, plan, cancelAt }`                                                                                         |
+| `POST /api/billing/checkout`                   | `{ plan }`          | `{ url }`; 409 `already_subscribed`, 400 `plan_unavailable`, 502/503 `billing_unavailable`                           |
+| `POST /api/billing/cancel`, `/resume`          | —                   | the subscription view (cancel at period end, or undo it); 409 `no_subscription`                                      |
+| `POST /api/billing/portal`                     | —                   | `{ url }` (Paddle only; 404 `not_supported`)                                                                         |
+| `POST /api/billing/webhook`                    | provider event      | signature checked on the raw body: 401 `bad_signature`/`stale_signature`, 400 `bad_payload`, else 200 with `outcome` |
+| `GET /api/billing/fake/checkout?session=`      | —                   | fake provider only: the checkout page (Pay, Cancel)                                                                  |
+| `POST /api/billing/fake/pay`, `/fake/simulate` | form / `{ action }` | fake provider only: pay (303 back to `/#/account`), or renew, fail a payment, cancel now, expire the trial           |
+| `GET /api/billing/paddle/pay`                  | —                   | the Paddle.js pay page for a `_ptxn` transaction                                                                     |
+
+Online play answers `402 { error: 'subscription_required' }` when the trial has ended without a
+subscription: `POST /api/world/ticket`, `/api/battles`, `/api/challenges/:code/accept`,
+`/api/queue/ticket`, and the zone and queue socket upgrades (battles in progress can be finished).
+
 The zone socket (`/ws/zone/:zone?t=`, a 60 s ticket for `zone:<zone>`): the Worker loads the
 player (`PlayerInit`: level, adult flag, friends, saved tile, quests, lessons done, defeated story
 trainers, key items, party with its youngest-member flag, chat preference, still-battling flag) and
