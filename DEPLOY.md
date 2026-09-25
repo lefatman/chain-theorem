@@ -12,7 +12,15 @@ which prerequisites are present and what is still missing.
 3. Create the R2 bucket for battle logs: `wrangler r2 bucket create chain-theorem-battle-logs`.
 4. Set your domain in `apps/server/wrangler.jsonc` under `env.production.vars.APP_ORIGIN` (replace
    `https://REPLACE_WITH_YOUR_DOMAIN`); magic links and OAuth callbacks use it.
-5. Telemetry (M5) adds an Analytics Engine dataset binding; it is created on first deploy.
+5. Telemetry (M5): the production environment binds the Analytics Engine dataset
+   `chain_theorem_telemetry` (`TELEMETRY`); Cloudflare creates it on the first data point. The cost
+   dashboard at `https://<domain>/admin/cost` reads the `Metrics` Durable Object and opens for the
+   emails in `ADMIN_EMAILS`. For the 14.2 alert, add a Workers Logs alert on log lines containing
+   `"alert":"cost_guardrail"` (the Metrics object logs one when an hour's projection exceeds $0.10
+   per subscriber).
+6. Durable Object classes ship through the `migrations` list in `wrangler.jsonc` (`v1`: BattleRoom,
+   Matchmaker; `v2`: ZoneRoom, Metrics). `wrangler deploy` applies new tags in order; never edit or
+   remove a tag that has been deployed.
 
 ## 2. Neon PostgreSQL and Hyperdrive (step 0.4)
 
@@ -50,7 +58,7 @@ Every variable is documented in `apps/server/.dev.vars.example`. In production s
 | `GITHUB_CLIENT_ID/SECRET`, `GOOGLE_CLIENT_ID/SECRET`, `DISCORD_CLIENT_ID/SECRET` | optional OAuth; the callback URL is `https://<domain>/api/auth/oauth/<provider>/callback`                           |
 | `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_ENV`                          | billing (sandbox first)                                                                                             |
 | `PADDLE_PRICE_MONTHLY/QUARTERLY/YEARLY`                                          | Paddle price ids                                                                                                    |
-| `ADMIN_EMAILS`                                                                   | comma-separated admin console allow-list                                                                            |
+| `ADMIN_EMAILS`                                                                   | comma-separated allow-list for the cost dashboard (`/admin/cost`) and, from M6, the admin console                   |
 
 ## 5. Paddle Billing
 
@@ -65,6 +73,7 @@ Every variable is documented in `apps/server/.dev.vars.example`. In production s
 
 ```sh
 pnpm check && pnpm test:db && pnpm test:workers && pnpm test:e2e && pnpm test:e2e:online
+pnpm test:load && pnpm test:firstwin
 DATABASE_URL="postgres://…" pnpm db:migrate
 pnpm --filter @chain-theorem/client build
 pnpm --filter @chain-theorem/server exec wrangler deploy --env production

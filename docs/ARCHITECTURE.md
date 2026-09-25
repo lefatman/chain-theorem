@@ -509,13 +509,21 @@ REST contract (M4; JSON bodies validated with `@chain-theorem/protocol` schemas;
 
 M5 additions (overworld):
 
-| Method and path           | Body            | Answer                                                                                                                                    |
-| ------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/world/ticket`  | —               | `WorldTicket { zone, url }`: the socket (`/ws/zone/:zone?t=`) for the player's saved zone or the start zone; the server picks the channel |
-| `GET /api/friends`        | —               | `{ friends: { id, name, status: 'friends' \| 'incoming' \| 'outgoing', zone }[] }`                                                        |
-| `POST /api/friends`       | `FriendRequest` | `{ status: 'requested' \| 'friends' }` (by display name or id)                                                                            |
-| `DELETE /api/friends/:id` | —               | `204`                                                                                                                                     |
-| `GET /api/progress`       | —               | `{ level, xp, xpToNext, coins, keyItems, quests, lessonsDone }` for the HUD                                                               |
+| Method and path           | Body            | Answer                                                                                                                                                         |
+| ------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/world/ticket`  | —               | `WorldTicket { zone, url }`: the socket (`/ws/zone/:zone?t=`) for the player's saved zone or the start zone; the server picks the channel                      |
+| `GET /api/friends`        | —               | `{ friends: { id, name, status: 'friends' \| 'incoming' \| 'outgoing', zone }[] }`                                                                             |
+| `POST /api/friends`       | `FriendRequest` | `{ status: 'requested' \| 'friends' }` (by display name or id)                                                                                                 |
+| `DELETE /api/friends/:id` | —               | `204`                                                                                                                                                          |
+| `GET /api/progress`       | —               | `{ level, xp, xpToNext, totalXp, coins, keyItems, quests, lessonsDone }`: `xp` is earned inside the current level, `xpToNext` that level's span (0 at the cap) |
+| `GET /api/admin/cost`     | —               | the cost dashboard as JSON (hourly rollups, cost per player-hour, per battle, per zone-hour; emails in `ADMIN_EMAILS` only)                                    |
+| `GET /admin/cost`         | —               | the same as a server-rendered page (DD-81)                                                                                                                     |
+
+The zone socket (`/ws/zone/:zone?t=`, a 60 s ticket for `zone:<zone>`): the Worker loads the
+player (`PlayerInit`: level, adult flag, friends, saved tile, quests, lessons done, defeated story
+trainers, key items, party with its youngest-member flag, chat preference, still-battling flag) and
+offers the upgrade to the zone's channels in order (a party member's channel first, then 0, 1, ...;
+a full channel answers 409). Messages are `ClientZone` / `ServerZone` (`packages/protocol/src/zone.ts`).
 
 New accounts start at level 1 with the starter collection: Dual Adept's Glove, Hit and Run, Last
 Word and Scout (every level-1 module); M5 rewards grow it.
@@ -525,6 +533,7 @@ Word and Scout (every level-1 module); M5 rewards grow it.
 | `BattleRoom`     | battle                   | GameState, full event log, clocks, sockets (hibernation), prompts | alarm: flag fall, prompt timeout, disconnect grace, NPC move |
 | `ZoneRoom`       | zone channel             | tile positions, zone chat, encounter rolls, challenge-zone state  | none (event-driven)                                          |
 | `Matchmaker`     | queue (format x bracket) | waiting players, pairing                                          | alarm: widen search                                          |
+| `Metrics`        | deployment (`global`)    | hourly usage rollups for the cost dashboard (14.2, DD-81)         | none                                                         |
 | `GuildRoom`      | guild                    | roster cache, guild chat                                          | none                                                         |
 | `TradeSession`   | trade                    | both offers, confirmations                                        | alarm: expiry                                                |
 | `TournamentRoom` | tournament               | bracket, pairings, results                                        | alarm: round start                                           |
@@ -534,16 +543,30 @@ game loop, no outbound sockets (R-COST-002). BattleRoom persists `GameState` and
 storage after every action; at the end it archives the log to R2 (`BATTLE_LOGS`) and writes one `battles`
 row plus rewards through the repositories (13.3).
 
+**ZoneRoom (M5).** `zone:<zone>:<channel>` wraps the pure `ZoneCore` (`apps/server/src/zone/`):
+tile steps, collisions, encounter rolls, NPC dialogs, puzzle lessons, quests, challenges and chat
+filtering are decided there and return an outbox of messages plus effects. The room stores the core
+snapshot only when the core asks (joins, battles, quests, chat state; never for a plain step), mirrors
+each player's tile into their socket attachment (free, survives hibernation), and runs the effects:
+creating BattleRooms (`world/battles.ts`, origin kept server-side), idempotent grants and level-ups
+(`world/progress.ts`), positions on warp and logout, quest storage, cross-channel chat, party and
+invite routing through presence (`world/routing.ts`, host calls `/deliver`, `/refused`, `/party`,
+`/invite`, `/grant`, `/ended`), and telemetry to Analytics Engine and `Metrics`. When a battle ends,
+the BattleRoom pays each human seat once per grant key (`battle:<id>`, `trainer:<player>:<npc>`;
+lessons pay `lesson:<player>:<id>` when they complete, quests `quest:<player>:<id>`), raises the level,
+and posts the outcome to the player's channel; a player who already left gets the quest and lesson
+progress applied from storage (`world/settle.ts`).
+
 Interfaces with a local implementation and a production implementation (never faked):
 
-| Interface         | Local / tests                     | Production                                   |
-| ----------------- | --------------------------------- | -------------------------------------------- |
-| `MailSender`      | console (magic link printed)      | HTTP provider (human-only key)               |
-| `OAuthProvider`   | disabled without keys             | Google, GitHub, Discord when keys exist      |
-| `BillingProvider` | `FakeBillingProvider`             | `PaddleBillingProvider` (sandbox, then live) |
-| `TelemetrySink`   | local sink (JSON lines / memory)  | Workers Analytics Engine                     |
-| `BlobStore`       | local R2 (Miniflare) / memory     | R2                                           |
-| `Database`        | SQLite (better-sqlite3, D1 local) | PostgreSQL via Hyperdrive                    |
+| Interface         | Local / tests                                    | Production                                     |
+| ----------------- | ------------------------------------------------ | ---------------------------------------------- |
+| `MailSender`      | console (magic link printed)                     | HTTP provider (human-only key)                 |
+| `OAuthProvider`   | disabled without keys                            | Google, GitHub, Discord when keys exist        |
+| `BillingProvider` | `FakeBillingProvider`                            | `PaddleBillingProvider` (sandbox, then live)   |
+| `TelemetrySink`   | `Metrics` DO rollups (memory sink in unit tests) | Workers Analytics Engine plus the `Metrics` DO |
+| `BlobStore`       | local R2 (Miniflare) / memory                    | R2                                             |
+| `Database`        | SQLite (better-sqlite3, D1 local)                | PostgreSQL via Hyperdrive                      |
 
 ## 7. Database (`@chain-theorem/db`, 13.3, 13.6, R-DATA-003/004)
 
@@ -693,12 +716,14 @@ sequenceDiagram
   participant DB as PostgreSQL
   C->>Z: step {dir}
   Z->>Z: collision check, wild patch? roll encounter (server-side, per-zone rate)
-  Z->>B: create NPC battle (First Blood, wild-tier loadout)
-  Z-->>C: enc {battleId, token}
+  Z->>B: POST /init (First Blood, wild army of the entry's element, origin kept server-side)
+  Z-->>C: enc {battleId, url (60 s ticket), kind}
   C->>B: WebSocket upgrade (signed token)
   B-->>C: bstart, bev ...
-  B->>DB: battles row + reward grant (idempotency key = battle id)
-  B-->>C: bend {result, rewards}
+  B->>DB: battles row + reward grant (idempotency key battle:<id>) + level
+  B-->>C: bend {result}
+  B->>Z: POST /ended {outcome, rewards, level} (via the player's presence)
+  Z-->>C: zbattle {battling: false}, reward, quest updates
 ```
 
 ### 9.3 A trade

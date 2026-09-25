@@ -7,14 +7,16 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
 
 (Top of file. Updated whenever a session ends mid-step.)
 
-- Current step: M5 (overworld vertical slice).
+- Current step: M6 (economy, social and billing).
 - Done so far: M0, M1, M2 (23 review findings fixed, DD-41..DD-55, 100k fuzz re-run green), M3
   (board scene, overlay, AI, simulator, Scenario Lab, e2e, budgets all passing), Playtest Gate 1
-  report (designer questions open; the build continues per BUILD_PROMPT 6).
-- M4 complete: protocol, db (PostgreSQL/SQLite/D1), Worker with auth, BattleRoom and Matchmaker
-  Durable Objects, online client, drop-in art pipeline; `pnpm test:e2e:online` is the done-when.
-- Next: M5 5.1 Tiled maps and ZoneRoom, 5.2 encounters and rewards, 5.3 NPC trainers, quests and
-  the Chess Academy, 5.4 chat and social, 5.5 telemetry.
+  report (designer questions open; the build continues per BUILD_PROMPT 6), M4 (online battles).
+- M5 complete: world content (4 zones, 18 NPCs, 7 lessons, 3 quests), the pure zone core, the
+  ZoneRoom host with world battles and idempotent rewards, parties, the Metrics cost dashboard, the
+  overworld client; `pnpm test:load` and `pnpm test:firstwin` are the done-when, both in CI.
+- Next: M6 6.1 trading (TradeSession, atomic trades), item wagers with escrow, guilds, leaderboards;
+  6.2 ranked queues with Glicko-2 (`apps/server/src/rating/glicko2.ts` is ready); 6.3 billing (fake
+  provider and Paddle sandbox, trial, entitlement); 6.4 report, mute, block, admin console.
 
 ## Arcane Chess codebase path (step 2.8)
 
@@ -75,11 +77,11 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 
 ## M5 — Overworld vertical slice
 
-- [ ] 5.1 Tiled maps: Chess Academy town, one route, wild patches; ZoneRoom with channels (10.1).
-- [ ] 5.2 Server-side encounters into NPC battles; idempotent rewards (10.2, R-SEC-003).
-- [ ] 5.3 NPC trainers, data-driven quests, Chess Academy tutorial (10.3, 10.5).
-- [ ] 5.4 Chat with youngest-participant filtering (R-SEC-011), friends, parties, consent PvP challenges, challenge zones.
-- [ ] 5.5 Telemetry (Analytics Engine / local sink) and cost dashboard (14.2).
+- [x] 5.1 Tiled maps: Chess Academy town, one route, wild patches; ZoneRoom with channels (10.1).
+- [x] 5.2 Server-side encounters into NPC battles; idempotent rewards (10.2, R-SEC-003).
+- [x] 5.3 NPC trainers, data-driven quests, Chess Academy tutorial (10.3, 10.5).
+- [x] 5.4 Chat with youngest-participant filtering (R-SEC-011), friends, parties, consent PvP challenges, challenge zones.
+- [x] 5.5 Telemetry (Analytics Engine / local sink) and cost dashboard (14.2).
 - Done when: 50 simulated clients in one zone stay inside cost guardrails; new player reaches a first win in < 30 minutes.
 
 ## M6 — Economy, social and billing
@@ -119,6 +121,21 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-09-25 M5 done-when: `pnpm test:load` (50 bots in one zone for 60 s at 1 message per second
+  each, against `wrangler dev`): all 50 connected, 3,000 messages in and 146,000 out, step fan-out
+  p50 119 ms and p95 249 ms locally, projected $0.0305 per heavy subscriber-month from the bots'
+  traffic (conservative, no hibernation credit) and $0.0149 from the server's own telemetry, against
+  the $0.10 guardrail (two runs, identical). `pnpm test:firstwin`: a new account accepts the
+  Headmaster's quest, solves all 13 chess puzzles and wins the Hit and Run lesson battle through
+  the real Worker; human time model 14.7 minutes (limit 30). Both run in CI (`load` job).
+- 2026-09-25 M5 tests: `pnpm check` 1,153 unit tests (zone core 74, world host 17, world content 30,
+  client 121 of which 43 world); `pnpm test:workers` 17/17 (zone: entering, discovery once, Academy
+  quest and lessons, trainer battle paid once, wild encounter, chat filtering with a minor, whispers
+  and parties across zones, consent challenge, channel overflow, cost dashboard); `pnpm test:db` 101
+  and `pnpm test:db:pg` 145/145; `pnpm test:e2e` 19/19; `pnpm test:e2e:online` 3/3 twice (the M4
+  battle, a first win through the UI in the Academy, two players meeting in the world); initial JS
+  95.0 kB gzip (world 28.7 kB and its scene 12.2 kB load lazily).
 
 - 2026-09-25 M4 done-when: `pnpm test:e2e:online` 1/1 (three consecutive runs): two browser contexts
   against `wrangler dev` sign up by magic link, play a timed Full Battle from a challenge link, one

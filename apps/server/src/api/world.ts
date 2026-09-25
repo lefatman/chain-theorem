@@ -62,6 +62,8 @@ export async function zoneSocket(
   );
   for (const channel of order) {
     const headers = new Headers(req.headers);
+    // Only the Worker sets these (a client's own copies are dropped).
+    for (const h of Object.values(ZONE_HEADERS)) headers.delete(h);
     headers.set(ZONE_HEADERS.init, JSON.stringify(loaded.init));
     headers.set(ZONE_HEADERS.key, JSON.stringify({ zone, channel }));
     if (loaded.firstVisit) headers.set(ZONE_HEADERS.discover, '1');

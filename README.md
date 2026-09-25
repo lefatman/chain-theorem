@@ -25,24 +25,27 @@ pnpm dev            # client + local Worker, Durable Objects and SQLite
 ```
 
 Open the printed URL, choose **Play a local battle**, and fight a Wild, Trainer or Elite NPC (or a
-friend on the same device) in First Blood, Vanguard or Full Battle.
+friend on the same device) in First Blood, Vanguard or Full Battle. For the online game choose **Play
+online**, sign in with the magic link printed in the `pnpm dev` console, and **Enter the world**: the
+Chess Academy teaches the game, and Rookhaven, Knight's Way and Thistle Meadow hold trainers, wild
+encounters, a challenge zone and other players (`pnpm seed` creates ready-made test accounts).
 
 See [`TESTING.md`](TESTING.md) for every test command and a manual play-test script, and
 [`DEPLOY.md`](DEPLOY.md) for production deployment (the human-only steps).
 
 ## Repository map
 
-| Path                | What it is                                                                                                                                                                                                                            |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/rules`    | Pure, deterministic rules engine and module SDK. Zero runtime dependencies. Perft-verified move generation, the five-phase ability pipeline, projections (hidden information), loadout validation, Dossier deductions, move previews. |
-| `packages/content`  | Every ability, item and element trait as a self-contained module (`abilities/`, `items/`, `traits/`), the global caps (`config.ts`) and the generated registry.                                                                       |
-| `packages/ai`       | NPC search: iterative-deepening alpha-beta with an ability-aware evaluation; Wild, Trainer and Elite tiers. Sees only its own projection.                                                                                             |
-| `packages/db`       | Kysely schema, migrations and repositories for PostgreSQL (production) and SQLite/D1 (local, tests).                                                                                                                                  |
-| `packages/protocol` | Zod schemas for every WebSocket message and REST payload.                                                                                                                                                                             |
-| `apps/client`       | Vite + Phaser 4 board and overworld, Preact overlay (loadouts, Dossier, log, previews), Scenario Lab (dev only).                                                                                                                      |
-| `apps/server`       | Cloudflare Worker (auth, REST, assets) and the Durable Objects: BattleRoom, ZoneRoom, Matchmaker, GuildRoom, TradeSession, TournamentRoom.                                                                                            |
-| `apps/tools`        | Content CLI (`content:new`, `content:index`, `content:validate`), fuzzer, balance simulator, load test, seed.                                                                                                                         |
-| `docs`              | Spec, architecture, content guide, playtest gate report, decision records (`decisions/`).                                                                                                                                             |
+| Path                | What it is                                                                                                                                                                                                                             |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/rules`    | Pure, deterministic rules engine and module SDK. Zero runtime dependencies. Perft-verified move generation, the five-phase ability pipeline, projections (hidden information), loadout validation, Dossier deductions, move previews.  |
+| `packages/content`  | Every ability, item and element trait as a self-contained module (`abilities/`, `items/`, `traits/`), the global caps (`config.ts`), the generated registry, and the world (`world/`: Tiled maps, NPCs, lessons, quests, progression). |
+| `packages/ai`       | NPC search: iterative-deepening alpha-beta with an ability-aware evaluation; Wild, Trainer and Elite tiers. Sees only its own projection.                                                                                              |
+| `packages/db`       | Kysely schema, migrations and repositories for PostgreSQL (production) and SQLite/D1 (local, tests).                                                                                                                                   |
+| `packages/protocol` | Zod schemas for every WebSocket message and REST payload.                                                                                                                                                                              |
+| `apps/client`       | Vite + Phaser 4 board and overworld, Preact overlay (loadouts, Dossier, log, previews), Scenario Lab (dev only).                                                                                                                       |
+| `apps/server`       | Cloudflare Worker (auth, REST, assets) and the Durable Objects: BattleRoom, ZoneRoom, Matchmaker, Metrics (M5); GuildRoom, TradeSession, TournamentRoom arrive in M6 and M7.                                                           |
+| `apps/tools`        | Content CLI (`content:new`, `content:index`, `content:validate`), fuzzer, balance simulator, load test, first-win bot, seed.                                                                                                           |
+| `docs`              | Spec, architecture, content guide, playtest gate report, decision records (`decisions/`).                                                                                                                                              |
 
 ## Common commands
 
@@ -54,6 +57,7 @@ See [`TESTING.md`](TESTING.md) for every test command and a manual play-test scr
 | `pnpm sim`                                                                                | Balance simulator; writes matchup tables to `reports/sim/`                      |
 | `pnpm content:new ability <id>`                                                           | Scaffold a new ability module and its scenario test                             |
 | `pnpm test:db`, `pnpm test:db:pg`, `pnpm test:workers`, `pnpm test:e2e`, `pnpm test:load` | Database, Durable Object, browser and load tests                                |
+| `pnpm test:e2e:online`, `pnpm test:firstwin`                                              | Browser tests against the real Worker; a new player's first win (M5)            |
 | `pnpm seed`                                                                               | Reset local data and create test accounts                                       |
 
 ## Contributing content
