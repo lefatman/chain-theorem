@@ -185,13 +185,18 @@ export function search(
         if (t > alpha) alpha = t;
         continue;
       }
-      // Budget check between root moves too (R-FMT-005 ~50 ms): a wide root of shallow subtrees
-      // would otherwise never reach the in-search check.
-      if (nodes >= maxNodes || (now !== null && now() >= deadline)) {
+      // The first iteration (every root move checked by quiescence, a few hundred nodes each) always
+      // completes, so no move keeps an optimistic static score that a one-move capture refutes,
+      // however loaded the device. Deeper iterations respect the budget, also between root moves
+      // (R-FMT-005 ~50 ms): a wide root of shallow subtrees would otherwise never reach the check.
+      const first = d === 0;
+      if (!first && (nodes >= maxNodes || (now !== null && now() >= deadline))) {
         aborted = true;
         break;
       }
-      const ctx = makeCtx(engine, c.state, me, tier, { maxNodes: maxNodes - nodes, deadline, now });
+      const ctx = first
+        ? makeCtx(engine, c.state, me, tier, { maxNodes: Infinity, deadline: Infinity, now: null })
+        : makeCtx(engine, c.state, me, tier, { maxNodes: maxNodes - nodes, deadline, now });
       // Every iteration, the first included, only asks whether this move beats the best so far.
       // The window is shifted by this move's noise: a cut-off child scores at most alpha - 1
       // after its noise is added, so a failed bound can never overtake the best move.
@@ -208,8 +213,7 @@ export function search(
       next.set(c, score);
       if (score > alpha) alpha = score;
     }
-    // A partial first iteration still improves on the static ordering scores; deeper partial
-    // iterations are discarded.
+    // Partial deeper iterations are discarded.
     if (aborted && d > 0) break;
     for (const [c, s] of next) c.score = s;
     if (aborted) break;

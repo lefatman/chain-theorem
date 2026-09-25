@@ -176,12 +176,19 @@ describe('determinism with a node budget (R-FMT-005, INV-04)', () => {
     }
   });
 
-  it('R-FMT-005 the node budget is honoured (checked between root moves and every 256 nodes)', () => {
+  it('R-FMT-005 the node budget is honoured beyond the guaranteed first iteration (checked between root moves and every 256 nodes)', () => {
     const { state } = setup({ fen: KIWIPETE });
-    for (const budget of [200, 1_000, 5_000]) {
-      for (const t of TIER_NAMES) {
+    for (const t of TIER_NAMES) {
+      // The first iteration (quiescence on every root move) always completes, and stays cheap.
+      const floor = npc(state, t, { nodes: 0 });
+      expect(floor.depth, t).toBe(1);
+      expect(floor.nodes, t).toBeLessThan(4_000);
+      for (const budget of [200, 1_000, 5_000]) {
         const r = npc(state, t, { nodes: budget });
-        expect(r.nodes, `${t} budget ${budget}`).toBeLessThanOrEqual(budget + 256);
+        expect(r.depth, `${t} budget ${budget}`).toBeGreaterThanOrEqual(1);
+        expect(r.nodes, `${t} budget ${budget}`).toBeLessThanOrEqual(
+          Math.max(budget, floor.nodes) + 256,
+        );
       }
     }
   });
@@ -227,14 +234,16 @@ describe('time budget (R-FMT-005: about 50 ms per move)', () => {
     }
   });
 
-  it('R-FMT-005 the deadline is checked between root moves: a clock already past it stops the search at once', () => {
+  it('R-FMT-005 the deadline is checked between root moves: a clock already past it stops after the first iteration', () => {
     const { state } = setup({ fen: KIWIPETE });
     for (const t of TIER_NAMES) {
       let calls = 0;
       // 0 ms when the search starts, then far past any deadline.
       const jump = () => (calls++ === 0 ? 0 : 10_000);
       const r = npc(state, t, { now: jump, ms: 50 });
-      expect(r.nodes, t).toBeLessThan(1024);
+      const floor = npc(state, t, { nodes: 0 });
+      expect(r.depth, t).toBe(1);
+      expect(r.nodes, t).toBe(floor.nodes);
       expect(engine.legalMoves(state, 'white').map((m) => moveToUci(m))).toContain(
         moveToUci(r.move),
       );

@@ -8,6 +8,7 @@ import {
   expect,
   logGroups,
   playMove,
+  resultPanel,
   startBattle,
   test,
   turnBanner,
@@ -41,10 +42,15 @@ test.describe('local battle vs NPC', () => {
         const before = await logGroups(page).count();
         await playMove(page, 'e2', 'e4', 'white');
         await expect(page.getByRole('log')).toContainText(/e2\W.*e4/);
-        // The NPC replies: one more action in the log and the turn comes back.
+        // The NPC replies: one more action in the log and the turn comes back. The NPC searches on a
+        // clock, so on a loaded machine its reply may also end a First Blood battle (a Wild NPC
+        // plays with noise); either way it replied.
         await expect(logGroups(page).nth(before + 1)).toBeAttached();
-        await expect(turnBanner(page)).toContainText('Your move.');
         await expect(page.getByRole('log')).toContainText('Black');
+        await expect(turnBanner(page).or(resultPanel(page))).toBeVisible();
+        if (await turnBanner(page).isVisible()) {
+          await expect(turnBanner(page)).toContainText('Your move.');
+        }
       });
     }
   }

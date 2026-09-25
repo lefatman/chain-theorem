@@ -161,6 +161,13 @@ export class BoardScene extends Phaser.Scene {
   private skipGen = 0;
   private idlePhase: 0 | 1 = 0;
   private clock = 0;
+  /**
+   * Render on demand (12.3 frame-rate budgets, battery): frames left to render before the game loop
+   * sleeps. Any visible change wakes it; animations and a pulsing check keep it awake.
+   */
+  private awakeFrames = 2;
+  private idleTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly onResize = () => this.invalidate(2);
 
   constructor() {
     super({ key: 'board' });
@@ -189,8 +196,16 @@ export class BoardScene extends Phaser.Scene {
     });
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.setHover(this.pointerSquare(p)));
     this.input.on('gameout', () => this.setHover(null));
-    this.time.addEvent({ delay: IDLE_MS, loop: true, callback: () => this.idleTick() });
+    // The idle runs on a page timer, not the scene clock, which stops while the loop sleeps.
+    this.idleTimer = setInterval(() => this.idleTick(), IDLE_MS);
+    window.addEventListener('resize', this.onResize);
+    // Back from a hidden tab: redraw once in case the browser dropped the canvas contents.
+    this.game.events.on(Phaser.Core.Events.VISIBLE, this.onResize);
     const stop = () => {
+      this.game.events.off(Phaser.Core.Events.VISIBLE, this.onResize);
+      if (this.idleTimer !== null) clearInterval(this.idleTimer);
+      this.idleTimer = null;
+      window.removeEventListener('resize', this.onResize);
       this.ready = false;
       const r = this.run;
       this.run = null;
@@ -206,8 +221,23 @@ export class BoardScene extends Phaser.Scene {
   override update(_time: number, delta: number): void {
     this.clock += delta;
     if (this.run) this.step();
+    const pulsing = this.checkPulse !== null && this.motion();
     if (this.checkPulse) {
-      this.checkPulse.setAlpha(this.motion() ? 0.6 + 0.4 * Math.sin(this.clock / 170) : 1);
+      this.checkPulse.setAlpha(pulsing ? 0.6 + 0.4 * Math.sin(this.clock / 170) : 1);
+    }
+    // This frame still renders; the loop then sleeps until the next visible change.
+    if (this.run || pulsing) this.awakeFrames = 2;
+    else if (--this.awakeFrames <= 0) this.game.loop.sleep();
+  }
+
+  /** Something visible changed: render at least `frames` more frames. */
+  private invalidate(frames = 2): void {
+    this.awakeFrames = Math.max(this.awakeFrames, frames);
+    const loop = this.game?.loop;
+    if (loop && !loop.running) {
+      // A small first delta after a long sleep (the clock and pulse must not jump).
+      loop.resetDelta();
+      loop.wake();
     }
   }
 
@@ -298,6 +328,7 @@ export class BoardScene extends Phaser.Scene {
 
   /** Draw what should be visible now: the pinned view, else the latest live snapshot. */
   private refresh(): void {
+    this.invalidate();
     // Never redraw under a running animation (its tracks hold the current piece views); play()
     // refreshes once the queue drains.
     if (!this.ready || this.run) return;
@@ -499,6 +530,7 @@ export class BoardScene extends Phaser.Scene {
   }
 
   private drawOverlay(): void {
+    this.invalidate();
     const under = this.under;
     const over = this.over;
     if (!under || !over) return;
@@ -604,6 +636,7 @@ export class BoardScene extends Phaser.Scene {
   private setHover(sq: number | null): void {
     if (sq === this.hoverSq) return;
     this.hoverSq = sq;
+    this.invalidate();
     this.drawHover();
     this.host?.onHover?.(sq);
   }
@@ -611,7 +644,13 @@ export class BoardScene extends Phaser.Scene {
   /** 2-frame idle for creatures and flame flicker; frozen when motion is reduced. */
   private idleTick(redrawOnly = false): void {
     const moving = this.motion();
-    if (!redrawOnly) this.idlePhase = moving ? (this.idlePhase === 0 ? 1 : 0) : 0;
+    if (!redrawOnly) {
+      const next = moving ? (this.idlePhase === 0 ? 1 : 0) : 0;
+      if (next === this.idlePhase) return;
+      this.idlePhase = next;
+      // One frame shows the new idle pose.
+      this.invalidate(1);
+    }
     for (const v of this.pieces.values()) {
       if (!v.facing || v.fainted) continue;
       const phase = moving ? (v.id % 2) ^ this.idlePhase : 0;
@@ -664,6 +703,7 @@ export class BoardScene extends Phaser.Scene {
   private runTracks(tracks: Track[], total: number): Promise<void> {
     return new Promise((resolve) => {
       this.run = { tracks, total, t0: wallClock(), resolve };
+      this.invalidate();
       this.step();
     });
   }

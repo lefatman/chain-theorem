@@ -7,11 +7,12 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
 
 (Top of file. Updated whenever a session ends mid-step.)
 
-- Current step: M2 (tests and review workflow running), M3 client pieces in parallel.
-- Done so far: M0 (skeleton, CI, docs), M1 1.1 + 1.3 (move generation, perft), engine core for M1/M2
-  (pipeline, primitives, projection, loadout validation, preview, Dossier deductions), all 31 content
-  modules, fuzz harness, AI package, simulator CLI, client skeleton (local play vs NPC works).
-- Next: fix engine deviations the M2 review reports, commit M1/M2 with evidence, run the 100k fuzz.
+- Current step: M4 (online battles): protocol package first, then db, server and online client.
+- Done so far: M0, M1, M2 (23 review findings fixed, DD-41..DD-55, 100k fuzz re-run green), M3
+  (board scene, overlay, AI, simulator, Scenario Lab, e2e, budgets all passing), Playtest Gate 1
+  report (designer questions open; the build continues per BUILD_PROMPT 6).
+- Next: M4 4.2 protocol schemas, 4.4 db package, 4.1/4.2/4.3 server, online client and the
+  two-browser e2e; then M5.
 
 ## Arcane Chess codebase path (step 2.8)
 
@@ -38,28 +39,28 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 
 - [x] 2.1 Content module system: SDK (`defineAbility`, `defineItem`, `defineTrait`), hooks, CAPS config, registry generator, scaffolding and validator CLIs.
 - [x] 2.2 Effect primitives and the five-phase pipeline with the resolution queue in state (5.2–5.4).
-- [ ] 2.3 Loadout model and validation: level requirements, slot costs, Schedule, Blended Family (7.3, 7.4, 6.4).
+- [x] 2.3 Loadout model and validation: level requirements, slot costs, Schedule, Blended Family (7.3, 7.4, 6.4).
 - [x] 2.4 Silence rule, six element traits as modules, `silenceScope` config (6.1, 6.2).
 - [x] 2.5 Stalwart, Royal Immunity, INV-03 fizzle check, format objectives (4.3–4.5, 9.1).
-- [ ] 2.6 `project()`, reveal logs, Dossier deductions (8.2–8.5).
+- [x] 2.6 `project()`, reveal logs, Dossier deductions (8.2–8.5).
 - [x] 2.7 14 starter abilities and 11 items as content modules only (5.7, 7.2).
 - [x] 2.8 Golden tests E1–E9 (Arcane Chess part skipped: no path provided; see top of file).
-- [ ] 2.9 Property tests: determinism, chain termination, projection safety.
+- [x] 2.9 Property tests: determinism, chain termination, projection safety.
 - Done when: 100,000 fuzzed games with random loadouts finish with no crash, no unbounded chain and identical replays.
 
 ## M3 — Local battle prototype
 
-- [ ] 3.1 Vite + Phaser 4 board scene, procedural placeholder art meeting 11.2, Classic View.
-- [ ] 3.2 Preact overlay: loadout builder, Dossier, step-through event log, move preview (8.4).
-- [ ] 3.3 `@chain-theorem/ai`: iterative-deepening alpha-beta, time budget, ability-aware eval; Wild/Trainer/Elite.
-- [ ] 3.4 Balance simulator CLI (`pnpm sim`): win rates per element matchup and build archetype.
-- [ ] 3.x Scenario Lab (dev-only): E1–E9 or custom position + loadouts, step through the chain.
-- [ ] 3.x Budgets measured (bundle size, memory, frame rate; 12.3).
+- [x] 3.1 Vite + Phaser 4 board scene, procedural placeholder art meeting 11.2, Classic View.
+- [x] 3.2 Preact overlay: loadout builder, Dossier, step-through event log, move preview (8.4).
+- [x] 3.3 `@chain-theorem/ai`: iterative-deepening alpha-beta, time budget, ability-aware eval; Wild/Trainer/Elite.
+- [x] 3.4 Balance simulator CLI (`pnpm sim`): win rates per element matchup and build archetype.
+- [x] 3.x Scenario Lab (dev-only): E1–E9 or custom position + loadouts, step through the chain.
+- [x] 3.x Budgets measured (bundle size, memory, frame rate; 12.3): 9 of 9 pass, see `docs/BUDGETS.md`.
 - Done when: First Blood, Vanguard and Full Battle playable vs any NPC tier with any loadout; simulator prints a matchup table.
 
 ## Playtest Gate 1
 
-- [ ] `docs/PLAYTEST_GATE_1.md`: simulator tables vs 17.2 targets, tuned PLAYTEST values and why, 15-minute designer checklist.
+- [x] `docs/PLAYTEST_GATE_1.md`: simulator tables vs 17.2 targets, tuned PLAYTEST values and why, 15-minute designer checklist.
 
 ## M4 — Online battles
 
@@ -116,6 +117,19 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-09-25 M3 budgets: `pnpm measure:client` 9 of 9 pass after on-demand board rendering (the Phaser
+  loop sleeps while the board is still): initial JS 66.4 kB gzip, first playable 462.7 kB, minimum
+  device 38.3 fps (idle 60), desktop 58.6 fps (idle 60), peak JS heap 22–26 MB, renderer PSS
+  126–148 MB. Headless Chromium with software WebGL; re-measure on a real phone before release.
+- 2026-09-25 M3 e2e: `pnpm test:e2e` 19/19 (local battles in every format and NPC tier, hot-seat,
+  loadouts, settings, title). NPC fix: the first search iteration always completes, so a loaded
+  device cannot make it hang a piece to a one-move capture (regression test in `objective.test.ts`).
+- 2026-09-25 M2 review: 23 findings from two adversarial spec-conformance reviews fixed (DD-41..DD-55),
+  each with a regression test (`packages/content/test/regressions.test.ts`); `pnpm check` 913 unit
+  tests; perft 30/30; `pnpm test:fuzz:full`: 100,000 games, 8,086,327 plies, 0 failures, replays
+  identical, 10,000 games projection-scanned with the stricter scanner (per-type names, Veil fields,
+  masked elements, pending burns), max 31 events per action, 463 s on 4 cores.
 
 - 2026-09-25 M2 done-when: `tsx apps/tools/src/fuzz/cli.ts` in four 25,000-game chunks (seeds 1–100,000,
   `--scan-every 10`): 100,000 games, 8,088,493 plies, 0 failures, replays identical (events and final

@@ -111,4 +111,26 @@ describe('First Blood objective and Poisoned Meat (R-FMT-005, R-FMT-002, E4)', (
       expect(threats, `after ${uci}`).toEqual([]);
     });
   }
+
+  describe('a device too slow for the clock still sees one-move refutations', () => {
+    // After 1. e4 a Tide rook reaches a2 through its own a7 pawn (Flow), but Ra1xa2 answers with
+    // the first non-pawn capture and wins First Blood. Seen in the browser under heavy CPU load.
+    for (const t of ALL) {
+      it(`R-FMT-005 R-ELEM-006 ${t} does not play Ra8xa2 with the clock already past its deadline`, () => {
+        const tide: Loadout = { elements: ['tide'], items: [], sets: [[]] };
+        const state0 = engine.newBattle({
+          format: 'first_blood',
+          white: { level: 5, loadout: MEAT },
+          black: { level: 5, loadout: tide },
+        }).state;
+        const state = play(engine, state0, 'e2e4').state;
+        const pub = engine.project(state, 'black');
+        expect(pub.legal).toContain('a8a2');
+        let calls = 0;
+        const late = () => (calls++ === 0 ? 0 : 10_000);
+        const r = search(engine, pub, tide, t, { now: late, ms: 50 });
+        expect(moveToUci(r.move)).not.toBe('a8a2');
+      });
+    }
+  });
 });

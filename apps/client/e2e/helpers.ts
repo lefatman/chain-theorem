@@ -170,6 +170,11 @@ export function turnBanner(page: Page): Locator {
   return page.locator('.turn-banner');
 }
 
+/** The result panel shown once the battle is over. */
+export function resultPanel(page: Page): Locator {
+  return page.locator('.result[role="status"]');
+}
+
 /** Replace local storage (profile, settings) and reload so the app starts from it. */
 export async function seedStorage(page: Page, entries: Record<string, unknown>): Promise<void> {
   await page.goto('/');
