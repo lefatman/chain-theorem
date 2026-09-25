@@ -1,4 +1,5 @@
 /**
+ * Shared by the server's cost dashboard and the load test (dependency-free, like the rate limits).
  * The infrastructure cost model of spec 14.1 (R-COST-001) and the guardrail of 14.2 (R-COST-002):
  * turns measured usage into dollars per player-hour and per heavy subscriber-month. Rates are the
  * published ones the spec uses; re-measure against real invoices once telemetry exists (R-COST-003).

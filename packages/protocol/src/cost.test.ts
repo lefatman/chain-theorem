@@ -1,7 +1,6 @@
 /** The cost model (R-COST-001, R-COST-002) and telemetry sinks (5.5). */
 import { describe, expect, it } from 'vitest';
 import { cost, GUARDRAIL_PER_SUBSCRIBER } from './cost.ts';
-import { AnalyticsSink, MemorySink } from './telemetry.ts';
 
 describe('cost model (R-COST-001, R-COST-002)', () => {
   it('R-COST-001 reproduces the heavy-player scenario of spec 14.1 (about $0.009 a month)', () => {
@@ -31,23 +30,5 @@ describe('cost model (R-COST-001, R-COST-002)', () => {
       workerRequests: 0,
     });
     expect(r.withinGuardrail).toBe(false);
-  });
-});
-
-describe('telemetry sinks (5.5)', () => {
-  it('counts with dimensions and writes one Analytics Engine point per counter on flush', () => {
-    const m = new MemorySink();
-    m.count('ws_in', 2, { room: 'zone', type: 'step' });
-    m.count('ws_in', 1, { type: 'step', room: 'zone' });
-    expect(m.get('ws_in', { room: 'zone', type: 'step' })).toBe(3);
-    const points: unknown[] = [];
-    const a = new AnalyticsSink({ writeDataPoint: (p) => points.push(p) });
-    a.count('battles', 1, { format: 'first_blood' });
-    a.count('battles', 1, { format: 'first_blood' });
-    a.flush();
-    a.flush();
-    expect(points).toEqual([
-      { indexes: ['battles'], blobs: ['battles', 'format=first_blood'], doubles: [2] },
-    ]);
   });
 });
