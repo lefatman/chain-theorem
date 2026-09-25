@@ -2,13 +2,16 @@
 import Phaser from 'phaser';
 import { BoardScene } from './BoardScene.ts';
 import { TILE } from './art.ts';
+import { loadDropInArt } from './dropin.ts';
 
 export interface BoardGame {
   game: Phaser.Game;
   scene: BoardScene;
 }
 
-export function createBoardGame(parent: HTMLElement): Promise<BoardGame> {
+export async function createBoardGame(parent: HTMLElement): Promise<BoardGame> {
+  // Human art replaces procedural sheets before any texture is uploaded (4.5).
+  await loadDropInArt();
   return new Promise((resolve) => {
     const scene = new BoardScene();
     const game = new Phaser.Game({
