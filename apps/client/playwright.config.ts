@@ -49,7 +49,9 @@ export default defineConfig({
   ],
   webServer: {
     // Build first so the suite never runs against a stale bundle.
-    command: `pnpm --filter @chain-theorem/client build --outDir ${OUT_DIR} && pnpm --filter @chain-theorem/client preview --outDir ${OUT_DIR} --host ${HOST} --port ${PORT} --strictPort`,
+    // VITE_OFFLINE=1: this suite covers local play only and runs without the Worker (online e2e
+    // runs against `wrangler dev`, see e2e-online).
+    command: `VITE_OFFLINE=1 pnpm --filter @chain-theorem/client build --outDir ${OUT_DIR} && pnpm --filter @chain-theorem/client preview --outDir ${OUT_DIR} --host ${HOST} --port ${PORT} --strictPort`,
     url: `http://${HOST}:${PORT}/`,
     reuseExistingServer: process.env.PW_REUSE_SERVER === '1',
     timeout: 180_000,

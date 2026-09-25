@@ -6,6 +6,8 @@ import { PlaySetup } from '../ui/PlaySetup.tsx';
 import { BattleScreen } from '../ui/BattleScreen.tsx';
 import { LoadoutsScreen } from '../ui/LoadoutsScreen.tsx';
 import { SettingsScreen } from '../ui/SettingsScreen.tsx';
+import { LoginScreen } from '../ui/LoginScreen.tsx';
+import { OnlineScreen } from '../ui/OnlineScreen.tsx';
 
 // Dev-only Scenario Lab: this branch is removed from production builds (BUILD_PROMPT M3).
 const ScenarioLab = import.meta.env.DEV
@@ -27,6 +29,12 @@ export function App() {
       break;
     case 'settings':
       screen = <SettingsScreen />;
+      break;
+    case 'login':
+      screen = <LoginScreen />;
+      break;
+    case 'online':
+      screen = <OnlineScreen />;
       break;
     case 'lab':
       screen = ScenarioLab ? <ScenarioLab /> : <Title />;

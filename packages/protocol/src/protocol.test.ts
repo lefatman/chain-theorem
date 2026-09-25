@@ -141,3 +141,15 @@ describe('rate limits (R-SEC-005)', () => {
     expect(tooManyStrikes(b)).toBe(true);
   });
 });
+
+describe('queue (R-FMT-004)', () => {
+  it('R-FMT-004 unranked queues match within ±5 levels, widening after 30 s', async () => {
+    const { levelWindow, ClientQueue: CQ } = await import('./index.ts');
+    expect(levelWindow(0)).toBe(5);
+    expect(levelWindow(29_999)).toBe(5);
+    expect(levelWindow(30_000)).toBe(6);
+    expect(levelWindow(60_000)).toBe(9);
+    expect(decode(CQ, '{"t":"join","d":{"loadoutId":"abc"}}')).not.toBeNull();
+    expect(decode(CQ, '{"t":"join","d":{}}')).toBeNull();
+  });
+});

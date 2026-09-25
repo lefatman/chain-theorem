@@ -7,3 +7,4 @@ export * from './battle.ts';
 export * from './zone.ts';
 export * from './api.ts';
 export * from './limits.ts';
+export * from './queue.ts';

@@ -90,6 +90,7 @@ export function BattleHud({ controller, compact, move, inspect, replay, onPrompt
     <aside class={`hud ${compact ? 'compact' : ''}`} aria-label="Battle panel">
       <Players controller={controller} />
       <TurnBanner controller={controller} />
+      {s.connection !== undefined && <OnlineStatus controller={controller} />}
       {s.status === 'ended' && s.result && (
         <div class="result" role="status">
           <p>
@@ -105,10 +106,18 @@ export function BattleHud({ controller, compact, move, inspect, replay, onPrompt
             {s.result.reason === 'objective' ? `${formatName} objective` : REASON[s.result.reason]}
           </p>
           <div class="row start">
-            <button class="primary" onClick={() => rematch() || go('play')}>
-              Rematch (swap colours)
-            </button>
-            <button onClick={() => go('play')}>New battle</button>
+            {s.connection === undefined ? (
+              <>
+                <button class="primary" onClick={() => rematch() || go('play')}>
+                  Rematch (swap colours)
+                </button>
+                <button onClick={() => go('play')}>New battle</button>
+              </>
+            ) : (
+              <button class="primary" onClick={() => go('online')}>
+                New online battle
+              </button>
+            )}
             <button onClick={() => go('title')}>Title</button>
           </div>
           <p class="muted small-text">Every chain stays replayable in the log.</p>
@@ -340,5 +349,47 @@ function Actions({ controller }: { controller: BattleController }) {
           : ''}
       </p>
     </footer>
+  );
+}
+
+/** Online battles: socket state, the opponent's connection (9.2 grace) and incoming draw offers. */
+function OnlineStatus({ controller }: { controller: BattleController }) {
+  const s = controller.snapshot.value;
+  const [now, setNow] = useState(Date.now());
+  const away = s.opponent && !s.opponent.connected ? s.opponent.graceUntil : undefined;
+  useEffect(() => {
+    if (away === undefined) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [away]);
+  const offer =
+    s.drawOffer && s.drawOffer !== s.viewer && s.status === 'playing' ? s.drawOffer : null;
+  return (
+    <>
+      {s.connection === 'connecting' && (
+        <p class="note" role="status">
+          Connecting to the battle…
+        </p>
+      )}
+      {s.connection === 'reconnecting' && (
+        <p class="note warn" role="status">
+          Connection lost. Reconnecting… (your clock keeps running)
+        </p>
+      )}
+      {away !== undefined && s.status === 'playing' && (
+        <p class="note" role="status">
+          {s.names[opposite(s.viewer)]} disconnected. They lose by abandonment in{' '}
+          {Math.max(0, Math.ceil((away - now) / 1000))} s unless they return.
+        </p>
+      )}
+      {s.notice && <p class="note warn">{s.notice}</p>}
+      {offer && (
+        <div class="confirm" role="alertdialog" aria-label="Draw offer">
+          <span>{s.names[offer]} offers a draw. Accept?</span>
+          <button onClick={() => controller.replyDraw?.(true)}>Accept draw</button>
+          <button onClick={() => controller.replyDraw?.(false)}>Decline</button>
+        </div>
+      )}
+    </>
   );
 }

@@ -3,6 +3,9 @@ import { signal } from '@preact/signals';
 import type { FormatId } from '@chain-theorem/rules';
 import type { BattleController } from '../battle/controller.ts';
 import { LocalController } from '../battle/local.ts';
+import { OnlineController } from '../battle/online.ts';
+import { api, wsUrl } from '../net/api.ts';
+import type { BattleTicket } from '@chain-theorem/protocol';
 import type { SavedLoadout } from '../state/profile.ts';
 import { settings } from '../state/settings.ts';
 
@@ -62,4 +65,25 @@ export function rematch(): boolean {
   if (!o) return false;
   startLocalBattle({ ...o, side: o.side === 'white' ? 'black' : 'white' });
   return true;
+}
+
+/**
+ * Join an online battle (M4). The first connect may use a ticket just issued with the battle; every
+ * later connect asks for a fresh one, since tickets last 60 seconds (R-SEC-006).
+ */
+export function startOnlineBattle(battleId: string, first?: BattleTicket): OnlineController {
+  activeBattle.value?.dispose();
+  let ticket = first ?? null;
+  const c = new OnlineController({
+    battleId,
+    connectUrl: async () => {
+      const t = ticket ?? (await api.battleTicket(battleId));
+      ticket = null;
+      return wsUrl(t.url);
+    },
+  });
+  lastStart.value = null;
+  battleSerial.value += 1;
+  activeBattle.value = c;
+  return c;
 }

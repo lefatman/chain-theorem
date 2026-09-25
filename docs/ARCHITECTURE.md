@@ -480,8 +480,35 @@ are dropped and counted.
 Worker routes: `/api/auth/*` (magic link, OAuth, sign-out), `/api/me`, `/api/loadouts`, `/api/inventory`,
 `/api/battles` (challenge links, NPC battles), `/api/queue`, `/api/trades`, `/api/guilds`,
 `/api/leaderboards`, `/api/tournaments`, `/api/billing/*` (checkout, webhook), `/api/admin/*`,
-`/ws/zone/:zone`, `/ws/battle/:id` (WebSocket upgrades need a 60-second signed token bound to the player
-and room, R-SEC-006), and static assets.
+`/ws/zone/:zone`, `/ws/battle/:id`, `/ws/queue/:format` (WebSocket upgrades need a 60-second signed
+token bound to the player and room, R-SEC-006), and static assets.
+
+REST contract (M4; JSON bodies validated with `@chain-theorem/protocol` schemas; errors are
+`{ error: code }` with a 4xx status; state-changing requests must come from the app's own origin):
+
+| Method and path                              | Body                    | Answer                                                                                   |
+| -------------------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------- |
+| `POST /api/auth/start`                       | `{ email }`             | `{ ok: true }` always (no account enumeration); mails a 15-minute single-use link        |
+| `POST /api/auth/verify`                      | `{ token }`             | `{ status: 'signed_in', me }` + session cookie, or `{ status: 'needs_profile', signup }` |
+| `POST /api/auth/complete`                    | `{ signup, name, dob }` | `{ status: 'signed_in', me }` + cookie; `too_young`, `bad_date`, `invalid_token`         |
+| `POST /api/auth/signout`                     | —                       | `204`, cookie cleared                                                                    |
+| `GET /api/auth/providers`                    | —                       | `{ providers: ProviderId[] }` (only those with keys)                                     |
+| `GET /api/auth/oauth/:p/start`, `…/callback` | —                       | redirects; the callback ends at `/#/login?signup=…` for a new account                    |
+| `GET /api/me`                                | —                       | `{ id, name, level, xp, adult }` or `401`                                                |
+| `GET /api/me/export`, `DELETE /api/me`       | —                       | data export / account deletion (R-SEC-010)                                               |
+| `GET /api/inventory`                         | —                       | `{ items: {id, qty}[], cards: {id, qty}[] }`                                             |
+| `GET /api/loadouts`                          | —                       | `{ loadouts: { id, name, loadout, valid, errors }[] }` (max 5, 7.4)                      |
+| `PUT /api/loadouts`                          | `SaveLoadout`           | the saved loadout with `valid` and `errors` from `validateLoadout`                       |
+| `DELETE /api/loadouts/:id`                   | —                       | `204`                                                                                    |
+| `POST /api/battles`                          | `CreateBattle`          | NPC: `BattleTicket`; challenge: `{ code, url, ticket }`                                         |
+| `GET /api/challenges/:code`                  | —                       | `{ format, from: { name, level }, open }`                                                |
+| `POST /api/challenges/:code/accept`          | `{ loadoutId }`         | `BattleTicket`                                                                           |
+| `POST /api/queue/ticket`                     | `JoinQueue`             | `{ url }` for the queue socket (`/ws/queue/:format?t=`)                                  |
+| `POST /api/battles/:id/ticket`               | —                       | `BattleTicket` (players of that battle only; a fresh 60 s ticket per connect)            |
+| `GET /api/battles/active`                    | —                       | `{ battles: { id, format, opponent }[] }` to rejoin after a reload                       |
+
+New accounts start at level 1 with the starter collection: Dual Adept's Glove, Hit and Run, Last
+Word and Scout (every level-1 module); M5 rewards grow it.
 
 | Durable Object   | One per                  | Holds                                                             | Time                                                         |
 | ---------------- | ------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------------ |
