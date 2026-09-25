@@ -7,8 +7,11 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
 
 (Top of file. Updated whenever a session ends mid-step.)
 
-- Current step: 0.1–0.3
-- Next: M1 1.1
+- Current step: M2 (tests and review workflow running), M3 client pieces in parallel.
+- Done so far: M0 (skeleton, CI, docs), M1 1.1 + 1.3 (move generation, perft), engine core for M1/M2
+  (pipeline, primitives, projection, loadout validation, preview, Dossier deductions), all 31 content
+  modules, fuzz harness, AI package, simulator CLI, client skeleton (local play vs NPC works).
+- Next: fix engine deviations the M2 review reports, commit M1/M2 with evidence, run the 100k fuzz.
 
 ## Arcane Chess codebase path (step 2.8)
 
@@ -17,17 +20,17 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 
 ## M0 — Repository and guardrails
 
-- [ ] 0.1 pnpm monorepo as in 13.1; TypeScript strict, ESLint, Prettier, Vitest.
-- [ ] 0.2 GitHub Actions: typecheck, lint, tests on every PR, plus a PostgreSQL service container job.
-- [ ] 0.3 `docs/DESIGN.md`; `AGENTS.md`/`CLAUDE.md` with commands and standing instructions.
-- [ ] 0.4 (human-only) Neon project + Hyperdrive config. Agent part: `DEPLOY.md` steps and `pnpm deploy:check`.
+- [x] 0.1 pnpm monorepo as in 13.1; TypeScript strict, ESLint, Prettier, Vitest.
+- [x] 0.2 GitHub Actions: typecheck, lint, tests on every PR, plus a PostgreSQL service container job.
+- [x] 0.3 `docs/DESIGN.md`; `AGENTS.md`/`CLAUDE.md` with commands and standing instructions.
+- [x] 0.4 (human-only) Neon project + Hyperdrive config. Agent part done: `DEPLOY.md` steps and `pnpm deploy:check`; the Neon/Hyperdrive creation itself is listed under Human-only items.
 - Done when: `pnpm check` passes in CI on the empty skeleton.
 
 ## M1 — Pure chess core
 
-- [ ] 1.1 Board representation and move generation: all pieces, castling, en passant, promotion (R-RULES-001).
+- [x] 1.1 Board representation and move generation: all pieces, castling, en passant, promotion (R-RULES-001).
 - [ ] 1.2 Check, checkmate, stalemate, 50-move rule, threefold repetition via Zobrist (R-RULES-005).
-- [ ] 1.3 Perft: start position, Kiwipete and more published positions.
+- [x] 1.3 Perft: start position, Kiwipete and more published positions.
 - [ ] 1.4 Typed event emission for every move.
 - Done when: perft start depth 5 = 4,865,609; Kiwipete depth 4 = 4,085,603.
 
@@ -113,3 +116,6 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-09-25 M1 1.1/1.3: `pnpm test:perft` 30/30 (7 positions; start d5 4,865,609; Kiwipete d4 4,085,603) in 4.4 s.
+- 2026-09-25 M0: `pnpm check` green on the skeleton (typecheck, lint, 1 unit test, deps:check); secret scan clean.
