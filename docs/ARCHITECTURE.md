@@ -507,6 +507,16 @@ REST contract (M4; JSON bodies validated with `@chain-theorem/protocol` schemas;
 | `POST /api/battles/:id/ticket`               | —                       | `BattleTicket` (players of that battle only; a fresh 60 s ticket per connect)            |
 | `GET /api/battles/active`                    | —                       | `{ battles: { id, format, opponent }[] }` to rejoin after a reload                       |
 
+M5 additions (overworld):
+
+| Method and path           | Body            | Answer                                                                                                                                    |
+| ------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/world/ticket`  | —               | `WorldTicket { zone, url }`: the socket (`/ws/zone/:zone?t=`) for the player's saved zone or the start zone; the server picks the channel |
+| `GET /api/friends`        | —               | `{ friends: { id, name, status: 'friends' \| 'incoming' \| 'outgoing', zone }[] }`                                                        |
+| `POST /api/friends`       | `FriendRequest` | `{ status: 'requested' \| 'friends' }` (by display name or id)                                                                            |
+| `DELETE /api/friends/:id` | —               | `204`                                                                                                                                     |
+| `GET /api/progress`       | —               | `{ level, xp, xpToNext, coins, keyItems, quests, lessonsDone }` for the HUD                                                               |
+
 New accounts start at level 1 with the starter collection: Dual Adept's Glove, Hit and Run, Last
 Word and Scout (every level-1 module); M5 rewards grow it.
 

@@ -56,3 +56,10 @@ export const JoinQueue = z.object({ format: Format, loadoutId: z.string().max(64
 /** Returned when a battle socket may be opened: a 60-second token bound to player and room (R-SEC-006). */
 export const BattleTicket = z.object({ battleId: z.string(), token: z.string(), url: z.string() });
 export type BattleTicket = z.infer<typeof BattleTicket>;
+
+/** `POST /api/friends`: ask a player (by display name or id) to be friends (10.4). */
+export const FriendRequest = z.object({ to: z.string().trim().min(1).max(64) });
+
+/** `POST /api/world/ticket` answer: the zone socket for the player's current zone (R-SEC-006). */
+export const WorldTicket = z.object({ zone: z.string(), url: z.string() });
+export type WorldTicket = z.infer<typeof WorldTicket>;
