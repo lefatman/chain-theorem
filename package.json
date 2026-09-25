@@ -1,0 +1,49 @@
+{
+  "name": "chain-theorem",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Chain Theorem: a browser-first MMO where every battle is chess shaped by capture-triggered abilities.",
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "check": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm content:validate && pnpm deps:check",
+    "typecheck": "pnpm -r --parallel --if-present typecheck",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "deps:check": "tsx scripts/check-deps.ts",
+    "test": "vitest run --project unit",
+    "test:unit": "vitest run --project unit",
+    "test:perft": "vitest run --project perft",
+    "test:fuzz": "tsx apps/tools/src/fuzz/cli.ts --games 500",
+    "test:fuzz:full": "tsx apps/tools/src/fuzz/cli.ts --games 100000",
+    "test:db": "vitest run --project db",
+    "test:db:pg": "tsx scripts/test-db-pg.ts",
+    "test:workers": "pnpm --filter @chain-theorem/server test:workers",
+    "test:e2e": "pnpm --filter @chain-theorem/client test:e2e",
+    "test:load": "tsx apps/tools/src/load/cli.ts",
+    "sim": "tsx apps/tools/src/sim/cli.ts",
+    "seed": "tsx apps/tools/src/seed/cli.ts",
+    "dev": "tsx scripts/dev.ts",
+    "content:new": "tsx apps/tools/src/content/new.ts",
+    "content:index": "tsx apps/tools/src/content/index-gen.ts",
+    "content:validate": "tsx apps/tools/src/content/validate.ts",
+    "deploy:check": "tsx scripts/deploy-check.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.4",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "fast-check": "^4.10.2",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.1"
+  }
+}
