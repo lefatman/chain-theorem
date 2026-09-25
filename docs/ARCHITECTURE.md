@@ -494,13 +494,13 @@ REST contract (M4; JSON bodies validated with `@chain-theorem/protocol` schemas;
 | `POST /api/auth/signout`                     | —                       | `204`, cookie cleared                                                                    |
 | `GET /api/auth/providers`                    | —                       | `{ providers: ProviderId[] }` (only those with keys)                                     |
 | `GET /api/auth/oauth/:p/start`, `…/callback` | —                       | redirects; the callback ends at `/#/login?signup=…` for a new account                    |
-| `GET /api/me`                                | —                       | `{ id, name, level, xp, adult }` or `401`                                                |
+| `GET /api/me`                                | —                       | `{ me: { id, name, level, xp, adult } \| null }` (200 either way: no console noise)      |
 | `GET /api/me/export`, `DELETE /api/me`       | —                       | data export / account deletion (R-SEC-010)                                               |
 | `GET /api/inventory`                         | —                       | `{ items: {id, qty}[], cards: {id, qty}[] }`                                             |
 | `GET /api/loadouts`                          | —                       | `{ loadouts: { id, name, loadout, valid, errors }[] }` (max 5, 7.4)                      |
 | `PUT /api/loadouts`                          | `SaveLoadout`           | the saved loadout with `valid` and `errors` from `validateLoadout`                       |
 | `DELETE /api/loadouts/:id`                   | —                       | `204`                                                                                    |
-| `POST /api/battles`                          | `CreateBattle`          | NPC: `BattleTicket`; challenge: `{ code, url, ticket }`                                         |
+| `POST /api/battles`                          | `CreateBattle`          | NPC: `BattleTicket`; challenge: `{ code, url, ticket }`                                  |
 | `GET /api/challenges/:code`                  | —                       | `{ format, from: { name, level }, open }`                                                |
 | `POST /api/challenges/:code/accept`          | `{ loadoutId }`         | `BattleTicket`                                                                           |
 | `POST /api/queue/ticket`                     | `JoinQueue`             | `{ url }` for the queue socket (`/ws/queue/:format?t=`)                                  |

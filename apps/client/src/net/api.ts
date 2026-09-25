@@ -63,7 +63,7 @@ export type VerifyAnswer =
   { status: 'signed_in'; me: Me } | { status: 'needs_profile'; signup: string };
 
 export const api = {
-  me: () => call<Me>('GET', '/api/me'),
+  me: () => call<{ me: Me | null }>('GET', '/api/me'),
   providers: () => call<{ providers: string[] }>('GET', '/api/auth/providers'),
   startSignIn: (email: string) => call<{ ok: true }>('POST', '/api/auth/start', { email }),
   verify: (token: string) => call<VerifyAnswer>('POST', '/api/auth/verify', { token }),

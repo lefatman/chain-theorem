@@ -15,8 +15,8 @@ export const account = signal<AccountState>({ kind: 'unknown' });
 
 export async function refreshAccount(): Promise<AccountState> {
   try {
-    const me = await api.me();
-    account.value = { kind: 'signed_in', me };
+    const { me } = await api.me();
+    account.value = me ? { kind: 'signed_in', me } : { kind: 'signed_out' };
   } catch (e) {
     const code = e instanceof ApiError ? e.code : 'offline';
     account.value =
