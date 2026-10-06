@@ -139,8 +139,11 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 - 2026-10-06 Art: overworld trainers at 17x26 with a 3-frame walk (stand, left, right; alternating
   by step parity). `pnpm check` 1,469 unit tests; `pnpm format:check` clean; `pnpm test:e2e` 19/19;
   `docs/screenshots` refreshed from the running game (local battles with medieval, samurai and
-  Roman armies, the Academy with the new trainers). `pnpm test:e2e:online` and `pnpm measure:client`
-  on this tree: see the next entry.
+  Roman armies, the Academy with the new trainers). `pnpm test:e2e:online` 9/9 (battle, first win,
+  two players in the world, trade and wager, checkout, guild, moderation, spectating, tournament);
+  `pnpm measure:client` 9 of 9 budgets pass with the new art (initial JS 102.8 kB gzip, first
+  playable 587.0 kB, minimum device 38.2 fps, desktop 58.3 fps, renderer PSS under 150 MB on both
+  profiles; `docs/BUDGETS.md` updated).
 
 - 2026-10-06 Art: human armies (DD-96). `pnpm check` 1,469 unit tests (art: silhouettes by type
   across styles, front/back faces, owner brightness, emblems per element under colour-vision
