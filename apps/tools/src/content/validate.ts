@@ -117,6 +117,18 @@ export function validateContent(): string[] {
     text(w, a.text);
     if (!hasTest('abilities', a.id)) err(w, 'needs a scenario test abilities/<id>.test.ts');
   }
+  // DD-98: exactly one signature ability per element; every other ability is neutral.
+  for (const el of AFFINITIES) {
+    if (el === 'neutral') continue;
+    const own = abilities.filter((a) => a.affinity === el && !a.retired);
+    if (own.length !== 1)
+      err(
+        `element ${el}`,
+        `has ${own.length} affinity abilities (${own.map((a) => a.id).join(', ') || 'none'}); exactly one signature is allowed (6.5, DD-98)`,
+      );
+    for (const a of own)
+      if (!a.attuned) err(`ability ${a.id}`, 'a signature needs an attuned version (6.3)');
+  }
   for (const i of items) {
     const w = `item ${i.id}`;
     unique('item', i.id);

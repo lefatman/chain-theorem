@@ -283,26 +283,27 @@ describe('M2 review regressions', () => {
     expect(r.state.reveals.white.items).toContain('masquerade_mask');
   });
 
-  it('#17 R-LOAD-002 an Attunement Charm that alone admits a trigger is revealed even when the trigger is then silenced', () => {
-    // Reinforce needs a non-pawn victim unless attuned; the Grove charm attunes it on a Tide knight.
-    // The Tide captor is silenced by the Grove victim (R-ELEM-002), so the trigger never resolves.
-    const def = engine.registry.abilities.find((a) => a.id === 'reinforce');
-    expect(def?.affinity).toBe('grove');
+  it('#17 R-LOAD-002 DD-98 an Attunement Charm attunes a signature on an off-element piece, and the attuned trigger is still silenced by the foil', () => {
+    // Cleave is Ember's signature: the Ember charm attunes it on a Tide knight. The Tide captor is
+    // silenced by the Grove victim (R-ELEM-002), so the trigger never resolves; without the charm the
+    // base version would have no target (no diagonally adjacent enemy pawn).
+    const def = engine.registry.abilities.find((a) => a.id === 'cleave');
+    expect(def?.affinity).toBe('ember');
     const r = scenario({
-      fen: '4k3/8/8/3p4/8/2N5/8/4K3 w - - 0 1',
+      fen: '4k3/8/3p4/3p4/8/2N5/8/4K3 w - - 0 1',
       white: {
         elements: ['tide'],
         items: ['attunement_charm'],
-        itemParams: { attunement_charm: { element: 'grove' } },
-        abilities: ['reinforce'],
+        itemParams: { attunement_charm: { element: 'ember' } },
+        abilities: ['cleave'],
       },
       black: { elements: ['grove'] },
       moves: ['c3d5'],
     });
     expect(eventsOf(r.events, 'AbilitySilenced')).toEqual([
-      expect.objectContaining({ side: 'white', ability: 'reinforce' }),
+      expect.objectContaining({ side: 'white', ability: 'cleave' }),
     ]);
-    expect(r.state.reveals.white.items).toContain('attunement_charm');
+    expect(pieceAt(r.state, 'd6')).toMatchObject({ side: 'black', type: 'pawn' });
   });
 
   it('#18 R-LOAD-004 a missing or fractional level is rejected (bad_level)', () => {

@@ -1,9 +1,13 @@
 /**
- * Antidote (5.7): Capturing, Grove, all. "The first effect capture targeting this piece this action
- * fizzles." Attuned: "Every effect capture targeting it this action fizzles." PROTECT (5.2) makes
- * matching effects fizzle within this action; DD-35 fixes the intercept order: Royal Immunity,
- * INV-03, traits (Bulwark), items, abilities, then PROTECT (Antidote); the first fizzle wins and later
- * interceptors are not consumed.
+ * Antidote (5.7): Capturing, neutral, all. "The first effect capture targeting this piece this action
+ * fizzles." Neutral since DD-98: no Attuned version (the former Grove bonus guarded against every
+ * effect capture). PROTECT (5.2) makes matching effects fizzle within this action; DD-35 fixes the
+ * intercept order: Royal Immunity, INV-03, traits (Bulwark), items, abilities, then PROTECT
+ * (Antidote); the first fizzle wins and later interceptors are not consumed.
+ *
+ * Since DD-98 the catalogue has no second source of effect captures against a captor (Poisoned Meat
+ * is the only one; Riposte's Ember fallback is gone), so "only the first" is pinned on the module
+ * data (`count: 1`) rather than on a two-retaliation scenario.
  *
  * Expected behaviour comes from spec 4.1, 4.4, 5.1-5.7, 6.1, 6.2, 6.3, 8.2 and DD-17 to DD-40, not
  * from the engine.
@@ -18,6 +22,7 @@ import {
   squareName,
   uciToMove,
 } from '@chain-theorem/rules';
+import { fx, target } from '@chain-theorem/rules/sdk';
 import type { BulwarkState } from '../traits/bulwark.ts';
 import { abilityById } from '../index.ts';
 import { eventsOf, idAt, parseSquare, pieceAt, scenario } from '../src/testing.ts';
@@ -79,24 +84,23 @@ const FEN = '4k3/8/8/3p4/8/2N5/8/4K3 w - - 0 1';
 const KNIGHT = 1;
 const PAWN = 2;
 const ANTIDOTE_KNIGHT = { kind: 'ability', id: 'antidote', piece: KNIGHT, side: 'white' } as const;
-/**
- * e1 K=0, e4 P=1, d5 n=2, h8 k=3. The e4 pawn takes an Ember knight carrying Poisoned Meat and
- * Riposte; no black piece can recapture on d5, so attuned Riposte effect-captures the pawn: two
- * effect captures target the same captor in one action.
- */
-const TWO_FEN = '7k/8/8/3n4/4P3/8/8/4K3 w - - 0 1';
-const TWO_BLACK = { elements: ['ember' as const], abilities: ['poisoned_meat', 'riposte'] };
+/** e1 K=0, e4 P=1, d5 n=2, h8 k=3. The e4 pawn takes an Ember knight carrying Poisoned Meat. */
+const PAWN_FEN = '7k/8/8/3n4/4P3/8/8/4K3 w - - 0 1';
+const EMBER_PM = { elements: ['ember' as const], abilities: ['poisoned_meat'] };
 
 describe('Antidote', () => {
-  it('R-ABIL-005 R-ABIL-001 module data matches the 5.7 catalogue row (Capturing, Grove, all, level 5, 1 slot)', () => {
+  it('R-ABIL-005 R-ABIL-001 module data matches the 5.7 catalogue row (Capturing, neutral, all, level 5, 1 slot; DD-98: no attuned version, one effect capture guarded)', () => {
     const def = abilityById.get('antidote');
     expect(def?.category).toBe('CAPTURING');
-    expect(def?.affinity).toBe('grove');
+    expect(def?.affinity).toBe('neutral');
     expect(def?.eligible).toBe('all');
     expect(def?.tags).toEqual([]);
     expect(def?.minLevel).toBe(5);
     expect(def?.slotCost).toBe(1);
     expect(def?.limits).toEqual({ perAction: 1 });
+    // The first effect capture only (count 1), never 'all': the former attuned bonus is gone.
+    expect(def?.effects).toEqual([fx.protect(target.self(), 1)]);
+    expect(def?.attuned).toBeUndefined();
   });
 
   it('R-ABIL-005 R-ABIL-002 R-INFO-002 base: Poisoned Meat against the captor fizzles (protected) and the knight survives', () => {
@@ -138,84 +142,58 @@ describe('Antidote', () => {
     expect(revealedOn(r.state, 'black', 'pawn')).toEqual(['poisoned_meat']);
   });
 
-  it('R-ABIL-005 R-ABIL-002 base: only the first effect capture fizzles; a second one in the same action removes the captor', () => {
+  it('R-ABIL-005 R-ELEM-003 R-ELEM-002 no attuned version (DD-98): a Grove bearer gets the plain card (attuned: false) and the one guarded retaliation fizzles', () => {
+    // REACTIONS_ONLY spares the Grove captor's Capturing ability against the Ember victim, so
+    // Antidote resolves; the Ember victim's Captured abilities are not silenced either.
     const r = scenario({
-      fen: TWO_FEN,
-      white: { elements: ['neutral'], abilities: ['antidote'] },
-      black: TWO_BLACK,
-      moves: ['e4d5'],
-    });
-    expect(r.prompts).toEqual([]);
-    const pmFizzle = eventsOf(r.events, 'EffectFizzled').filter(
-      (e) => e.ability === 'poisoned_meat',
-    );
-    expect(pmFizzle).toMatchObject([{ reason: 'protected', target: 1 }]);
-    expect(eventsOf(r.events, 'Captured')).toMatchObject([
-      { victim: 2, by: 'move' },
-      { victim: 1, by: 'effect', source: { kind: 'ability', id: 'riposte', side: 'black' } },
-    ]);
-    expect(
-      eventsOf(r.events, 'EffectFizzled').filter((e) => e.reason === 'protected'),
-    ).toHaveLength(1);
-    expect(r.state.pieces[1]?.square).toBe(-1);
-    expect(pieceAt(r.state, 'd5')).toBeUndefined();
-  });
-
-  it('R-ABIL-005 R-ELEM-003 R-ELEM-002 attuned (Grove bearer): every effect capture on it this action fizzles', () => {
-    // REACTIONS_ONLY spares the Grove captor's Capturing ability against the Ember victim, so the
-    // attuned Antidote resolves; the Ember victim's Captured abilities are not silenced either.
-    const r = scenario({
-      fen: TWO_FEN,
+      fen: PAWN_FEN,
       caps: { SILENCE_SCOPE: 'REACTIONS_ONLY' },
       white: { elements: ['grove'], abilities: ['antidote'] },
-      black: TWO_BLACK,
+      black: EMBER_PM,
       moves: ['e4d5'],
     });
     expect(eventsOf(r.events, 'AbilitySilenced')).toEqual([]);
     expect(eventsOf(r.events, 'AbilityTriggered')[0]).toMatchObject({
       ability: 'antidote',
-      attuned: true,
+      attuned: false,
     });
-    const protectedFizzles = eventsOf(r.events, 'EffectFizzled').filter(
-      (e) => e.reason === 'protected',
-    );
-    expect(protectedFizzles.map((e) => e.ability)).toEqual(['poisoned_meat', 'riposte']);
-    for (const f of protectedFizzles)
-      expect(f).toMatchObject({
+    expect(eventsOf(r.events, 'EffectFizzled')).toMatchObject([
+      {
+        ability: 'poisoned_meat',
+        reason: 'protected',
         target: 1,
         source: { kind: 'ability', id: 'antidote', piece: 1, side: 'white' },
-      });
+      },
+    ]);
     expect(eventsOf(r.events, 'Captured')).toHaveLength(1);
     expect(idAt(r.state, 'd5')).toBe(1);
   });
 
-  it('R-ABIL-005 R-ELEM-003 R-LOAD-002 attuned through Attunement Charm (grove) on a neutral pawn: both effect captures fizzle', () => {
+  it('R-ABIL-005 R-ELEM-003 R-LOAD-002 an Attunement Charm (grove) no longer attunes it (DD-98): the plain guard applies and the Charm stays hidden', () => {
     const r = scenario({
-      fen: TWO_FEN,
+      fen: PAWN_FEN,
       white: {
         elements: ['neutral'],
         items: ['attunement_charm'],
         itemParams: { attunement_charm: { element: 'grove' } },
         abilities: ['antidote'],
       },
-      black: TWO_BLACK,
+      black: { elements: ['neutral'], abilities: ['poisoned_meat'] },
       moves: ['e4d5'],
     });
     expect(eventsOf(r.events, 'AbilityTriggered')[0]).toMatchObject({
       ability: 'antidote',
-      attuned: true,
+      attuned: false,
     });
-    expect(
-      eventsOf(r.events, 'EffectFizzled')
-        .filter((e) => e.reason === 'protected')
-        .map((e) => e.ability),
-    ).toEqual(['poisoned_meat', 'riposte']);
+    expect(eventsOf(r.events, 'EffectFizzled')).toMatchObject([
+      { ability: 'poisoned_meat', reason: 'protected', target: 1 },
+    ]);
     expect(idAt(r.state, 'd5')).toBe(1);
-    // The Charm's effect is observable, so it is revealed (8.2).
-    expect(r.state.reveals.white.items).toContain('attunement_charm');
+    // Nothing of the Charm was observable, so it is not revealed (8.2).
+    expect(r.state.reveals.white.items).not.toContain('attunement_charm');
   });
 
-  it('R-ABIL-005 R-ELEM-003 attuned Antidote vs attuned Poisoned Meat (both Grove): the surviving captor has its set revealed', () => {
+  it('R-ABIL-005 R-ELEM-003 plain Antidote vs attuned Poisoned Meat (both Grove; only the signature attunes, DD-98): the surviving captor has its set revealed', () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['grove'], abilities: ['antidote'] },
@@ -223,7 +201,7 @@ describe('Antidote', () => {
       moves: ['c3d5'],
     });
     expect(eventsOf(r.events, 'AbilityTriggered')).toMatchObject([
-      { ability: 'antidote', attuned: true },
+      { ability: 'antidote', attuned: false },
       { ability: 'poisoned_meat', attuned: true },
     ]);
     expect(eventsOf(r.events, 'EffectFizzled')).toMatchObject([
@@ -300,20 +278,24 @@ describe('Antidote', () => {
     expect(r.state.inCheck).toBeNull();
   });
 
-  it('R-ABIL-005 DD-35 R-ELEM-001 a Stone captor: Bulwark fizzles the first effect capture and Antidote (not consumed) fizzles the second', () => {
+  it('R-ABIL-005 DD-35 R-ELEM-001 a Stone captor: Bulwark intercepts the retaliation before Antidote (fizzle reason bulwark, Bulwark spent, the Antidote guard untouched)', () => {
     const r = scenario({
-      fen: TWO_FEN,
+      fen: PAWN_FEN,
       white: { elements: ['stone'], abilities: ['antidote'] },
-      black: TWO_BLACK,
+      black: EMBER_PM,
       moves: ['e4d5'],
     });
     // Stone and Ember are in different triangles: nothing is silenced.
     expect(eventsOf(r.events, 'AbilitySilenced')).toEqual([]);
+    expect(eventsOf(r.events, 'AbilityTriggered').map((e) => e.ability)).toEqual([
+      'antidote',
+      'poisoned_meat',
+    ]);
     expect(
       eventsOf(r.events, 'EffectFizzled')
         .filter((e) => e.target === 1)
         .map((e) => `${e.ability} ${e.reason}`),
-    ).toEqual(['poisoned_meat bulwark', 'riposte protected']);
+    ).toEqual(['poisoned_meat bulwark']);
     expect(eventsOf(r.events, 'Captured')).toHaveLength(1);
     expect(idAt(r.state, 'd5')).toBe(1);
     expect((r.state.slices['bulwark'] as BulwarkState).spent).toEqual([1]);

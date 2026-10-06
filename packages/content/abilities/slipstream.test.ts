@@ -1,11 +1,11 @@
 /**
- * Slipstream scenario tests (R-ABIL-005, M7 7.3): Captures, Storm, all, replay, 1 charge. After
- * capturing a piece that is not a pawn, any friendly piece may make one non-capturing move.
- * Attuned (Storm bearer): triggers on any victim.
+ * Slipstream scenario tests (R-ABIL-005, M7 7.3): Captures, neutral, all, replay, 1 charge. After
+ * capturing a piece that is not a pawn, any friendly piece may make one non-capturing move. Neutral
+ * since DD-98: no Attuned version (the former Storm bonus triggered on any victim).
  *
  * Expected behaviour comes from spec 4.1 (INV-01), 5.3 (phase 4), 5.4, 5.6 (conditions, charges),
- * 6.1 (Always First, Overabundance), 6.3, 7.2 (Warden's Stopwatch) and DD-17, DD-18, not from the
- * engine's current output.
+ * 6.1 (Always First, Overabundance), 6.3, 7.2 (Warden's Stopwatch) and DD-17, DD-18, DD-98, not from
+ * the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import type { ChoiceOption } from '@chain-theorem/rules';
@@ -23,10 +23,10 @@ const KNIGHT = '4k3/8/8/3n4/8/2N5/8/R3K3 w - - 0 1';
 const PAWN = '4k3/8/8/3p4/8/2N5/8/R3K3 w - - 0 1';
 
 describe('slipstream (R-ABIL-005)', () => {
-  it('R-ABIL-005 slipstream is a level-12, 1-slot Storm After-capturing card with 1 charge, replay, and a non-pawn condition', () => {
+  it('R-ABIL-005 slipstream is a level-12, 1-slot neutral After-capturing card with 1 charge, replay, a non-pawn condition and no attuned version (DD-98)', () => {
     expect(abilityById.get('slipstream')).toMatchObject({
       category: 'CAPTURES',
-      affinity: 'storm',
+      affinity: 'neutral',
       eligible: 'all',
       tags: ['replay'],
       minLevel: 12,
@@ -34,6 +34,7 @@ describe('slipstream (R-ABIL-005)', () => {
       limits: { perAction: 1, charges: 1 },
       conditions: [{ victimTypeNot: 'pawn' }],
     });
+    expect(abilityById.get('slipstream')?.attuned).toBeUndefined();
   });
 
   it('R-ABIL-001 DD-18 after capturing a non-pawn, any friendly piece may make one non-capturing move', () => {
@@ -78,20 +79,18 @@ describe('slipstream (R-ABIL-005)', () => {
     ]);
   });
 
-  it('R-ABIL-005 the base version does not trigger on a pawn (and is not revealed); attuned (Storm) it does', () => {
-    const base = scenario({ fen: PAWN, white: { abilities: ['slipstream'] }, moves: ['c3d5'] });
-    expect(eventsOf(base.events, 'AbilityTriggered')).toEqual([]);
-    expect(base.state.reveals.white.abilities.knight).toBeUndefined();
-    const attuned = scenario({
-      fen: PAWN,
-      white: { elements: ['storm'], abilities: ['slipstream'] },
-      moves: ['c3d5'],
-      answers: [mv('a1', 'a2')],
-    });
-    expect(eventsOf(attuned.events, 'AbilityTriggered')).toEqual([
-      expect.objectContaining({ ability: 'slipstream', attuned: true }),
-    ]);
-    expect(pieceAt(attuned.state, 'a2')?.type).toBe('rook');
+  it('R-ABIL-005 a pawn victim never triggers it (and it is not revealed), on a Storm bearer too: no attuned version (DD-98)', () => {
+    for (const elements of [['neutral'], ['storm']] as const) {
+      const r = scenario({
+        fen: PAWN,
+        white: { elements: [...elements], abilities: ['slipstream'] },
+        moves: ['c3d5'],
+      });
+      expect(eventsOf(r.events, 'AbilityTriggered')).toEqual([]);
+      expect(r.prompts).toEqual([]);
+      expect(r.state.reveals.white.abilities.knight).toBeUndefined();
+      expect(r.engine.remainingCharges(r.state, idAt(r.initial, 'c3'), 'slipstream')).toBe(1);
+    }
   });
 
   it('R-ELEM-001 Always First: a Storm captor’s bonus move comes before the victim’s When-captured abilities', () => {

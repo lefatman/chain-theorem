@@ -1,12 +1,13 @@
 /**
- * Backdraft (5.7): Captured, Ember, all. "Effect-capture one enemy pawn adjacent to this square,
- * other than the captor." Attuned: "May target an adjacent knight or bishop instead." The owner
- * chooses (5.2); the selection is mandatory and auto-resolves with a single option (DD-18); options
- * are filtered by public rules only (occupancy, Royal Immunity, INV-03), never by hidden protections
- * (DD-19), so a chosen target can still fizzle.
+ * Backdraft (5.7): Captured, neutral, all. "Effect-capture one enemy pawn, knight or bishop adjacent
+ * to this square, other than the captor." Neutral since DD-98: the former Ember Attuned bonus (knights
+ * and bishops as targets) is part of the base for every bearer, and there is no Attuned version. The
+ * owner chooses (5.2); the selection is mandatory and auto-resolves with a single option (DD-18);
+ * options are filtered by public rules only (occupancy, Royal Immunity, INV-03), never by hidden
+ * protections (DD-19), so a chosen target can still fizzle.
  *
- * Expected behaviour comes from spec 4.1, 4.2, 5.1-5.7, 6.1 (Bulwark), 6.2, 6.3, 8.2 and DD-17 to
- * DD-40, not from the engine.
+ * Expected behaviour comes from spec 4.1, 4.2, 5.1-5.7, 6.1 (Bulwark), 6.2, 6.3, 8.2, DD-17 to DD-40
+ * and DD-98, not from the engine.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -80,10 +81,11 @@ function offeredPieces(req: ChoiceRequest): number[] {
 const FEN = '4k3/8/8/3p4/4P3/2N5/P7/4K3 w - - 0 1';
 
 describe('Backdraft', () => {
-  it('R-ABIL-005 R-ABIL-001 module data matches the 5.7 catalogue row (Captured, Ember, all, level 4, 1 slot)', () => {
+  it('R-ABIL-005 R-ABIL-001 DD-98 module data matches the 5.7 catalogue row (Captured, neutral, all, level 4, 1 slot)', () => {
     const def = abilityById.get('backdraft');
     expect(def?.category).toBe('CAPTURED');
-    expect(def?.affinity).toBe('ember');
+    expect(def?.affinity).toBe('neutral');
+    expect(def?.attuned).toBeUndefined();
     expect(def?.eligible).toBe('all');
     expect(def?.tags).toEqual([]);
     expect(def?.minLevel).toBe(4);
@@ -250,34 +252,38 @@ describe('Backdraft', () => {
     expect(revealedOn(r.state, 'black', 'pawn')).toEqual(['backdraft']);
   });
 
-  it('R-ABIL-005 base: adjacent knights and bishops are not targets, so it fizzles (no target)', () => {
+  it('R-ABIL-005 DD-18 DD-98 base: with no pawn around, adjacent knights and bishops are the targets and the owner picks one', () => {
     // d1 R=0, e1 K=1, d5 p=2, c6 N=3, e6 B=4, e8 k=5
     const r = scenario({
       fen: '4k3/8/2N1B3/3p4/8/8/8/3RK3 w - - 0 1',
       white: { elements: ['neutral'] },
       black: { elements: ['neutral'], abilities: ['backdraft'] },
       moves: ['d1d5'],
+      answers: [pickPiece(4)],
     });
-    expect(r.prompts).toEqual([]);
-    expect(eventsOf(r.events, 'Captured')).toHaveLength(1);
-    expect(eventsOf(r.events, 'EffectFizzled')).toMatchObject([
-      { side: 'black', piece: 2, ability: 'backdraft', reason: 'no_target' },
+    expect(r.prompts).toHaveLength(1);
+    expect(offeredPieces(r.prompts[0] as ChoiceRequest)).toEqual([3, 4]);
+    expect(eventsOf(r.events, 'EffectFizzled')).toEqual([]);
+    expect(eventsOf(r.events, 'Captured').map((e) => [e.victim, e.by])).toEqual([
+      [2, 'move'],
+      [4, 'effect'],
     ]);
+    expect(pieceAt(r.state, 'e6')).toBeUndefined();
     expect(idAt(r.state, 'c6')).toBe(3);
-    expect(idAt(r.state, 'e6')).toBe(4);
+    expect(idAt(r.state, 'd5')).toBe(0);
   });
 
-  it('R-ABIL-005 R-ELEM-003 R-RULES-004 DD-19 attuned (Ember bearer): adjacent knights and bishops join the pawns; queens and the captor do not', () => {
+  it('R-ABIL-005 R-RULES-004 DD-19 DD-98 base: adjacent knights and bishops join the pawns as targets; queens and the captor do not', () => {
     // d1 R=0, e1 K=1, c4 P=2, e4 Q=3, d5 p=4, c6 N=5, e6 B=6, e8 k=7
     const r = scenario({
       fen: '4k3/8/2N1B3/3p4/2P1Q3/8/8/3RK3 w - - 0 1',
       white: { elements: ['neutral'] },
-      black: { elements: ['ember'], abilities: ['backdraft'] },
+      black: { elements: ['neutral'], abilities: ['backdraft'] },
       moves: ['d1d5'],
       answers: [pickPiece(6)],
     });
     expect(eventsOf(r.events, 'AbilityTriggered')).toMatchObject([
-      { ability: 'backdraft', attuned: true },
+      { ability: 'backdraft', attuned: false },
     ]);
     expect(r.prompts).toHaveLength(1);
     expect(offeredPieces(r.prompts[0] as ChoiceRequest)).toEqual([2, 5, 6]);
@@ -294,7 +300,7 @@ describe('Backdraft', () => {
     expect(idAt(r.state, 'd5')).toBe(0);
   });
 
-  it('R-ABIL-005 R-ELEM-003 attuned: a lone adjacent knight is taken without a prompt', () => {
+  it('R-ABIL-005 R-ELEM-003 DD-98 neutral: an Ember bearer gets the same base effect and is never attuned; a lone adjacent knight is taken without a prompt', () => {
     const r = scenario({
       fen: '4k3/8/2N5/3p4/8/8/8/3RK3 w - - 0 1',
       white: { elements: ['neutral'] },
@@ -303,11 +309,14 @@ describe('Backdraft', () => {
     });
     // d1 R=0, e1 K=1, d5 p=2, c6 N=3, e8 k=4
     expect(r.prompts).toEqual([]);
+    expect(eventsOf(r.events, 'AbilityTriggered')).toMatchObject([
+      { ability: 'backdraft', attuned: false },
+    ]);
     expect(eventsOf(r.events, 'Captured')[1]).toMatchObject({ victim: 3, by: 'effect' });
     expect(pieceAt(r.state, 'c6')).toBeUndefined();
   });
 
-  it('R-ABIL-005 R-ELEM-002 R-INFO-002 an Ember Backdraft is silenced by a Tide captor: revealed by name, the pawn survives', () => {
+  it('R-ABIL-005 R-ELEM-002 R-INFO-002 a Backdraft on an Ember piece is silenced by a Tide captor: revealed by name, the pawn survives', () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['tide'] },

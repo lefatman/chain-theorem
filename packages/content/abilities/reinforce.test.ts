@@ -1,10 +1,10 @@
 /**
- * Reinforce scenario tests (R-ABIL-005, spec 5.7): Captures, Grove, all pieces, revive, 1 charge.
+ * Reinforce scenario tests (R-ABIL-005, spec 5.7): Captures, neutral, all pieces, revive, 1 charge.
  * If the victim was not a pawn, revive your most recently captured pawn on its starting square.
- * Attuned (Grove bearer): triggers on any victim.
+ * Neutral since DD-98: no Attuned version (the former Grove bonus triggered on any victim).
  *
- * Expected behaviour comes from spec 5.1-5.7, 6.1 (Overabundance), 6.2, 6.3, 8.2 and DD-17, not
- * from the engine's current output.
+ * Expected behaviour comes from spec 5.1-5.7, 6.1 (Overabundance), 6.2, 6.3, 8.2 and DD-17, DD-98,
+ * not from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import { eventsOf, idAt, parseSquare, pieceAt, scenario } from '../src/testing.ts';
@@ -84,7 +84,7 @@ describe('reinforce (R-ABIL-005)', () => {
     expect(pieceAt(r.state, 'e2')).toBeUndefined();
   });
 
-  it('R-ABIL-005 R-ELEM-003 R-ELEM-007 reinforce attuned: a Grove bearer triggers on a pawn victim and revives a friendly pawn, not the enemy pawn just taken', () => {
+  it('R-ABIL-005 R-ELEM-003 R-ELEM-007 reinforce has no attuned version (DD-98): a Grove bearer does not trigger on a pawn victim either, and keeps both Overabundance charges', () => {
     const r = scenario({
       fen: '4k3/8/8/3p4/8/2N5/4P3/4K3 w - - 0 1',
       white: { elements: ['grove'], abilities: ['reinforce'] },
@@ -93,17 +93,14 @@ describe('reinforce (R-ABIL-005)', () => {
     const pawn = idAt(r.initial, 'e2');
     const knight = idAt(r.initial, 'c3');
     const last = r.steps[2]?.events ?? [];
-    expect(eventsOf(last, 'AbilityTriggered')[0]).toMatchObject({
-      ability: 'reinforce',
-      attuned: true,
-    });
-    expect(eventsOf(last, 'PieceRevived')).toEqual([
-      expect.objectContaining({ piece: pawn, side: 'white', square: sq('e2') }),
-    ]);
-    expect(pieceAt(r.state, 'e2')?.id).toBe(pawn);
+    expect(eventsOf(last, 'AbilityTriggered')).toHaveLength(0);
+    expect(eventsOf(last, 'PieceRevived')).toHaveLength(0);
+    expect(eventsOf(last, 'ChargeSpent')).toHaveLength(0);
+    expect(r.state.pieces[pawn]?.square).toBe(-1);
+    expect(pieceAt(r.state, 'e2')).toBeUndefined();
     expect(pieceAt(r.state, 'e4')?.id).toBe(knight);
-    // Overabundance: 2 charges on a Grove piece, one left.
-    expect(eventsOf(last, 'ChargeSpent')[0]).toMatchObject({ ability: 'reinforce', remaining: 1 });
+    // Overabundance still doubles the charge on a Grove piece; nothing was spent.
+    expect(r.engine.remainingCharges(r.state, knight, 'reinforce')).toBe(2);
   });
 
   it('R-ABIL-005 R-ELEM-007 reinforce has 1 charge, 2 on a Grove piece', () => {

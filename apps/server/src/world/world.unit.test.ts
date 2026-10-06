@@ -228,7 +228,7 @@ describe('outcomes and rewards (R-SEC-003, R-LOAD-005, R-WORLD-005)', () => {
       events: [
         triggered('white', 'hit_and_run', 1000),
         triggered('white', 'veil', 1001),
-        triggered('black', 'backdraft', 1002),
+        triggered('black', 'cleave', 1002),
         triggered('white', 'poisoned_meat', 1003),
       ],
       seen: { white: [], black: [] },

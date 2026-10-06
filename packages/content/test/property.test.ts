@@ -197,7 +197,7 @@ const levelArb = fc.integer({ min: 1, max: CAPS.LEVEL_CAP });
 /** Battles lean toward high levels half of the time so large loadouts (Veil, Mask, 5-5 sets) play. */
 const battleLevelArb = fc.oneof(levelArb, fc.integer({ min: 18, max: CAPS.LEVEL_CAP }));
 /** Abilities that can prompt their owner (DD-18): bonus moves and target or square selections. */
-const PROMPTING = new Set(['riposte', 'momentum', 'backdraft', 'cleave', 'hit_and_run', 'rebirth']);
+const PROMPTING = new Set(['riposte', 'momentum', 'backdraft', 'cleave', 'hit_and_run']);
 
 /** Raw random material for one army; `buildArmy` turns it into a loadout that respects the rules. */
 const armyDrawArb = (level: fc.Arbitrary<number>) =>

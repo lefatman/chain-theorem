@@ -101,21 +101,26 @@ describe('wild rewards and encounter pacing (R-WORLD-002)', () => {
         for (const c of r.cards ?? []) {
           cards++;
           expect(abilityById.get(c.id)?.minLevel).toBeLessThanOrEqual(2);
-          expect(abilityById.get(c.id)?.affinity).toBe('grove');
+          // DD-98: a Grove army drops Grove's signature or a neutral card.
+          expect(['grove', 'neutral']).toContain(abilityById.get(c.id)?.affinity);
         }
       }
     }
     // About cardChance of the wins drop a card.
     expect(cards / 2000).toBeGreaterThan(WILD_DROPS.cardChance * 0.6);
     expect(cards / 2000).toBeLessThan(WILD_DROPS.cardChance * 1.4);
-    // Level 1 has no Grove card: the pool falls back to any enabled element's level-1 cards
-    // (Squall, Storm, joined the pool when M7 enabled Storm, Stone and Frost).
-    expect(wildCardPool(1, 'grove')).toEqual(['hit_and_run', 'last_word', 'scout', 'squall']);
+    // DD-98: a wild army drops its own signature and neutral cards, never another element's
+    // signature. Level 1 has no Grove card, so only the neutral level-1 cards drop.
+    expect(wildCardPool(1, 'grove')).toEqual(['last_word', 'scout']);
     expect(wildCardPool(1, 'grove').every((id) => abilityById.get(id)?.minLevel === 1)).toBe(true);
-    // M7 (6.5): each new element drops its own cards from its first level.
-    expect(wildCardPool(1, 'storm')).toEqual(['squall']);
-    expect(wildCardPool(2, 'stone')).toEqual(['buttress']);
-    expect(wildCardPool(3, 'frost')).toEqual(['frost_heave']);
+    // M7 (6.5): each new element drops its signature from the level it unlocks.
+    expect(wildCardPool(1, 'storm')).toEqual(['last_word', 'scout', 'squall']);
+    expect(wildCardPool(2, 'stone')).not.toContain('stonewall');
+    expect(wildCardPool(3, 'stone')).toContain('stonewall');
+    expect(wildCardPool(3, 'stone')).not.toContain('frost_heave');
+    expect(wildCardPool(3, 'frost')).toContain('frost_heave');
+    for (const id of wildCardPool(6, 'ember'))
+      expect(['ember', 'neutral'], id).toContain(abilityById.get(id)?.affinity);
   });
 
   it('R-WORLD-002 the session model: more encounters at higher rates, never more battles than the session holds', () => {

@@ -49,11 +49,12 @@ describe('balance simulator (R-TEST-002)', () => {
     }
   });
 
-  it('R-TEST-002 6.5 with pool affinity, each element build plays four cards of its own element', () => {
+  it('R-TEST-002 6.5 DD-98 with pool affinity, each element build plays its signature and otherwise neutral cards', () => {
     setPool('affinity');
     for (const e of ELEMENTS) {
       const set = elementLoadout(e).sets[0] ?? [];
-      expect(set.filter((id) => affinity.get(id) === e).length, e).toBeGreaterThanOrEqual(4);
+      expect(set.filter((id) => affinity.get(id) === e).length, e).toBe(1);
+      expect(set.length, e).toBeGreaterThanOrEqual(4);
       for (const id of set) expect(['neutral', e]).toContain(affinity.get(id));
     }
   });

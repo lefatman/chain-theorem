@@ -1,17 +1,16 @@
 /**
- * Rebirth scenario tests (R-ABIL-005, spec 5.7, E9): Captured, Grove, non-king, revive, 1 charge.
- * At chain end, return to its starting square if empty. Attuned (Grove bearer): may return to any
- * empty back-rank square (DD-22).
+ * Rebirth scenario tests (R-ABIL-005, spec 5.7, E9): Captured, neutral, non-king, revive, 1 charge.
+ * At chain end, return to its starting square if empty. Neutral since DD-98: no Attuned version (the
+ * former Grove bonus offered any empty back-rank square, DD-22), so Rebirth never prompts.
  *
  * Expected behaviour comes from spec 4.1 (INV-03), 5.1-5.7, 6.1 (Overabundance), 6.2, 6.3, 8.2 and
- * DD-17, DD-18, DD-19, DD-22, not from the engine's current output.
+ * DD-17, DD-18, DD-19, DD-22, DD-98, not from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import type { ChoiceOption } from '@chain-theorem/rules';
 import { eventsOf, idAt, parseSquare, pieceAt, scenario } from '../src/testing.ts';
 
 const sq = parseSquare;
-const at = (name: string): ChoiceOption => ({ kind: 'square', square: sq(name) });
 
 describe('rebirth (R-ABIL-005)', () => {
   it('R-ABIL-005 R-ABIL-003 rebirth returns the piece to its starting square at chain end, after the other reactions have resolved', () => {
@@ -107,74 +106,59 @@ describe('rebirth (R-ABIL-005)', () => {
     }
   });
 
-  it("R-ABIL-005 R-ELEM-003 DD-22 DD-18 rebirth attuned: the Grove piece's owner chooses among its starting square and every empty back-rank square", () => {
-    // 1... Nf6-g4 2. Be2xg4. Rank 8 holds a8, e8 and h8; the start square f6 is empty.
-    const fen = 'r3k2r/8/5n2/8/8/8/4B3/2K5 b - - 0 1';
-    const r = scenario({
-      fen,
+  it('R-ABIL-005 R-ELEM-003 DD-22 DD-18 rebirth has no attuned version (DD-98): a Grove piece returns to its starting square with no prompt, whether or not other back-rank squares are empty', () => {
+    // 1... Nf6-g4 2. Be2xg4. Rank 8 holds a8, e8 and h8 only, yet no square choice is offered.
+    const open = scenario({
+      fen: 'r3k2r/8/5n2/8/8/8/4B3/2K5 b - - 0 1',
       black: { elements: ['grove'], abilities: ['rebirth'] },
       moves: ['f6g4', 'e2g4'],
-      answers: [at('g8')],
     });
-    const knight = idAt(r.initial, 'f6');
-    expect(r.prompts).toHaveLength(1);
-    const req = r.prompts[0];
-    expect(req?.chooser).toBe('black');
-    expect(req?.kind).toBe('square');
-    expect(req?.source).toEqual({ ability: 'rebirth', piece: knight, side: 'black' });
-    // Mandatory (no Decline), square order from black's side.
-    expect(req?.options).toEqual([at('b8'), at('c8'), at('d8'), at('f8'), at('g8'), at('f6')]);
-    expect(req?.defaultOption).toBe(0);
-    expect(eventsOf(r.events, 'AbilityTriggered')[0]).toMatchObject({
+    const knight = idAt(open.initial, 'f6');
+    expect(open.prompts).toHaveLength(0);
+    expect(eventsOf(open.events, 'AbilityTriggered')[0]).toMatchObject({
       ability: 'rebirth',
-      attuned: true,
+      attuned: false,
     });
-    expect(pieceAt(r.state, 'g8')?.id).toBe(knight);
-    expect(pieceAt(r.state, 'f6')).toBeUndefined();
-    expect(eventsOf(r.events, 'ChargeSpent')[0]).toMatchObject({ remaining: 1 });
-
-    const unanswered = scenario({
-      fen,
-      black: { elements: ['grove'], abilities: ['rebirth'] },
-      moves: ['f6g4', 'e2g4'],
-    });
-    expect(pieceAt(unanswered.state, 'b8')?.id).toBe(knight);
-  });
-
-  it("R-ABIL-005 DD-19 INV-03 rebirth attuned never offers a square where the returning piece would check the acting player's ordinary king", () => {
-    // White king d6: a black knight on c8 or e8 would give check, so those squares are left out.
-    const r = scenario({
-      fen: '7k/8/3K1n2/8/8/8/4B3/8 b - - 0 1',
-      black: { elements: ['grove'], abilities: ['rebirth'] },
-      moves: ['f6g4', 'e2g4'],
-      answers: [at('d8')],
-    });
-    const knight = idAt(r.initial, 'f6');
-    expect(r.prompts[0]?.options).toEqual([
-      at('a8'),
-      at('b8'),
-      at('d8'),
-      at('f8'),
-      at('g8'),
-      at('f6'),
+    expect(eventsOf(open.events, 'PieceRevived')).toEqual([
+      expect.objectContaining({ piece: knight, side: 'black', square: sq('f6') }),
     ]);
-    expect(pieceAt(r.state, 'd8')?.id).toBe(knight);
-    expect(r.state.inCheck).toBeNull();
-  });
+    expect(pieceAt(open.state, 'f6')?.id).toBe(knight);
+    for (const empty of ['b8', 'c8', 'd8', 'f8', 'g8'])
+      expect(pieceAt(open.state, empty)).toBeUndefined();
+    // Overabundance still doubles the charge on a Grove piece.
+    expect(eventsOf(open.events, 'ChargeSpent')[0]).toMatchObject({ remaining: 1 });
 
-  it('R-ABIL-005 DD-18 DD-22 rebirth attuned: a single available square resolves without a prompt', () => {
-    // 1... Ng8-f6 2. Ne4xf6: the only empty back-rank square is the knight's own start g8.
-    const r = scenario({
+    // 1... Ng8-f6 2. Ne4xf6: the start g8 is the only empty back-rank square; the same result.
+    const full = scenario({
       fen: 'rnbqkbnr/8/8/8/4N3/8/8/4K3 b - - 0 1',
       black: { elements: ['grove'], abilities: ['rebirth'] },
       moves: ['g8f6', 'e4f6'],
     });
-    const knight = idAt(r.initial, 'g8');
+    expect(full.prompts).toHaveLength(0);
+    expect(pieceAt(full.state, 'g8')?.id).toBe(idAt(full.initial, 'g8'));
+  });
+
+  it("R-ABIL-005 DD-19 INV-03 rebirth has no back-rank fallback (DD-98): a Grove piece whose starting square would check the acting player's ordinary king fizzles (inv03) despite empty back-rank squares, and keeps its charges", () => {
+    // 1... Nf6-g4 2. Kg3xg4: a knight back on f6 would check the white king on g4, and a8-g8 are
+    // empty, but Rebirth only ever returns to the start square.
+    const r = scenario({
+      fen: '7k/8/5n2/8/8/6K1/8/8 b - - 0 1',
+      black: { elements: ['grove'], abilities: ['rebirth'] },
+      moves: ['f6g4', 'g3g4'],
+    });
+    const knight = idAt(r.initial, 'f6');
+    const last = r.steps[1]?.events ?? [];
     expect(r.prompts).toHaveLength(0);
-    expect(pieceAt(r.state, 'g8')?.id).toBe(knight);
-    expect(eventsOf(r.events, 'PieceRevived')).toEqual([
-      expect.objectContaining({ piece: knight, square: sq('g8') }),
+    expect(eventsOf(last, 'AbilityTriggered')).toHaveLength(1);
+    expect(eventsOf(last, 'EffectFizzled')).toEqual([
+      expect.objectContaining({ side: 'black', ability: 'rebirth', reason: 'inv03' }),
     ]);
+    expect(eventsOf(last, 'PieceRevived')).toHaveLength(0);
+    expect(eventsOf(last, 'ChargeSpent')).toHaveLength(0);
+    expect(r.state.pieces[knight]?.square).toBe(-1);
+    expect(pieceAt(r.state, 'f6')).toBeUndefined();
+    expect(r.state.inCheck).toBeNull();
+    expect(r.engine.remainingCharges(r.state, knight, 'rebirth')).toBe(2);
   });
 
   it('R-ABIL-005 DD-22 rebirth returns the piece with its current type to the starting square of its identity', () => {

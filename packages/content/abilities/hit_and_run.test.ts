@@ -187,11 +187,11 @@ describe('Hit and Run', () => {
   });
 
   it('R-ABIL-005 R-ABIL-004 fizzles (occupied) when the origin square was filled earlier in the chain', () => {
-    // e1 K=0, c2 P=1, c3 N=2, d5 p=3, e8 k=4. The Ember knight's attuned Momentum lets the c2 pawn
-    // step into c3 before Hit and Run (loadout order) resolves.
+    // e1 K=0, c2 P=1, c3 N=2, d5 n=3, e8 k=4. Slipstream (a non-pawn victim; DD-98: neutral) lets
+    // the c2 pawn step into c3 before Hit and Run (loadout order) resolves.
     const r = scenario({
-      fen: '4k3/8/8/3p4/8/2N5/2P5/4K3 w - - 0 1',
-      white: { elements: ['ember'], abilities: ['momentum', 'hit_and_run'] },
+      fen: '4k3/8/8/3n4/8/2N5/2P5/4K3 w - - 0 1',
+      white: { elements: ['ember'], abilities: ['slipstream', 'hit_and_run'] },
       black: { elements: ['neutral'] },
       moves: ['c3d5'],
       answers: [pickMove('c2c3')],
@@ -201,9 +201,9 @@ describe('Hit and Run', () => {
     expect(idAt(r.state, 'c3')).toBe(1);
     expect(idAt(r.state, 'd5')).toBe(2);
     expect(trace(r.events)).toEqual([
-      'Captured black pawn#3 by move',
+      'Captured black knight#3 by move',
       'MoveMade white knight#2 c3-d5',
-      'Triggered white momentum',
+      'Triggered white slipstream',
       // The bonus action runs at depth 1 (INV-01, architecture 2.4).
       'd1 MoveMade white pawn#1 c2-c3 bonus',
       'Triggered white hit_and_run',

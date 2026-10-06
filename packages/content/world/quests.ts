@@ -88,7 +88,7 @@ export const QUESTS: readonly QuestDef[] = [
       { kind: 'talk', npc: 'captain_wren', text: 'Talk to Captain Wren by Rookhaven Pond.' },
       {
         kind: 'win',
-        text: 'Win a battle with a loadout of Tide abilities only.',
+        text: 'Win a battle using only Tide and neutral abilities.',
         constraint: { onlyAffinity: 'tide' },
       },
       {
@@ -164,7 +164,7 @@ export const HIGHCAIRN_QUESTS: readonly QuestDef[] = [
       },
       {
         kind: 'win',
-        text: 'Win a battle with a loadout of Storm abilities only.',
+        text: 'Win a battle using only Storm and neutral abilities.',
         constraint: { onlyAffinity: 'storm' },
       },
       { kind: 'talk', npc: 'surveyor_ib', text: 'Report back to Surveyor Ib.' },

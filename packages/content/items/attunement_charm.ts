@@ -1,6 +1,7 @@
 /**
- * Attunement Charm (R-LOAD-002; PLAYTEST). Abilities of the chosen affinity count as Attuned on all
- * your pieces (DD-29: one module with an element parameter chosen in the loadout).
+ * Attunement Charm (R-LOAD-002; PLAYTEST). The chosen element's signature ability counts as Attuned
+ * on all your pieces (DD-29: one module with an element parameter chosen in the loadout; DD-98: only
+ * signatures have an affinity, so the charm attunes exactly one card).
  */
 import { defineItem } from '@chain-theorem/rules/sdk';
 
@@ -23,7 +24,7 @@ export default defineItem({
   },
   text: {
     short: 'One affinity counts as Attuned on every piece.',
-    rules: 'Abilities of the chosen affinity count as Attuned on all your pieces.',
+    rules: "The chosen element's signature ability counts as Attuned on all your pieces.",
   },
   status: 'PLAYTEST',
 });

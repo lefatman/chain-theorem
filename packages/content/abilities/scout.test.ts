@@ -1,8 +1,10 @@
 /**
- * Scout (5.7): Capturing, Tide, all. "Reveal the victim's abilities before they resolve." Attuned:
- * "Also reveal the opponent's highest-cost item" (DD-40: ties by item id, fizzles with no items).
+ * Scout (5.7): Capturing, neutral, all. "Reveal the victim's abilities before they resolve." Neutral
+ * since DD-98: the former Tide Attuned bonus (also reveal the opponent's highest-cost item, DD-40) is
+ * dropped; no bearer is attuned and items stay hidden.
  *
- * Expected behaviour comes from spec 5.1-5.7, 6.2, 6.3, 8.2 and DD-17 to DD-40, not from the engine.
+ * Expected behaviour comes from spec 5.1-5.7, 6.2, 6.3, 8.2, DD-17 to DD-40 and DD-98, not from the
+ * engine.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -79,17 +81,17 @@ const PAWN = 2;
 const sets6 = (pawn: string[], knight: string[] = []): string[][] => [pawn, knight, [], [], [], []];
 
 describe('Scout', () => {
-  it('R-ABIL-005 R-ABIL-001 module data matches the 5.7 catalogue row (Capturing, Tide, all, level 1, 1 slot)', () => {
+  it('R-ABIL-005 R-ABIL-001 DD-98 module data matches the 5.7 catalogue row (Capturing, neutral, all, level 1, 1 slot)', () => {
     const def = abilityById.get('scout');
     expect(def).toBeDefined();
     expect(def?.category).toBe('CAPTURING');
-    expect(def?.affinity).toBe('tide');
+    expect(def?.affinity).toBe('neutral');
     expect(def?.eligible).toBe('all');
     expect(def?.tags).toEqual([]);
     expect(def?.minLevel).toBe(1);
     expect(def?.slotCost).toBe(1);
     expect(def?.limits).toEqual({ perAction: 1 });
-    expect(def?.attuned).toBeDefined();
+    expect(def?.attuned).toBeUndefined();
   });
 
   it("R-ABIL-005 R-ABIL-001 R-INFO-002 base: reveals the victim's full piece-type set before the victim is removed", () => {
@@ -197,84 +199,52 @@ describe('Scout', () => {
     expect(r.state.reveals.black.complete).toEqual(['pawn']);
   });
 
-  it("R-ABIL-005 R-ELEM-003 DD-40 attuned (Tide bearer): also reveals the opponent's highest-cost item", () => {
+  it('R-ABIL-005 R-ELEM-003 DD-98 neutral: a Tide bearer gets the base set reveal only, never attuned; no item is revealed', () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['tide'], abilities: ['scout'] },
       black: {
         elements: ['neutral'],
-        // Slot costs: Dual Adept's Glove 1, Journeyman's Medallion 3, Multitasker's Schedule 1.
         items: ['dual_adepts_glove', 'journeymans_medallion', 'multitaskers_schedule'],
         abilities: ['hit_and_run'],
       },
       moves: ['c3d5'],
     });
-
     expect(eventsOf(r.events, 'AbilityTriggered')[0]).toMatchObject({
       ability: 'scout',
-      attuned: true,
+      attuned: false,
     });
-    const reveals = scoutReveals(r.events);
-    // Append mode: the base set reveal plus exactly one item reveal.
-    expect(reveals.map((e) => e.info.kind).sort()).toEqual(['item', 'set']);
-    expect(reveals.find((e) => e.info.kind === 'item')).toMatchObject({
-      side: 'black',
-      info: { kind: 'item', item: 'journeymans_medallion' },
-      cause: 'effect',
-      source: { kind: 'ability', id: 'scout', piece: KNIGHT, side: 'white' },
-    });
-    expect(r.state.reveals.black.items).toEqual(['journeymans_medallion']);
-    expect(r.state.reveals.black.allItems).toBe(false);
+    expect(scoutReveals(r.events).map((e) => e.info.kind)).toEqual(['set']);
+    expect(eventsOf(r.events, 'EffectFizzled')).toEqual([]);
     expect(revealedOn(r.state, 'black', 'pawn')).toEqual(['hit_and_run']);
     expect(r.state.reveals.black.complete).toEqual(['pawn']);
-    // Both item reveals happen before the capture (phase 2).
-    const captured = eventsOf(r.events, 'Captured')[0] as BattleEvent;
-    for (const e of reveals) expect(r.events.indexOf(e)).toBeLessThan(r.events.indexOf(captured));
+    expect(r.state.reveals.black.items).toEqual([]);
+    expect(r.state.reveals.black.allItems).toBe(false);
   });
 
-  it('R-ABIL-005 R-ELEM-003 R-ELEM-002 DD-40 attuned: ties on slot cost are broken by item id; same element silences nothing', () => {
+  it('R-ABIL-005 R-ELEM-002 same element (Tide captor, Tide victim) silences nothing: Scout resolves and items stay hidden (DD-98)', () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['tide'], abilities: ['scout'] },
       black: {
-        // Same element as the captor: nothing is silenced (6.2).
         elements: ['tide'],
         items: ['wardens_stopwatch', 'multitaskers_schedule', 'dual_adepts_glove'],
+        abilities: ['last_word'],
       },
       moves: ['c3d5'],
     });
     expect(eventsOf(r.events, 'AbilitySilenced')).toEqual([]);
-    const itemReveals = scoutReveals(r.events).filter((e) => e.info.kind === 'item');
-    expect(itemReveals).toHaveLength(1);
-    expect(itemReveals[0]?.info).toEqual({ kind: 'item', item: 'dual_adepts_glove' });
-    expect(r.state.reveals.black.items).toEqual(['dual_adepts_glove']);
-    expect(r.state.reveals.black.allItems).toBe(false);
-  });
-
-  it('R-ABIL-005 R-ELEM-003 DD-40 attuned: the item reveal fizzles when the opponent has no items, the set reveal still resolves', () => {
-    const r = scenario({
-      fen: FEN,
-      white: { elements: ['tide'], abilities: ['scout'] },
-      black: { elements: ['neutral'], abilities: ['last_word'] },
-      moves: ['c3d5'],
-    });
-    const fizzles = eventsOf(r.events, 'EffectFizzled');
-    expect(fizzles).toHaveLength(1);
-    expect(fizzles[0]).toMatchObject({
-      side: 'white',
-      piece: KNIGHT,
-      ability: 'scout',
-      reason: 'no_target',
-    });
-    const reveals = scoutReveals(r.events);
-    expect(reveals).toHaveLength(1);
-    expect(reveals[0]?.info).toEqual({ kind: 'set', pieceType: 'pawn', abilities: ['last_word'] });
+    expect(eventsOf(r.events, 'AbilityTriggered').map((e) => e.ability)).toEqual([
+      'scout',
+      'last_word',
+    ]);
+    expect(scoutReveals(r.events).map((e) => e.info.kind)).toEqual(['set']);
+    expect(revealedOn(r.state, 'black', 'pawn')).toEqual(['last_word']);
     expect(r.state.reveals.black.items).toEqual([]);
     expect(r.state.reveals.black.allItems).toBe(false);
-    expect(r.state.reveals.black.complete).toEqual(['pawn']);
   });
 
-  it('R-ABIL-005 R-ELEM-002 R-INFO-002 a Tide Scout is silenced against a Grove victim: revealed by name, nothing about the victim is revealed', () => {
+  it('R-ABIL-005 R-ELEM-002 R-INFO-002 a Scout on a Tide piece is silenced against a Grove victim: revealed by name, nothing about the victim is revealed', () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['tide'], abilities: ['scout'] },
@@ -335,11 +305,10 @@ describe('Scout', () => {
     expect(eventsOf(r.events, 'AbilitySilenced')).toEqual([]);
     expect(eventsOf(r.events, 'AbilityTriggered')[0]).toMatchObject({
       ability: 'scout',
-      attuned: true,
+      attuned: false,
     });
     expect(scoutReveals(r.events)).toMatchObject([
       { side: 'black', info: { kind: 'set', pieceType: 'rook', abilities: ['last_word'] } },
-      { side: 'black', info: { kind: 'item', item: 'blended_family' } },
     ]);
     expect(r.state.reveals.black.complete).toEqual(['rook']);
     expect(r.state.reveals.black.abilities.pawn).toBeUndefined();
@@ -356,11 +325,11 @@ describe('Scout', () => {
     expect(eventsOf(r.events, 'AbilitySilenced')).toEqual([]);
     expect(eventsOf(r.events, 'AbilityTriggered')[0]).toMatchObject({
       ability: 'scout',
-      attuned: true,
+      attuned: false,
     });
     expect(revealedOn(r.state, 'black', 'pawn')).toEqual(['hit_and_run']);
     expect(r.state.reveals.black.complete).toEqual(['pawn']);
-    expect(r.state.reveals.black.items).toEqual(['triple_adepts_gloves']);
+    expect(r.state.reveals.black.items).toEqual([]);
   });
 
   it('R-ABIL-005 R-ELEM-002 DD-28 R-INFO-005 a silenced Scout on a veiled knight is not named: the knight type is marked veiled', () => {
@@ -411,12 +380,12 @@ describe('Scout', () => {
     });
     const pub = r.engine.project(r.state, 'white');
     expect(pub.armies.black.loadout).toBeUndefined();
-    expect(pub.armies.black.revealed.items).toEqual(['journeymans_medallion']);
+    expect(pub.armies.black.revealed.items).toEqual([]);
     expect(pub.armies.black.revealed.complete).toEqual(['pawn']);
     const json = JSON.stringify([pub, r.engine.projectEvents(r.state, r.events, 'white')]);
-    expect(json).toContain('journeymans_medallion');
     expect(json).toContain('hit_and_run');
-    // Unrevealed opponent ids never reach the viewer.
+    // Unrevealed opponent ids never reach the viewer (DD-98: Scout reveals no item).
+    expect(json).not.toContain('journeymans_medallion');
     expect(json).not.toContain('dual_adepts_glove');
     expect(json).not.toContain('multitaskers_schedule');
     expect(json).not.toContain('poisoned_meat');

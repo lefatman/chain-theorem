@@ -1,10 +1,10 @@
 /**
- * Pawn Storm scenario tests (R-ABIL-005, M7 7.3): Captures, Storm, pawn, replay. After capturing,
- * this pawn may make one non-capturing move. Attuned (Storm bearer): any friendly pawn may make the
- * move instead.
+ * Pawn Storm scenario tests (R-ABIL-005, M7 7.3): Captures, neutral, pawn, replay. After capturing,
+ * this pawn may make one non-capturing move. Neutral since DD-98: no Attuned version (the former
+ * Storm bonus let any friendly pawn make the move instead).
  *
  * Expected behaviour comes from spec 4.1 (INV-01), 4.2 (promotion), 5.1-5.6, 6.1-6.3, 7.2 (Warden's
- * Stopwatch) and DD-12, DD-18, DD-31, R-RULES-002, not from the engine's current output.
+ * Stopwatch) and DD-12, DD-18, DD-31, DD-98, R-RULES-002, not from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import type { ChoiceOption } from '@chain-theorem/rules';
@@ -24,16 +24,17 @@ const mv = (
 const FEN = '4k3/8/8/3p4/4P3/8/7P/1N2K3 w - - 0 1';
 
 describe('pawn storm (R-ABIL-005)', () => {
-  it('R-ABIL-005 pawn storm is a level-7, 1-slot Storm After-capturing card for pawns, with the replay tag', () => {
+  it('R-ABIL-005 pawn storm is a level-7, 1-slot neutral After-capturing card for pawns, with the replay tag and no attuned version (DD-98)', () => {
     expect(abilityById.get('pawn_storm')).toMatchObject({
       category: 'CAPTURES',
-      affinity: 'storm',
+      affinity: 'neutral',
       eligible: ['pawn'],
       tags: ['replay'],
       minLevel: 7,
       slotCost: 1,
     });
     expect(abilityById.get('pawn_storm')?.limits.charges).toBeUndefined();
+    expect(abilityById.get('pawn_storm')?.attuned).toBeUndefined();
   });
 
   it('R-ABIL-001 DD-18 after capturing, the pawn may push once more: Decline first, then its own moves only', () => {
@@ -70,21 +71,18 @@ describe('pawn storm (R-ABIL-005)', () => {
     expect(pieceAt(r.state, 'h8')?.type).toBe('knight');
   });
 
-  it('R-ELEM-003 attuned (Storm bearer): any friendly pawn may make the move', () => {
+  it('R-ELEM-003 no attuned version (DD-98): a Storm bearer gets the plain card and only the capturing pawn may make the move', () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['storm'], abilities: ['pawn_storm'] },
       moves: ['e4d5'],
-      answers: [mv('h2', 'h4')],
+      answers: [mv('d5', 'd6')],
     });
-    expect(eventsOf(r.events, 'AbilityTriggered')[0]?.attuned).toBe(true);
-    expect(r.prompts[0]?.options).toEqual([
-      { kind: 'decline' },
-      mv('h2', 'h3'),
-      mv('h2', 'h4'),
-      mv('d5', 'd6'),
-    ]);
-    expect(pieceAt(r.state, 'h4')?.type).toBe('pawn');
+    expect(eventsOf(r.events, 'AbilityTriggered')[0]?.attuned).toBe(false);
+    // The h2 pawn is not offered.
+    expect(r.prompts[0]?.options).toEqual([{ kind: 'decline' }, mv('d5', 'd6')]);
+    expect(pieceAt(r.state, 'd6')?.type).toBe('pawn');
+    expect(pieceAt(r.state, 'h2')?.type).toBe('pawn');
   });
 
   it('R-ABIL-005 R-RULES-002 a knight never uses it, and a pawn that promotes while capturing uses its new set', () => {

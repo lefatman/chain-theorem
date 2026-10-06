@@ -16,6 +16,13 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   army styles (Roman, medieval, Arab, samurai) at 32 px; the owner shows in the armour colour, the
   element in the accents and an emblem. Army style is a setting; the opponent's style always differs.
   Overworld trainers redrawn at 17x26 in the same handheld-era proportions with a 3-frame walk.
+- Catalogue plan (designer brief 2026-10-06, spec 5.7/5.8, DD-97..DD-104): Phase 0 (spec, decisions)
+  and Phase 1 (neutral-first catalogue: one signature per element, 18 cards neutral) are done.
+  Next: Phase 2 (Necromancer, Quantum Kill), Phase 3 (captureFilter: Obstinate, Block Path, Stalwart
+  rework), Phase 4 (Electric Slide), Phase 5 (Redo), Phase 6 (Schrödinger's Joker). Balance after
+  Phase 1: see `docs/BALANCE_DD98.md` (First Blood advantaged element 46%, Full Battle 90%: the
+  silence rule now dominates long games and traits dominate short ones; the designer's levers are
+  `silenceScope` and trait numbers).
 - Open for the designer: balance targets partly missed (`docs/BALANCE_M7.md` section 5, five
   questions), Playtest Gate 1 questions, review of spec section 18 (DD-01..DD-95; DD-10 onwards each
   have a record in `docs/decisions/`).
@@ -135,6 +142,14 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-10-06 Catalogue Phase 0-1 (DD-97..DD-104): spec 5.7 rewritten, 5.8 planned abilities, 6.3/6.5/4.3/7.2
+  updated; 18 ability modules neutral (versions bumped), signatures Cleave and Stonewall at level 3;
+  validator rule "exactly one signature per element"; wild drops include neutral cards. `pnpm check`
+  1,467 unit tests, `content:validate` ok, `req:coverage` 83/83, `format:check` clean; `pnpm test:fuzz`
+  500 games 0 failures; `pnpm sim` elements: First Blood advantaged element 46.4% (was 64.0%), Full
+  Battle 89.8% (was 73.1%), white 51.4% / 47.9%, surprise losses 35.2% / 0.0%; archetypes: Maximum
+  beats Flexible 69% (FB) and all three in Full Battle (65-75%).
 
 - 2026-10-06 Art: overworld trainers at 17x26 with a 3-frame walk (stand, left, right; alternating
   by step parity). `pnpm check` 1,469 unit tests; `pnpm format:check` clean; `pnpm test:e2e` 19/19;

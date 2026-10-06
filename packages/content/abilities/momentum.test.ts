@@ -1,13 +1,14 @@
 /**
- * Momentum scenario tests (R-ABIL-005, spec 5.7): Captures, Ember, non-king, replay, 2 charges.
- * Bonus action: this piece makes one non-capturing move. Attuned (Ember bearer): the bonus move may
- * be made by any friendly pawn instead.
+ * Momentum scenario tests (R-ABIL-005, spec 5.7): Captures, neutral, non-king, replay, 2 charges.
+ * Bonus action: this piece makes one non-capturing move. Neutral since DD-98: the former Ember
+ * Attuned bonus (any friendly pawn could make the move instead) is dropped; no bearer is attuned.
  *
  * Expected behaviour comes from spec 4.1 (INV-01, INV-03), 5.1-5.7, 6.1 (Overabundance), 6.2, 6.3,
- * 8.2 and DD-12, DD-17, DD-18, DD-31, not from the engine's current output.
+ * 8.2 and DD-12, DD-17, DD-18, DD-31, DD-98, not from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import type { ChoiceOption } from '@chain-theorem/rules';
+import { abilityById } from '../index.ts';
 import { eventsOf, idAt, parseSquare, pieceAt, scenario } from '../src/testing.ts';
 
 const sq = parseSquare;
@@ -18,10 +19,23 @@ const mv = (from: string, to: string): ChoiceOption => ({
 });
 
 // Knight c3 takes d5. A white pawn b4 and a black pawn f6 sit on knight squares of d5; a white pawn
-// h2 shows that other pieces may not make the (non-attuned) bonus move.
+// h2 shows that other pieces may not make the bonus move.
 const BASE_FEN = '4k3/8/5p2/3p4/1P6/2N5/7P/4K3 w - - 0 1';
 
 describe('momentum (R-ABIL-005)', () => {
+  it('R-ABIL-005 R-ABIL-001 DD-98 module data matches the 5.7 catalogue row (Captures, neutral, non-king, replay, level 8, 1 slot, 2 charges)', () => {
+    const def = abilityById.get('momentum');
+    expect(def?.category).toBe('CAPTURES');
+    expect(def?.affinity).toBe('neutral');
+    expect(def?.attuned).toBeUndefined();
+    expect(def?.eligible).toHaveLength(5);
+    expect(def?.eligible).not.toContain('king');
+    expect(def?.tags).toEqual(['replay']);
+    expect(def?.minLevel).toBe(8);
+    expect(def?.slotCost).toBe(1);
+    expect(def?.limits).toEqual({ perAction: 1, charges: 2 });
+  });
+
   it('R-ABIL-005 DD-18 momentum offers Decline first plus only the bearer’s non-capturing moves, and the chosen bonus move is made at depth 1', () => {
     const r = scenario({
       fen: BASE_FEN,
@@ -38,7 +52,7 @@ describe('momentum (R-ABIL-005)', () => {
     expect(req?.options[0]).toEqual({ kind: 'decline' });
     expect(req?.defaultOption).toBe(0);
     // Knight moves from d5, square order; b4 (own piece) and f6 (a capture) are excluded, and the
-    // h2 pawn is not a mover for the base version.
+    // h2 pawn is not a mover: only the bearer moves (DD-98).
     expect(req?.options.slice(1)).toEqual([
       mv('d5', 'c3'),
       mv('d5', 'e3'),
@@ -195,60 +209,29 @@ describe('momentum (R-ABIL-005)', () => {
     ]);
   });
 
-  it('R-ABIL-005 R-ELEM-003 DD-31 momentum attuned: a friendly pawn may make the bonus move, and its double push sets the en passant square', () => {
+  it('R-ABIL-005 R-ELEM-003 DD-98 momentum is neutral: no bearer, Ember included, can hand the bonus move to a friendly pawn, and it never resolves attuned', () => {
+    // Pawns e2 and h2 could move; only the knight that captured on d5 is ever offered.
     const fen = '4k3/8/8/3p4/3p4/2N5/4P2P/R3K3 w - - 0 1';
-    const r = scenario({
-      fen,
-      white: { elements: ['ember'], abilities: ['momentum'] },
-      moves: ['c3d5'],
-      answers: [mv('e2', 'e4')],
-    });
-    const knight = idAt(r.initial, 'c3');
-    const pawn = idAt(r.initial, 'e2');
-    expect(eventsOf(r.events, 'AbilityTriggered')[0]).toMatchObject({
-      ability: 'momentum',
-      attuned: true,
-    });
-    const options = (r.prompts[0]?.options ?? []).slice(1);
-    const froms = new Set(options.map((o) => (o.kind === 'move' ? o.from : -1)));
-    expect(froms).toEqual(new Set([sq('d5'), sq('e2'), sq('h2')]));
-    expect(options).toEqual(
-      expect.arrayContaining([mv('e2', 'e3'), mv('e2', 'e4'), mv('h2', 'h3'), mv('h2', 'h4')]),
-    );
-
-    expect(pieceAt(r.state, 'd5')?.id).toBe(knight);
-    expect(pieceAt(r.state, 'e4')?.id).toBe(pawn);
-    expect(eventsOf(r.events, 'MoveMade')[1]).toMatchObject({
-      piece: pawn,
-      from: sq('e2'),
-      to: sq('e4'),
-      bonus: true,
-    });
-    // DD-31: the bonus move is a real move.
-    expect(r.state.ep).toBe(sq('e3'));
-    expect(r.state.halfmove).toBe(0);
-    const black = r.engine.legalMoves(r.state, 'black');
-    expect(black).toContainEqual({ from: sq('d4'), to: sq('e3') });
-    const after = scenario({
-      fen,
-      white: { elements: ['ember'], abilities: ['momentum'] },
-      moves: ['c3d5', 'd4e3'],
-      answers: [mv('e2', 'e4')],
-    });
-    const last = after.steps[1]?.events ?? [];
-    expect(eventsOf(last, 'Captured')).toEqual([
-      expect.objectContaining({ victim: pawn, square: sq('e4'), by: 'move' }),
-    ]);
-    expect(eventsOf(last, 'MoveMade')[0]).toMatchObject({ enPassant: true });
-  });
-
-  it('R-ABIL-005 momentum base: a non-Ember bearer cannot hand the bonus move to a pawn', () => {
-    const fen = '4k3/8/8/3p4/3p4/2N5/4P2P/R3K3 w - - 0 1';
-    const r = scenario({ fen, white: { abilities: ['momentum'] }, moves: ['c3d5'] });
-    const options = (r.prompts[0]?.options ?? []).slice(1);
-    expect(options.length).toBeGreaterThan(0);
-    expect(options.every((o) => o.kind === 'move' && o.from === sq('d5'))).toBe(true);
-    expect(eventsOf(r.events, 'AbilityTriggered')[0]).toMatchObject({ attuned: false });
+    for (const element of ['neutral', 'ember', 'tide'] as const) {
+      const r = scenario({
+        fen,
+        white: { elements: [element], abilities: ['momentum'] },
+        moves: ['c3d5'],
+      });
+      const options = (r.prompts[0]?.options ?? []).slice(1);
+      expect(options.length, element).toBeGreaterThan(0);
+      expect(
+        options.every((o) => o.kind === 'move' && o.from === sq('d5')),
+        element,
+      ).toBe(true);
+      expect(eventsOf(r.events, 'AbilityTriggered')[0], element).toMatchObject({
+        ability: 'momentum',
+        attuned: false,
+      });
+      // Declined by default: nothing moved, no pawn push.
+      expect(pieceAt(r.state, 'e2')?.type, element).toBe('pawn');
+      expect(pieceAt(r.state, 'e4'), element).toBeUndefined();
+    }
   });
 
   it('R-ABIL-005 INV-03 momentum: a bearer pinned after its capture has no legal bonus move, so the bonus fizzles with no prompt and no charge', () => {

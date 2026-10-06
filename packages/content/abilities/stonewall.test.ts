@@ -20,7 +20,7 @@ describe('stonewall (R-ABIL-005)', () => {
       affinity: 'stone',
       eligible: 'all',
       tags: [],
-      minLevel: 6,
+      minLevel: 3,
       slotCost: 1,
     });
     expect(abilityById.get('stonewall')?.limits.charges).toBeUndefined();

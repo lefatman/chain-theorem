@@ -187,17 +187,13 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     setupText: 'Grove bishop with Rebirth is captured three times in one battle',
     specText:
       'Overabundance: Rebirth has 2 charges on a Grove piece, so the bishop returns twice (each time its starting square is empty); the third capture removes it for good.',
-    note: 'The bishop steps out and the rook captures it three times; White answers both attuned Rebirth prompts with c1. Ids: c1 B=0, e1 K=1, d8 r=2, e8 k=3.',
+    note: 'The bishop steps out and the rook captures it three times; Rebirth (neutral since DD-98) returns it to c1 without a prompt while that square is empty. Ids: c1 B=0, e1 K=1, d8 r=2, e8 k=3.',
     setup: {
       fen: '3rk3/8/8/8/8/8/8/2B1K3 w - - 0 1',
       format: 'full',
       white: { elements: ['grove'], abilities: ['rebirth'] },
       black: { elements: ['neutral'] },
       moves: ['c1d2', 'd8d2', 'c1b2', 'd2b2', 'c1d2', 'b2d2'],
-      answers: [
-        { kind: 'square', square: sq('c1') },
-        { kind: 'square', square: sq('c1') },
-      ],
     },
   },
 ];

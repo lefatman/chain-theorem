@@ -104,7 +104,7 @@ const ABILITIES_5_7: { id: string; minLevel: number }[] = [
   { id: 'pierce', minLevel: 3 },
   { id: 'backdraft', minLevel: 4 },
   { id: 'antidote', minLevel: 5 },
-  { id: 'cleave', minLevel: 6 },
+  { id: 'cleave', minLevel: 3 },
   { id: 'momentum', minLevel: 8 },
   { id: 'reinforce', minLevel: 10 },
   { id: 'riposte', minLevel: 12 },
@@ -114,22 +114,23 @@ const ABILITIES_5_7: { id: string; minLevel: number }[] = [
 ];
 
 /**
- * M7 7.3 affinity abilities, four per new element (6.5), spread over levels 1-20 (PLAYTEST, DD-05);
- * each costs 1 ability slot like the starter set.
+ * M7 7.3 abilities, spread over levels 1-20 (PLAYTEST, DD-05); each costs 1 ability slot like the
+ * starter set. Since DD-98 only each element's signature keeps an affinity (Storm: squall, interim;
+ * Stone: stonewall; Frost: frost_heave); the rest are neutral.
  */
 const ABILITIES_M7: { id: string; minLevel: number; affinity: ElementId }[] = [
   { id: 'squall', minLevel: 1, affinity: 'storm' },
-  { id: 'afterimage', minLevel: 5, affinity: 'storm' },
-  { id: 'pawn_storm', minLevel: 7, affinity: 'storm' },
-  { id: 'slipstream', minLevel: 12, affinity: 'storm' },
-  { id: 'buttress', minLevel: 2, affinity: 'stone' },
-  { id: 'stonewall', minLevel: 6, affinity: 'stone' },
-  { id: 'phalanx', minLevel: 10, affinity: 'stone' },
-  { id: 'rebuild', minLevel: 17, affinity: 'stone' },
+  { id: 'afterimage', minLevel: 5, affinity: 'neutral' },
+  { id: 'pawn_storm', minLevel: 7, affinity: 'neutral' },
+  { id: 'slipstream', minLevel: 12, affinity: 'neutral' },
+  { id: 'buttress', minLevel: 2, affinity: 'neutral' },
+  { id: 'stonewall', minLevel: 3, affinity: 'stone' },
+  { id: 'phalanx', minLevel: 10, affinity: 'neutral' },
+  { id: 'rebuild', minLevel: 17, affinity: 'neutral' },
   { id: 'frost_heave', minLevel: 3, affinity: 'frost' },
-  { id: 'snowdrift', minLevel: 9, affinity: 'frost' },
-  { id: 'snowbound', minLevel: 14, affinity: 'frost' },
-  { id: 'permafrost', minLevel: 20, affinity: 'frost' },
+  { id: 'snowdrift', minLevel: 9, affinity: 'neutral' },
+  { id: 'snowbound', minLevel: 14, affinity: 'neutral' },
+  { id: 'permafrost', minLevel: 20, affinity: 'neutral' },
 ];
 const ALL_ABILITIES = [...ABILITIES_5_7, ...ABILITIES_M7];
 
@@ -267,17 +268,29 @@ describe('R-LOAD-002 item catalogue and level requirements (DD-05)', () => {
     }
   });
 
-  it('R-LOAD-002 R-ABIL-005 R-ELEM-001 6.5: Storm, Stone and Frost each have at least four affinity abilities (with attuned versions) spread over levels 1-20', () => {
-    for (const el of ['storm', 'stone', 'frost'] as const) {
-      const own = registry.abilities.filter((a) => a.affinity === el && !a.retired);
-      expect(own.map((a) => a.id).sort(), el).toEqual(
-        ABILITIES_M7.filter((a) => a.affinity === el)
-          .map((a) => a.id)
-          .sort(),
-      );
-      expect(own.length, el).toBeGreaterThanOrEqual(4);
-      for (const a of own) expect(a.attuned, a.id).toBeDefined();
+  it('R-LOAD-002 R-ABIL-005 R-ELEM-001 R-ELEM-003 6.5 DD-98: every element has exactly one signature ability with an attuned version; every other ability is neutral without one', () => {
+    const SIGNATURE: Record<Exclude<ElementId, 'neutral'>, string> = {
+      ember: 'cleave',
+      tide: 'hit_and_run',
+      grove: 'poisoned_meat',
+      storm: 'squall',
+      stone: 'stonewall',
+      frost: 'frost_heave',
+    };
+    const live = registry.abilities.filter((a) => !a.retired);
+    for (const [el, id] of Object.entries(SIGNATURE)) {
+      const own = live.filter((a) => a.affinity === el);
+      expect(
+        own.map((a) => a.id),
+        el,
+      ).toEqual([id]);
+      expect(own[0]?.attuned, id).toBeDefined();
+      expect(own[0]?.minLevel, `${id} unlocks early`).toBeLessThanOrEqual(3);
     }
+    const neutral = live.filter((a) => a.affinity === 'neutral');
+    expect(neutral.length).toBe(live.length - 6);
+    expect(neutral.length / live.length).toBeGreaterThan(0.7);
+    for (const a of neutral) expect(a.attuned, a.id).toBeUndefined();
     const levels = ABILITIES_M7.map((a) => a.minLevel);
     expect(Math.min(...levels)).toBe(1);
     expect(Math.max(...levels)).toBe(20);
@@ -571,8 +584,8 @@ describe('R-LOAD-004 loadout validation rules 1-7', () => {
     expect(item.errors).toEqual([
       expect.objectContaining({ rule: 2, code: 'item_level', ref: 'resonance_crystal' }),
     ]);
-    expect(engine.validateLoadout(lo({ sets: [['cleave']] }), { level: 6 }).ok).toBe(true);
-    const ability = engine.validateLoadout(lo({ sets: [['cleave']] }), { level: 5 });
+    expect(engine.validateLoadout(lo({ sets: [['cleave']] }), { level: 3 }).ok).toBe(true);
+    const ability = engine.validateLoadout(lo({ sets: [['cleave']] }), { level: 2 });
     expect(ability.errors).toEqual([
       expect.objectContaining({ rule: 2, code: 'ability_level', ref: 'cleave' }),
     ]);

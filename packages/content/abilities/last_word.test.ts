@@ -1,9 +1,10 @@
 /**
- * Last Word (5.7): Captured, Tide, all. "Reveal all abilities of the captor's piece type." Attuned:
- * "Also reveal the opponent's item names" (DD-40: the complete item list, including that it is
- * empty, so `allItems` becomes true).
+ * Last Word (5.7): Captured, neutral, all. "Reveal all abilities of the captor's piece type." Neutral
+ * since DD-98: the former Tide Attuned bonus (also reveal the opponent's item names, DD-40) is
+ * dropped; no bearer is attuned and item names stay hidden.
  *
- * Expected behaviour comes from spec 5.1-5.7, 6.2, 6.3, 8.2 and DD-17 to DD-40, not from the engine.
+ * Expected behaviour comes from spec 5.1-5.7, 6.2, 6.3, 8.2, DD-17 to DD-40 and DD-98, not from the
+ * engine.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -76,10 +77,11 @@ const sets6 = (by: Partial<Record<PieceType, string[]>>): string[][] =>
   (['pawn', 'knight', 'bishop', 'rook', 'queen', 'king'] as const).map((t) => by[t] ?? []);
 
 describe('Last Word', () => {
-  it('R-ABIL-005 R-ABIL-001 module data matches the 5.7 catalogue row (Captured, Tide, all, level 1, 1 slot)', () => {
+  it('R-ABIL-005 R-ABIL-001 DD-98 module data matches the 5.7 catalogue row (Captured, neutral, all, level 1, 1 slot)', () => {
     const def = abilityById.get('last_word');
     expect(def?.category).toBe('CAPTURED');
-    expect(def?.affinity).toBe('tide');
+    expect(def?.affinity).toBe('neutral');
+    expect(def?.attuned).toBeUndefined();
     expect(def?.eligible).toBe('all');
     expect(def?.tags).toEqual([]);
     expect(def?.minLevel).toBe(1);
@@ -162,7 +164,7 @@ describe('Last Word', () => {
     expect(r.state.pieces[KNIGHT]?.square).toBe(-1);
   });
 
-  it('R-ABIL-005 R-ELEM-003 DD-40 attuned (Tide bearer): also reveals every opponent item name (allItems)', () => {
+  it('R-ABIL-005 R-ELEM-003 DD-98 neutral: a Tide bearer gets the base set reveal only, never attuned; no item name is disclosed', () => {
     const r = scenario({
       fen: FEN,
       white: {
@@ -175,39 +177,24 @@ describe('Last Word', () => {
     });
     expect(eventsOf(r.events, 'AbilityTriggered')[0]).toMatchObject({
       ability: 'last_word',
-      attuned: true,
+      attuned: false,
     });
-    const reveals = lastWordReveals(r.events);
-    expect(reveals.map((e) => e.info.kind).sort()).toEqual(['items', 'set']);
-    const items = reveals.find((e) => e.info.kind === 'items');
-    expect(items).toMatchObject({ side: 'white', cause: 'effect' });
-    expect(items?.info.kind === 'items' ? [...items.info.items].sort() : null).toEqual([
-      'dual_adepts_glove',
-      'multitaskers_schedule',
-    ]);
-    expect([...r.state.reveals.white.items].sort()).toEqual([
-      'dual_adepts_glove',
-      'multitaskers_schedule',
-    ]);
-    expect(r.state.reveals.white.allItems).toBe(true);
-    expect(r.state.reveals.white.complete).toEqual(['knight']);
-  });
-
-  it('R-ABIL-005 R-ELEM-003 DD-40 attuned: an empty item list is disclosed too (allItems true, no items)', () => {
-    const r = scenario({
-      fen: FEN,
-      white: { elements: ['neutral'], abilities: ['hit_and_run'] },
-      black: { elements: ['tide'], abilities: ['last_word'] },
-      moves: ['c3d5'],
-    });
-    const items = lastWordReveals(r.events).filter((e) => e.info.kind === 'items');
-    expect(items).toMatchObject([{ side: 'white', info: { kind: 'items', items: [] } }]);
+    expect(lastWordReveals(r.events).map((e) => e.info.kind)).toEqual(['set']);
     expect(eventsOf(r.events, 'EffectFizzled')).toEqual([]);
+    expect(r.state.reveals.white.complete).toEqual(['knight']);
+    expect(revealedOn(r.state, 'white', 'knight')).toEqual(['hit_and_run']);
     expect(r.state.reveals.white.items).toEqual([]);
-    expect(r.state.reveals.white.allItems).toBe(true);
+    expect(r.state.reveals.white.allItems).toBe(false);
+    // The owner's view carries no opponent item id (R-SEC-001).
+    const json = JSON.stringify([
+      r.engine.project(r.state, 'black'),
+      r.engine.projectEvents(r.state, r.events, 'black'),
+    ]);
+    expect(json).not.toContain('dual_adepts_glove');
+    expect(json).not.toContain('multitaskers_schedule');
   });
 
-  it('R-ABIL-005 R-ELEM-002 R-INFO-002 a Tide Last Word is silenced by a Grove captor: revealed by name, nothing about the captor revealed', () => {
+  it('R-ABIL-005 R-ELEM-002 R-INFO-002 a Last Word on a Tide piece is silenced by a Grove captor: revealed by name, nothing about the captor revealed', () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['grove'], items: ['dual_adepts_glove'], abilities: ['antidote'] },
@@ -237,7 +224,7 @@ describe('Last Word', () => {
     expect(revealedOn(r.state, 'black', 'pawn')).toEqual(['last_word']);
   });
 
-  it('R-ABIL-005 R-ELEM-002 R-ELEM-003 a Tide victim beats an Ember captor: Last Word fires attuned while the captor is silenced', () => {
+  it("R-ABIL-005 R-ELEM-002 R-ELEM-003 a Tide victim beats an Ember captor: Last Word fires (plain, DD-98) while the captor's Hit and Run is silenced", () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['ember'], abilities: ['hit_and_run'] },
@@ -245,14 +232,14 @@ describe('Last Word', () => {
       moves: ['c3d5'],
     });
     expect(eventsOf(r.events, 'AbilityTriggered')).toMatchObject([
-      { side: 'black', ability: 'last_word', attuned: true },
+      { side: 'black', ability: 'last_word', attuned: false },
     ]);
     expect(eventsOf(r.events, 'AbilitySilenced')).toMatchObject([
       { side: 'white', ability: 'hit_and_run', category: 'CAPTURES', by: PAWN },
     ]);
     expect(r.state.reveals.white.complete).toEqual(['knight']);
     expect(revealedOn(r.state, 'white', 'knight')).toEqual(['hit_and_run']);
-    expect(r.state.reveals.white.allItems).toBe(true);
+    expect(r.state.reveals.white.allItems).toBe(false);
     // The silenced Hit and Run does not move the knight.
     expect(idAt(r.state, 'd5')).toBe(KNIGHT);
   });

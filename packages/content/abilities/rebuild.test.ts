@@ -1,11 +1,12 @@
 /**
- * Rebuild scenario tests (R-ABIL-005, M7 7.3): Captures, Stone, all, revive, 1 charge. After
- * capturing a rook or queen, revive the owner's most recently captured rook on its starting square.
- * Attuned (Stone bearer): also after capturing a knight or bishop.
+ * Rebuild scenario tests (R-ABIL-005, M7 7.3; neutral since DD-98): Captures, neutral, all, revive,
+ * 1 charge. After capturing a rook or queen, revive the owner's most recently captured rook on its
+ * starting square. The attuned extension to knight and bishop victims was dropped by DD-98; there is
+ * no attuned version, whatever the bearer's element.
  *
  * Expected behaviour comes from spec 5.2 (REVIVE), 5.4 (identity and usage counters), 5.6
- * (conditions), 6.1 (Overabundance), 6.3, 7.2 (Warden's Stopwatch) and DD-17, DD-22, not from the
- * engine's current output.
+ * (conditions), 6.1 (Overabundance), 6.3, 7.2 (Warden's Stopwatch) and DD-17, DD-22, DD-98, not
+ * from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import { abilityById } from '../index.ts';
@@ -18,10 +19,10 @@ const KNIGHT = 'k3b3/3n4/8/8/8/8/8/3QK2R w - - 0 1';
 const MOVES = ['h1h5', 'e8h5', 'd1d7'];
 
 describe('rebuild (R-ABIL-005)', () => {
-  it('R-ABIL-005 rebuild is a level-17, 1-slot Stone After-capturing card with the revive tag and 1 charge', () => {
+  it('R-ABIL-005 rebuild is a level-17, 1-slot neutral After-capturing card with the revive tag, 1 charge and no attuned version (DD-98)', () => {
     expect(abilityById.get('rebuild')).toMatchObject({
       category: 'CAPTURES',
-      affinity: 'stone',
+      affinity: 'neutral',
       eligible: 'all',
       tags: ['revive'],
       minLevel: 17,
@@ -29,6 +30,7 @@ describe('rebuild (R-ABIL-005)', () => {
       limits: { perAction: 1, charges: 1 },
       conditions: [{ victimTypeIs: ['rook', 'queen'] }],
     });
+    expect(abilityById.get('rebuild')?.attuned).toBeUndefined();
   });
 
   it('R-ABIL-002 after capturing a rook, the most recently captured rook returns to its starting square and a charge is spent', () => {
@@ -44,19 +46,17 @@ describe('rebuild (R-ABIL-005)', () => {
     ]);
   });
 
-  it('R-ABIL-005 R-ELEM-003 the base version ignores a knight victim (not revealed); attuned (Stone) it triggers', () => {
-    const base = scenario({ fen: KNIGHT, white: { abilities: ['rebuild'] }, moves: MOVES });
-    expect(eventsOf(base.events, 'AbilityTriggered')).toEqual([]);
-    expect(pieceAt(base.state, 'h1')).toBeUndefined();
-    const attuned = scenario({
-      fen: KNIGHT,
-      white: { elements: ['stone'], abilities: ['rebuild'] },
-      moves: MOVES,
-    });
-    expect(eventsOf(attuned.events, 'AbilityTriggered')).toEqual([
-      expect.objectContaining({ ability: 'rebuild', attuned: true }),
-    ]);
-    expect(pieceAt(attuned.state, 'h1')?.type).toBe('rook');
+  it('R-ABIL-005 R-ELEM-003 DD-98 a knight victim never triggers it (not revealed), on a neutral or a Stone bearer alike', () => {
+    for (const elements of [undefined, ['stone' as const]]) {
+      const r = scenario({
+        fen: KNIGHT,
+        white: elements ? { elements, abilities: ['rebuild'] } : { abilities: ['rebuild'] },
+        moves: MOVES,
+      });
+      expect(eventsOf(r.events, 'AbilityTriggered'), elements?.join()).toEqual([]);
+      expect(pieceAt(r.state, 'h1'), elements?.join()).toBeUndefined();
+      expect(r.state.reveals.white.abilities.queen, elements?.join()).toBeUndefined();
+    }
   });
 
   it('R-ABIL-004 DD-17 with no captured rook it fizzles (no target) and spends no charge', () => {

@@ -106,18 +106,22 @@ function rng(seed: number): () => number {
 }
 
 /**
- * Cards a wild army can drop: not retired, equippable at the player's level, of an enabled element;
- * the wild army's own element when it has any such card.
+ * Cards a wild army can drop: not retired, equippable at the player's level, neutral or of an
+ * enabled element. A wild army of an element drops its own signature and neutral cards (DD-98),
+ * never another element's signature, unless nothing else is available at that level.
  */
 export function wildCardPool(playerLevel: number, element?: ElementId): string[] {
   const enabled = CAPS.ENABLED_ELEMENTS as readonly string[];
   const usable = abilities
     .filter(
-      (a) => !a.retired && a.minLevel <= clampLevel(playerLevel) && enabled.includes(a.affinity),
+      (a) =>
+        !a.retired &&
+        a.minLevel <= clampLevel(playerLevel) &&
+        (a.affinity === 'neutral' || enabled.includes(a.affinity)),
     )
     .map((a) => ({ id: a.id, affinity: a.affinity }))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const own = usable.filter((a) => a.affinity === element);
+  const own = usable.filter((a) => a.affinity === element || a.affinity === 'neutral');
   return (own.length > 0 ? own : usable).map((a) => a.id);
 }
 

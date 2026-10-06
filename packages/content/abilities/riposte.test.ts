@@ -1,13 +1,15 @@
 /**
- * Riposte scenario tests (R-ABIL-005, spec 5.7, E6): Captured, Ember, all pieces, replay. Bonus
+ * Riposte scenario tests (R-ABIL-005, spec 5.7, E6): Captured, neutral, all pieces, replay. Bonus
  * action for the owner: capture the captor with any piece that legally can (a nested pipeline).
- * Attuned (Ember bearer): if none can and the captor is a pawn, effect-capture it.
+ * Neutral since DD-98: the former Ember Attuned fallback (effect-capture a pawn captor nobody can
+ * take) is dropped; when no legal capture exists the bonus simply fizzles.
  *
  * Expected behaviour comes from spec 4.1 (INV-01, INV-03), 5.1-5.7, 6.2, 6.3, 8.2 and DD-12, DD-18,
- * DD-21, DD-31, not from the engine's current output.
+ * DD-21, DD-31, DD-98, not from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import type { ChoiceOption } from '@chain-theorem/rules';
+import { abilityById } from '../index.ts';
 import { eventsOf, idAt, parseSquare, pieceAt, scenario } from '../src/testing.ts';
 
 const sq = parseSquare;
@@ -21,6 +23,18 @@ const mv = (from: string, to: string): ChoiceOption => ({
 const E6_FEN = '3rk3/8/4p3/3n4/8/1B6/8/4K3 w - - 0 1';
 
 describe('riposte (R-ABIL-005)', () => {
+  it('R-ABIL-005 R-ABIL-001 DD-98 module data matches the 5.7 catalogue row (Captured, neutral, all, replay, level 12, 1 slot)', () => {
+    const def = abilityById.get('riposte');
+    expect(def?.category).toBe('CAPTURED');
+    expect(def?.affinity).toBe('neutral');
+    expect(def?.attuned).toBeUndefined();
+    expect(def?.eligible).toBe('all');
+    expect(def?.tags).toEqual(['replay']);
+    expect(def?.minLevel).toBe(12);
+    expect(def?.slotCost).toBe(1);
+    expect(def?.limits).toEqual({ perAction: 1 });
+  });
+
   it("R-ABIL-005 E6 DD-18 riposte prompts the victim's owner with Decline first and every legal capturer of the captor", () => {
     const r = scenario({
       fen: E6_FEN,
@@ -175,7 +189,7 @@ describe('riposte (R-ABIL-005)', () => {
     expect(pieceAt(r.state, 'd5')).toBeUndefined();
   });
 
-  it('R-ABIL-005 R-ELEM-003 riposte attuned: when nobody can capture a pawn captor, the Ember victim effect-captures it', () => {
+  it('R-ABIL-005 R-ELEM-003 DD-98 riposte is neutral: an Ember victim with no legal capturer of a pawn captor gets no effect-capture fallback, the bonus fizzles', () => {
     const r = scenario({
       fen: '7k/8/8/3n4/4P3/8/8/4K3 w - - 0 1',
       black: { elements: ['ember'], abilities: ['riposte'] },
@@ -185,24 +199,20 @@ describe('riposte (R-ABIL-005)', () => {
     const pawn = idAt(r.initial, 'e4');
     expect(r.prompts).toHaveLength(0);
     expect(eventsOf(r.events, 'AbilityTriggered')).toEqual([
-      expect.objectContaining({ side: 'black', piece: knight, ability: 'riposte', attuned: true }),
+      expect.objectContaining({ side: 'black', piece: knight, ability: 'riposte', attuned: false }),
     ]);
-    expect(eventsOf(r.events, 'Captured').map((e) => [e.victim, e.by])).toEqual([
-      [knight, 'move'],
-      [pawn, 'effect'],
+    expect(eventsOf(r.events, 'EffectFizzled')).toEqual([
+      expect.objectContaining({ side: 'black', piece: knight, ability: 'riposte' }),
     ]);
-    expect(eventsOf(r.events, 'Captured')[1]?.source).toEqual({
-      kind: 'ability',
-      id: 'riposte',
-      piece: knight,
-      side: 'black',
-    });
-    expect(pieceAt(r.state, 'd5')).toBeUndefined();
+    expect(eventsOf(r.events, 'Captured').map((e) => [e.victim, e.by])).toEqual([[knight, 'move']]);
+    expect(pieceAt(r.state, 'd5')?.id).toBe(pawn);
+    // A fizzle still reveals the ability (8.2).
+    expect(r.state.reveals.black.abilities.knight).toContain('riposte');
   });
 
-  it('R-ABIL-005 DD-21 riposte attuned: the fallback applies when the only capture would check the acting king', () => {
+  it('R-ABIL-005 DD-21 DD-98 riposte: when the only riposting capture would check the acting king there is no fallback either; the pawn captor survives', () => {
     // White king e3 is in check from the knight d5; e4xd5 removes it. Nf6xd5 would give check
-    // again, so no riposting capture exists and the pawn captor is effect-captured instead.
+    // again, so no riposting capture exists and the bonus fizzles without a prompt.
     const r = scenario({
       fen: '7k/8/5n2/3n4/4P3/4K3/8/8 w - - 0 1',
       black: { elements: ['ember'], abilities: ['riposte'] },
@@ -210,37 +220,13 @@ describe('riposte (R-ABIL-005)', () => {
     });
     const pawn = idAt(r.initial, 'e4');
     expect(r.prompts).toHaveLength(0);
-    expect(eventsOf(r.events, 'Captured').map((e) => [e.victim, e.by])).toEqual([
-      [idAt(r.initial, 'd5'), 'move'],
-      [pawn, 'effect'],
-    ]);
-    expect(pieceAt(r.state, 'd5')).toBeUndefined();
-    expect(pieceAt(r.state, 'f6')?.type).toBe('knight');
-    expect(r.state.inCheck).toBeNull();
-  });
-
-  it('R-ABIL-005 riposte attuned: no fallback when the captor is not a pawn', () => {
-    const r = scenario({
-      fen: '7k/8/8/3n4/8/2N5/8/4K3 w - - 0 1',
-      black: { elements: ['ember'], abilities: ['riposte'] },
-      moves: ['c3d5'],
-    });
-    const knight = idAt(r.initial, 'c3');
-    expect(r.prompts).toHaveLength(0);
-    expect(eventsOf(r.events, 'Captured').map((e) => e.by)).toEqual(['move']);
-    expect(pieceAt(r.state, 'd5')?.id).toBe(knight);
-  });
-
-  it('R-ABIL-005 riposte attuned: no fallback when a capturer exists but the owner declines', () => {
-    const r = scenario({
-      fen: '7k/8/4p3/3n4/4P3/8/8/4K3 w - - 0 1',
-      black: { elements: ['ember'], abilities: ['riposte'] },
-      moves: ['e4d5'],
-    });
-    const pawn = idAt(r.initial, 'e4');
-    expect(r.prompts[0]?.options).toEqual([{ kind: 'decline' }, mv('e6', 'd5')]);
+    expect(eventsOf(r.events, 'EffectFizzled')).toContainEqual(
+      expect.objectContaining({ ability: 'riposte', side: 'black' }),
+    );
     expect(eventsOf(r.events, 'Captured').map((e) => e.by)).toEqual(['move']);
     expect(pieceAt(r.state, 'd5')?.id).toBe(pawn);
+    expect(pieceAt(r.state, 'f6')?.type).toBe('knight');
+    expect(r.state.inCheck).toBeNull();
   });
 
   it('R-ABIL-005 DD-31 riposte: the bonus capture is a real move and updates castling rights', () => {
@@ -313,7 +299,7 @@ describe('riposte (R-ABIL-005)', () => {
     expect(pieceAt(r.state, 'd5')?.id).toBe(riposter);
   });
 
-  it('R-ABIL-005 R-ELEM-002 riposte is silenced when a Tide captor beats the Ember victim, and is revealed by name', () => {
+  it('R-ABIL-005 R-ELEM-002 riposte on an Ember piece is silenced when a Tide captor beats it, and is revealed by name', () => {
     const r = scenario({
       fen: E6_FEN,
       white: { elements: ['tide'] },

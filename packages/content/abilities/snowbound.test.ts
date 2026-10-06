@@ -1,11 +1,13 @@
 /**
- * Snowbound scenario tests (R-ABIL-005, M7 7.3): Capturing, Frost, all. When capturing, before the
- * victim is removed, the owner sends one enemy knight, bishop, rook or queen adjacent to the landing
- * square back to its starting square, if empty. Attuned (Frost bearer): an enemy pawn may be chosen.
+ * Snowbound scenario tests (R-ABIL-005, M7 7.3; neutral since DD-98): Capturing, neutral, all, 2
+ * charges. When capturing, before the victim is removed, the owner sends one enemy knight, bishop,
+ * rook or queen adjacent to the landing square back to its starting square, if empty. The attuned
+ * option of sending an enemy pawn home was dropped by DD-98; there is no attuned version, whatever
+ * the bearer's element.
  *
  * Starting squares are the pieces' identities' starts (DD-22), so these battles begin from the
  * standard position. Expected behaviour comes from spec 5.2, 5.3 (phase 2), 5.4, 6.2, 6.3 and DD-18,
- * DD-22, not from the engine's current output.
+ * DD-22, DD-98, not from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import { abilityById } from '../index.ts';
@@ -17,16 +19,17 @@ const OPENING = ['e2e4', 'e7e5', 'g1f3', 'd7d6', 'd2d4', 'd8f6'];
 const CAPTURE = 'd4e5';
 
 describe('snowbound (R-ABIL-005)', () => {
-  it('R-ABIL-005 snowbound is a level-14, 1-slot Frost When-capturing card with 2 charges', () => {
+  it('R-ABIL-005 snowbound is a level-14, 1-slot neutral When-capturing card with 2 charges and no attuned version (DD-98)', () => {
     expect(abilityById.get('snowbound')).toMatchObject({
       category: 'CAPTURING',
-      affinity: 'frost',
+      affinity: 'neutral',
       eligible: 'all',
       tags: [],
       minLevel: 14,
       slotCost: 1,
       limits: { perAction: 1, charges: 2 },
     });
+    expect(abilityById.get('snowbound')?.attuned).toBeUndefined();
   });
 
   it('R-ABIL-005 DD-17 R-ELEM-007 a resolved send-home spends a charge; Overabundance doubles them on a Grove piece', () => {
@@ -58,23 +61,23 @@ describe('snowbound (R-ABIL-005)', () => {
     ]);
     expect(pieceAt(r.state, 'd8')?.id).toBe(queen);
     expect(pieceAt(r.state, 'e5')?.side).toBe('white');
-    // The pawn d6 is not a candidate for the base version.
+    // The pawn d6 is never a candidate.
     expect(pieceAt(r.state, 'd6')?.type).toBe('pawn');
   });
 
-  it('R-ELEM-003 DD-18 attuned (Frost bearer): the pawn d6 is offered too, and the mover chooses in square order', () => {
+  it('R-ELEM-003 DD-18 DD-98 a Frost bearer gets no attuned version: the pawn d6 is never offered, so the queen goes home without a prompt', () => {
     const r = scenario({
       white: { elements: ['frost'], abilities: ['snowbound'] },
       moves: [...OPENING, CAPTURE],
-      answers: [0],
     });
-    expect(r.prompts[0]?.chooser).toBe('white');
-    expect(r.prompts[0]?.options.map((o) => (o.kind === 'piece' ? o.square : -1))).toEqual([
-      sq('d6'),
-      sq('f6'),
+    const queen = idAt(r.initial, 'd8');
+    expect(r.prompts).toEqual([]);
+    expect(eventsOf(r.events, 'AbilityTriggered')).toEqual([
+      expect.objectContaining({ ability: 'snowbound', attuned: false }),
     ]);
-    expect(pieceAt(r.state, 'd7')?.type).toBe('pawn');
-    expect(pieceAt(r.state, 'f6')?.type).toBe('queen');
+    expect(pieceAt(r.state, 'd8')?.id).toBe(queen);
+    expect(pieceAt(r.state, 'd6')?.type).toBe('pawn');
+    expect(pieceAt(r.state, 'd7')).toBeUndefined();
   });
 
   it('R-ABIL-004 an occupied starting square makes the move fizzle (occupied)', () => {

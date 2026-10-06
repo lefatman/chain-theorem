@@ -397,7 +397,13 @@ describe('quests (R-WORLD-005)', () => {
       engine.validateLoadout(tideOnly, { level: 3, ownedItems: owned, ownedAbilities: owned })
         .errors,
     ).toEqual([]);
-    expect(tideOnly.sets.flat().every((id) => abilityById.get(id)?.affinity === 'tide')).toBe(true);
+    // DD-98: the starter set is Tide's signature plus neutral cards.
+    expect(tideOnly.sets.flat()).toContain('hit_and_run');
+    expect(
+      tideOnly.sets
+        .flat()
+        .every((id) => ['tide', 'neutral'].includes(abilityById.get(id)?.affinity ?? '')),
+    ).toBe(true);
   });
 
   it('R-WORLD-005 rewards are early-level items and cards, and the line ends with a key item that lowers the encounter rate', () => {
@@ -475,12 +481,14 @@ describe('Highcairn Pass (M7 7.3: Storm, Stone and Frost)', () => {
     for (const n of story) {
       if (n.role.kind !== 'trainer' || 'buildSeed' in n.role.loadout) continue;
       const el = n.role.loadout.elements[0];
-      const own = n.role.loadout.sets.flat().filter((id) => abilityById.get(id)?.affinity === el);
-      expect(own.length, n.id).toBeGreaterThanOrEqual(2);
+      // DD-98: each story trainer plays its element's signature (the rest of its set is neutral
+      // or an off-element signature it covers a weakness with).
+      const affinities = n.role.loadout.sets.flat().map((id) => abilityById.get(id)?.affinity);
+      expect(affinities, n.id).toContain(el);
       expect(engine.validateLoadout(n.role.loadout, { level: n.role.level }).errors).toEqual([]);
-      // Their rewards are their own element's cards.
+      // Their rewards are their own element's signature or neutral cards.
       for (const c of n.role.reward.cards ?? [])
-        expect(abilityById.get(c.id)?.affinity, `${n.id} ${c.id}`).toBe(el);
+        expect([el, 'neutral'], `${n.id} ${c.id}`).toContain(abilityById.get(c.id)?.affinity);
     }
   });
 
@@ -508,8 +516,9 @@ describe('Highcairn Pass (M7 7.3: Storm, Stone and Frost)', () => {
     expect(maud?.lines.join(' ')).toMatch(
       /Storm beats Frost, Frost beats Stone, and Stone beats Storm/,
     );
-    // Every card the pass hands out (quests and trainers) is a Storm, Stone or Frost card, and the
-    // whole new catalogue is covered except Rebuild, Snowbound and Permafrost (levels 14-20).
+    // Every card the pass hands out (quests and trainers) is a Storm, Stone or Frost signature or a
+    // neutral card (DD-98), and the M7 cards are covered except Rebuild, Snowbound and Permafrost
+    // (levels 14-20).
     const cards = new Set<string>();
     const items = new Set<string>();
     for (const r of [
@@ -524,7 +533,8 @@ describe('Highcairn Pass (M7 7.3: Storm, Stone and Frost)', () => {
       for (const c of r.cards ?? []) cards.add(c.id);
       for (const i of r.items ?? []) items.add(i.id);
     }
-    for (const c of cards) expect(NEW as readonly string[]).toContain(abilityById.get(c)?.affinity);
+    for (const c of cards)
+      expect([...NEW, 'neutral'] as readonly string[], c).toContain(abilityById.get(c)?.affinity);
     expect(cards.size).toBeGreaterThanOrEqual(9);
     expect([...items].sort()).toEqual(['mainspring', 'mooring_chain']);
     // Rewards stay within reach of the pass's level band (trainers 6-10).

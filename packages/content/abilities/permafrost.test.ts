@@ -1,11 +1,12 @@
 /**
- * Permafrost scenario tests (R-ABIL-005, M7 7.3): Captured, Frost, all. Send the captor back to its
- * starting square, if empty. Attuned (Frost bearer): also send one other enemy knight, bishop, rook
- * or queen adjacent to this square back to its starting square.
+ * Permafrost scenario tests (R-ABIL-005, M7 7.3; neutral since DD-98): Captured, neutral, all, 1
+ * charge. Send the captor back to its starting square, if empty. The attuned bonus (also sending one
+ * other adjacent enemy piece home) was dropped by DD-98; there is no attuned version, whatever the
+ * bearer's element.
  *
  * Starting squares are the pieces' identities' starts (DD-22): FEN pieces start where the FEN puts
  * them, so the pieces here move away first. Expected behaviour comes from spec 5.2 (MOVE), 5.4 (last
- * known square), 6.2, 6.3 and DD-18, DD-22, not from the engine's current output.
+ * known square), 6.2, 6.3 and DD-18, DD-22, DD-98, not from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import { abilityById } from '../index.ts';
@@ -18,16 +19,17 @@ const FEN = 'k7/5p2/8/8/2B5/8/8/4K1N1 w - - 0 1';
 const MOVES = ['g1f3', 'a8b8', 'f3e5', 'b8a8', 'c4e6', 'a8b8', 'e5f7'];
 
 describe('permafrost (R-ABIL-005)', () => {
-  it('R-ABIL-005 permafrost is a level-20, 1-slot Frost When-captured card with 1 charge', () => {
+  it('R-ABIL-005 permafrost is a level-20, 1-slot neutral When-captured card with 1 charge and no attuned version (DD-98)', () => {
     expect(abilityById.get('permafrost')).toMatchObject({
       category: 'CAPTURED',
-      affinity: 'frost',
+      affinity: 'neutral',
       eligible: 'all',
       tags: [],
       minLevel: 20,
       slotCost: 1,
       limits: { perAction: 1, charges: 1 },
     });
+    expect(abilityById.get('permafrost')?.attuned).toBeUndefined();
   });
 
   it('R-ABIL-005 DD-17 R-ELEM-007 the push spends the charge; Overabundance gives a Grove piece 2', () => {
@@ -69,20 +71,25 @@ describe('permafrost (R-ABIL-005)', () => {
     expect(eventsOf(r.events, 'ChargeSpent')).toEqual([]);
   });
 
-  it('R-ELEM-003 attuned (Frost bearer): the bishop next to f7 is sent home to c4 as well', () => {
+  it('R-ELEM-003 DD-98 a Frost bearer gets no attuned version: only the captor goes home, the bishop next to f7 stays on e6', () => {
     const r = scenario({
       fen: FEN,
       black: { elements: ['frost'], abilities: ['permafrost'] },
       moves: MOVES,
     });
+    const knight = idAt(r.initial, 'g1');
     const bishop = idAt(r.initial, 'c4');
     expect(eventsOf(r.events, 'AbilityTriggered').at(-1)).toMatchObject({
       ability: 'permafrost',
-      attuned: true,
+      attuned: false,
     });
-    expect(pieceAt(r.state, 'g1')?.type).toBe('knight');
-    expect(pieceAt(r.state, 'c4')?.id).toBe(bishop);
-    expect(pieceAt(r.state, 'e6')).toBeUndefined();
+    expect(r.prompts).toEqual([]);
+    expect(eventsOf(r.steps[6]?.events ?? [], 'PieceMoved')).toEqual([
+      expect.objectContaining({ piece: knight, from: sq('f7'), to: sq('g1') }),
+    ]);
+    expect(pieceAt(r.state, 'g1')?.id).toBe(knight);
+    expect(pieceAt(r.state, 'e6')?.id).toBe(bishop);
+    expect(pieceAt(r.state, 'c4')).toBeUndefined();
   });
 
   it('R-ELEM-002 a Storm captor silences Permafrost on a Frost victim (Storm beats Frost)', () => {

@@ -42,7 +42,7 @@ export interface Profile {
   sendsCaptorHome: boolean;
   /** Protects a chosen friendly piece from effect captures (Buttress; M7). */
   protectsFriend: boolean;
-  /** Moves a chosen enemy piece: control (Snowdrift, Snowbound, attuned Permafrost; M7). */
+  /** Moves a chosen enemy piece: control (Snowdrift, Snowbound; M7). */
   movesEnemy: boolean;
 }
 

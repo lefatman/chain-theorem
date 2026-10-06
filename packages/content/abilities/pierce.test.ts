@@ -1,9 +1,11 @@
 /**
- * Pierce (5.7): Capturing, Tide, all. "Negate the victim's Captured abilities for this capture."
- * Attuned: "Also reveal all abilities of the victim's piece type."
+ * Pierce (5.7): Capturing, neutral, all. "Negate the victim's Captured abilities for this capture."
+ * Neutral since DD-98: the former Tide Attuned bonus (also reveal all abilities of the victim's piece
+ * type) is dropped; no bearer is attuned and Pierce has no explicit reveal of its own.
  *
- * Expected behaviour comes from spec 5.1-5.7, 6.2 (and its design note on Pierce vs Grove), 6.3, 8.2
- * and DD-17 to DD-40 (DD-28 explicit reveals, DD-36 negation beats silence), not from the engine.
+ * Expected behaviour comes from spec 5.1-5.7, 6.2 (and its design note on Pierce vs Grove), 6.3, 8.2,
+ * DD-17 to DD-40 (DD-28 explicit reveals, DD-36 negation beats silence) and DD-98, not from the
+ * engine.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -60,7 +62,10 @@ function trace(events: readonly BattleEvent[]): string[] {
   return out;
 }
 
-/** Pierce's own REVEAL events (the attuned set reveal). */
+/**
+ * Pierce's own REVEAL events (cause 'effect', source Pierce). Always empty since DD-98: negated
+ * abilities are revealed with cause 'negated', never by an explicit Pierce reveal.
+ */
 function pierceReveals(events: readonly BattleEvent[]) {
   return eventsOf(events, 'Revealed').filter(
     (e) => e.cause === 'effect' && e.source?.kind === 'ability' && e.source.id === 'pierce',
@@ -74,10 +79,11 @@ const PAWN = 2;
 const PIERCE_SOURCE = { kind: 'ability', id: 'pierce', piece: BISHOP, side: 'white' } as const;
 
 describe('Pierce', () => {
-  it('R-ABIL-005 R-ABIL-001 module data matches the 5.7 catalogue row (Capturing, Tide, all, level 3, 1 slot)', () => {
+  it('R-ABIL-005 R-ABIL-001 DD-98 module data matches the 5.7 catalogue row (Capturing, neutral, all, level 3, 1 slot)', () => {
     const def = abilityById.get('pierce');
     expect(def?.category).toBe('CAPTURING');
-    expect(def?.affinity).toBe('tide');
+    expect(def?.affinity).toBe('neutral');
+    expect(def?.attuned).toBeUndefined();
     expect(def?.eligible).toBe('all');
     expect(def?.tags).toEqual([]);
     expect(def?.minLevel).toBe(3);
@@ -124,7 +130,7 @@ describe('Pierce', () => {
     ).toMatchObject([{ side: 'black', cause: 'negated' }]);
     expect(eventsOf(r.events, 'Captured')).toHaveLength(1);
     expect(idAt(r.state, 'd5')).toBe(BISHOP);
-    // Base Pierce reveals only what was negated, not the whole set.
+    // Pierce reveals only what was negated, never the whole set (DD-98).
     expect(pierceReveals(r.events)).toEqual([]);
     expect(revealedOn(r.state, 'black', 'pawn')).toEqual(['poisoned_meat']);
     expect(r.state.reveals.black.complete).toEqual([]);
@@ -208,7 +214,7 @@ describe('Pierce', () => {
     expect(eventsOf(r.events, 'Captured')).toHaveLength(2);
   });
 
-  it("R-ABIL-005 R-ELEM-003 R-INFO-002 attuned (Tide bearer): also reveals the victim's full piece-type set", () => {
+  it('R-ABIL-005 R-ELEM-003 R-INFO-002 DD-98 neutral: a Tide bearer negates the same way, never attuned, and reveals no set beyond the negated names', () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['tide'], abilities: ['pierce'] },
@@ -216,41 +222,36 @@ describe('Pierce', () => {
       moves: ['b3d5'],
     });
     expect(eventsOf(r.events, 'AbilityTriggered')).toMatchObject([
-      { ability: 'pierce', attuned: true },
+      { ability: 'pierce', attuned: false },
     ]);
-    const reveals = pierceReveals(r.events);
-    expect(reveals).toMatchObject([
-      {
-        side: 'black',
-        info: { kind: 'set', pieceType: 'pawn', abilities: ['poisoned_meat', 'last_word'] },
-        cause: 'effect',
-        source: PIERCE_SOURCE,
-      },
-    ]);
-    // The reveal resolves in phase 2, before the victim is removed.
-    const captured = eventsOf(r.events, 'Captured')[0] as BattleEvent;
-    expect(r.events.indexOf(reveals[0] as BattleEvent)).toBeLessThan(r.events.indexOf(captured));
+    expect(pierceReveals(r.events)).toEqual([]);
     expect(eventsOf(r.events, 'AbilityNegated')).toHaveLength(2);
-    expect(r.state.reveals.black.complete).toEqual(['pawn']);
+    expect([...revealedOn(r.state, 'black', 'pawn')].sort()).toEqual([
+      'last_word',
+      'poisoned_meat',
+    ]);
+    expect(r.state.reveals.black.complete).toEqual([]);
     expect(idAt(r.state, 'd5')).toBe(BISHOP);
   });
 
-  it('R-ABIL-005 R-ELEM-003 attuned: a victim without Captured abilities still has its set revealed, nothing is negated', () => {
+  it('R-ABIL-005 DD-98 a victim without Captured abilities: nothing is negated and nothing about it is revealed', () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['tide'], abilities: ['pierce'] },
       black: { elements: ['neutral'], abilities: ['hit_and_run'] },
       moves: ['b3d5'],
     });
-    expect(eventsOf(r.events, 'AbilityNegated')).toEqual([]);
-    expect(pierceReveals(r.events)).toMatchObject([
-      { side: 'black', info: { kind: 'set', pieceType: 'pawn', abilities: ['hit_and_run'] } },
+    expect(eventsOf(r.events, 'AbilityTriggered')).toMatchObject([
+      { ability: 'pierce', attuned: false },
     ]);
-    expect(revealedOn(r.state, 'black', 'pawn')).toEqual(['hit_and_run']);
-    expect(r.state.reveals.black.complete).toEqual(['pawn']);
+    expect(eventsOf(r.events, 'AbilityNegated')).toEqual([]);
+    expect(pierceReveals(r.events)).toEqual([]);
+    expect(revealedOn(r.state, 'black', 'pawn')).toEqual([]);
+    expect(r.state.reveals.black.complete).toEqual([]);
+    expect(idAt(r.state, 'd5')).toBe(BISHOP);
   });
 
-  it('R-ABIL-005 R-ELEM-002 R-INFO-002 a Tide Pierce is silenced against a Grove victim, so Poisoned Meat resolves (6.2 design note)', () => {
+  it('R-ABIL-005 R-ELEM-002 R-INFO-002 a Pierce on a Tide piece is silenced against a Grove victim, so Poisoned Meat resolves (6.2 design note)', () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['tide'], abilities: ['pierce'] },
@@ -299,7 +300,12 @@ describe('Pierce', () => {
       { side: 'black', ability: 'poisoned_meat', source: PIERCE_SOURCE },
     ]);
     expect(eventsOf(r.events, 'AbilitySilenced')).toEqual([]);
-    // The attuned set reveal already named it; no reveal is attributed to a silence.
+    // The negation names it (cause 'negated'); no reveal is attributed to a silence.
+    expect(
+      eventsOf(r.events, 'Revealed')
+        .filter((e) => e.info.kind === 'ability' && e.info.ability === 'poisoned_meat')
+        .map((e) => e.cause),
+    ).toEqual(['negated']);
     expect(eventsOf(r.events, 'Revealed').filter((e) => e.cause === 'silenced')).toEqual([]);
     expect(eventsOf(r.events, 'AbilityTriggered').map((e) => e.ability)).toEqual(['pierce']);
     expect(idAt(r.state, 'd5')).toBe(BISHOP);
@@ -345,21 +351,19 @@ describe('Pierce', () => {
     expect(JSON.stringify(whiteView)).not.toContain('poisoned_meat');
   });
 
-  it("R-ABIL-005 DD-28 attuned Pierce's explicit reveal names a veiled victim's abilities, Veil included", () => {
+  it("R-ABIL-005 DD-28 DD-98 a Pierce on a Tide piece has no explicit reveal either: a veiled victim's negated ability stays unnamed", () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['tide'], abilities: ['pierce'] },
       black: { elements: ['neutral'], abilities: ['poisoned_meat', 'veil'] },
       moves: ['b3d5'],
     });
-    expect(pierceReveals(r.events)).toMatchObject([
-      {
-        side: 'black',
-        info: { kind: 'set', pieceType: 'pawn', abilities: ['poisoned_meat', 'veil'] },
-      },
-    ]);
-    expect([...revealedOn(r.state, 'black', 'pawn')].sort()).toEqual(['poisoned_meat', 'veil']);
-    expect(r.state.reveals.black.complete).toEqual(['pawn']);
+    expect(eventsOf(r.events, 'AbilityNegated')).toHaveLength(1);
+    expect(pierceReveals(r.events)).toEqual([]);
+    expect(revealedOn(r.state, 'black', 'pawn')).not.toContain('poisoned_meat');
+    expect(revealedOn(r.state, 'black', 'pawn')).not.toContain('veil');
+    expect(r.state.reveals.black.veiled).toEqual(['pawn']);
+    expect(r.state.reveals.black.complete).toEqual([]);
     expect(idAt(r.state, 'd5')).toBe(BISHOP);
     expect(r.state.pieces[BISHOP]?.square).toBe(sq('d5'));
   });
