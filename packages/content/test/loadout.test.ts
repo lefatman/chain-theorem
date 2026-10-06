@@ -132,7 +132,15 @@ const ABILITIES_M7: { id: string; minLevel: number; affinity: ElementId }[] = [
   { id: 'snowbound', minLevel: 14, affinity: 'neutral' },
   { id: 'permafrost', minLevel: 20, affinity: 'neutral' },
 ];
-const ALL_ABILITIES = [...ABILITIES_5_7, ...ABILITIES_M7];
+/**
+ * Spec 5.8 abilities from the designer's 2026-10-06 brief (PLAYTEST, DD-97, DD-103): neutral, each
+ * costs 1 ability slot; levels sit in the 11-15 band between Reinforce and Stalwart.
+ */
+const ABILITIES_5_8: { id: string; minLevel: number }[] = [
+  { id: 'necromancer', minLevel: 11 },
+  { id: 'quantum_kill', minLevel: 13 },
+];
+const ALL_ABILITIES = [...ABILITIES_5_7, ...ABILITIES_M7, ...ABILITIES_5_8];
 
 /** A loadout holding only `id`, with what the item needs to be valid (6.4, DD-29). */
 function itemLoadout(id: string): Loadout {

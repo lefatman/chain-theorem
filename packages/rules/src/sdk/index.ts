@@ -42,6 +42,8 @@ export const target = {
     side,
     type,
   }),
+  /** The owner chooses among captured pieces matching the filter (never a king). */
+  chosenCaptured: (filter: PieceFilter): TargetSpec => ({ t: 'chosenCaptured', filter }),
 };
 
 export const square = {
@@ -52,6 +54,11 @@ export const square = {
   /** The ability's owner chooses an empty square matching the filter. */
   chosen: (filter: Omit<SquareFilter, 'empty'>): SquareSpec => ({
     s: 'chosen',
+    filter: { empty: true, ...filter },
+  }),
+  /** The piece's starting square when empty, otherwise the owner chooses from the filter. */
+  startElse: (filter: Omit<SquareFilter, 'empty'>): SquareSpec => ({
+    s: 'startElse',
     filter: { empty: true, ...filter },
   }),
 };
@@ -108,6 +115,8 @@ export const cond = {
   typeIs: (of: 'captor' | 'victim' | 'self', types: PieceType[]): EffectCondition => ({
     typeIs: { of, types },
   }),
+  /** True when no piece on the board matches the filter as an effect-capture target. */
+  noneMatch: (filter: PieceFilter): EffectCondition => ({ noneMatch: filter }),
   not: (c: EffectCondition): EffectCondition => ({ not: c }),
   all: (...cs: EffectCondition[]): EffectCondition => ({ all: cs }),
 };

@@ -279,6 +279,8 @@ A bonus action that is itself a move capture runs a nested pipeline, up to a max
 | E7 | Ember knight captures on e5; two turns later it moves to f3 | Hot Foot: e5 ignites. Until the opponent has taken 3 turns, no non-Ember piece may move to or capture on e5; a non-Ember rook may still slide over it. |
 | E8 | Tide rook on a1, its own pawn on a2, a3–a7 empty, enemy king on a8 | Flow: the rook's line passes through its own pawn, so the enemy king is in check. The rook may also move from a1 to a5 through the pawn. |
 | E9 | Grove bishop with Rebirth is captured three times in one battle | Overabundance: Rebirth has 2 charges on a Grove piece, so the bishop returns twice (each time its starting square is empty); the third capture removes it for good. |
+| E10 | White knight c3, pawn b2 and bishop b1; Black rook b8. The rook takes the pawn, then the bishop with check; the knight (Necromancer) takes the rook | Rank 3 ≥ rank 2: the owner is offered the captured bishop and pawn in square order (b1, then b2), each at its starting square; the pawn returns to b2. The bishop's start b1 now holds the knight, so choosing it would offer the empty back-rank squares instead. |
+| E11 | White pawn d4 (Quantum Kill) takes a black knight on e5; Black has pawns on a7 and h7 and a rook on a8 | Rank 2 > rank 1: the owner picks one enemy piece of rank ≤ 1 to effect-capture (a7 or h7; the rook and king are never offered). With no such piece the pawn could make one non-capturing move instead. |
 
 ### 5.6 Ability data schema (R-ABIL-005)
 
@@ -346,8 +348,10 @@ interface ItemDef {
 | snowdrift | Captures | Neutral | All | 9 | Move one enemy knight, bishop, rook or queen next to the landing square to another empty square next to it, or to the square this piece moved from | — |
 | phalanx | Capturing | Neutral | All | 10 | When one of your pawns, knights or bishops captures, negate the victim's Captured abilities for this capture | — |
 | reinforce | Captures | Neutral | All | 10 | If the victim was not a pawn, revive your most recently captured pawn on its starting square (1 charge) | — |
+| necromancer | Captures | Neutral | All | 11 | After capturing a victim of equal or higher rank than this piece, revive one of your captured pieces of rank at most this piece's: on its starting square if empty, else any empty back-rank square (1 charge; never a king) | — |
 | riposte | Captured | Neutral | All | 12 | Bonus action for the owner: capture the captor with any piece that legally can | — |
 | slipstream | Captures | Neutral | All | 12 | If the victim was not a pawn, any of your pieces may make one non-capturing move (1 charge) | — |
+| quantum_kill | Captures | Neutral | All | 13 | After capturing a victim of higher rank than this piece, effect-capture one enemy piece of rank at most this piece's (you choose); if there is none, this piece may make one non-capturing move instead (2 charges) | — |
 | rebirth | Captured | Neutral | Non-king | 14 | At chain end, return to its starting square if empty (1 charge) | — |
 | snowbound | Capturing | Neutral | All | 14 | Send one enemy knight, bishop, rook or queen next to the landing square back to its starting square, if empty (2 charges) | — |
 | stalwart | Passive | Neutral | King (all pieces from 5.8) | 16 | Section 4.3 | — |
@@ -363,8 +367,8 @@ Eight abilities from the designer, with the definitions agreed for the build. Ea
 
 | ID | Category | Affinity | Lvl | Rule | Needs |
 | --- | --- | --- | --- | --- | --- |
-| necromancer | Captures | Neutral | 11 | After capturing a victim of equal or higher rank than the captor, revive one of your captured pieces of rank at most the captor's, on its starting square if empty, otherwise on any empty square of your back rank (1 charge; never a king) | rank filters; chooser over captured pieces (DD-103) |
-| quantum_kill | Captures | Neutral | 13 | After capturing a victim of higher rank than the captor, effect-capture one enemy piece of rank at most the captor's (you choose); if none exists, the captor may make one non-capturing move instead (2 charges) | rank filters; a "no target" branch (DD-103) |
+| necromancer | Captures | Neutral | 11 | *Shipped (Phase 2).* After capturing a victim of equal or higher rank than the captor, revive one of your captured pieces of rank at most the captor's, on its starting square if empty, otherwise on any empty square of your back rank (1 charge; never a king) | rank filters; chooser over captured pieces (DD-103) |
+| quantum_kill | Captures | Neutral | 13 | *Shipped (Phase 2).* After capturing a victim of higher rank than the captor, effect-capture one enemy piece of rank at most the captor's (you choose); if none exists, the captor may make one non-capturing move instead (2 charges) | rank filters; a "no target" branch (DD-103) |
 | obstinate | Passive | Neutral | 9 | Cannot be move-captured by a piece of higher rank. Effect captures are unaffected. Revealed the first time it changes which captures are legal | captureFilter hook |
 | block_path | Passive | Neutral | 12 | The piece faces one of eight directions (N, NE, E, SE, S, SW, W, NW), north by default. It cannot be move-captured by an attacker approaching from that direction; a diagonal is blocked only when that diagonal is chosen. After moving the piece its owner may choose a new direction (a declinable prompt; declining keeps the old one). Kings included: a king cannot be checked from its blocked direction. Knights approach along their long leg (DD-99) | captureFilter hook; per-piece direction state; post-move choice |
 | stalwart (rework) | Passive | Neutral | 16 | Any piece: (1) cannot be removed by any effect or mechanic except Poisoned Meat or a move capture; (2) passive restrictions on its captures and moves (Obstinate, burning squares, later passives) do not apply against it, except Block Path; (3) a piece type carrying Stalwart carries no offensive abilities (loadout rule); (4) on the king, 4.3 is unchanged (DD-102) | protect-with-exception; loadout rule; bypass flag |

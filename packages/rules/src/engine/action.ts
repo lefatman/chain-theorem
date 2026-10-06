@@ -63,6 +63,7 @@ import {
   type Side,
   type SourceRef,
   type Square,
+  rankCompare,
   RulesError,
 } from '../types.ts';
 import { beats } from './elements.ts';
@@ -441,7 +442,19 @@ export class ActionRun extends EventHost {
     if ('victimTypeNot' in c) return victim.type !== c.victimTypeNot;
     if ('victimTypeIs' in c) return c.victimTypeIs.includes(victim.type);
     if ('captorTypeIs' in c) return c.captorTypeIs.includes(captor.type);
+    if ('rank' in c) {
+      const of = c.rank.of === 'victim' ? victim.type : captor.type;
+      const to = c.rank.to === 'victim' ? victim.type : captor.type;
+      return rankCompare(of, c.rank.cmp, to);
+    }
     return captor.type !== c.captorTypeNot;
+  }
+
+  /** The rank filter of a piece filter, against the captor, the victim or the bearer (DD-97). */
+  private rankOk(type: PieceType, r: NonNullable<PieceFilter['rank']>, tc: TCtx): boolean {
+    const refId = r.to === 'captor' ? tc.cap.captor : r.to === 'victim' ? tc.cap.victim : tc.bearer;
+    const ref = this.s.pieces[refId];
+    return ref !== undefined && rankCompare(type, r.cmp, ref.type);
   }
 
   remainingCharges(view: PieceView, def: AbilityDef): number {
@@ -783,7 +796,35 @@ export class ActionRun extends EventHost {
         if (!choice || choice.kind !== 'piece') return null;
         return this.rt.view(this, choice.piece);
       }
+      case 'chosenCaptured': {
+        const options = this.capturedOptions(spec.filter, tc);
+        const choice = this.choose(tc.owner, 'target', options, tc, false, { purpose });
+        if (!choice || choice.kind !== 'piece') return null;
+        return this.rt.view(this, choice.piece);
+      }
     }
+  }
+
+  /**
+   * Candidate captured pieces for a chosen target (Necromancer, DD-103): never a king, in the
+   * square order of their starting squares (5.4: the default answer is the first option in square
+   * order). Each option names the piece's starting square, where a revive would put it (protocol
+   * squares are 0..63, so an off-board piece cannot name its own square).
+   */
+  private capturedOptions(f: PieceFilter, tc: TCtx): ChoiceOption[] {
+    const out: { o: ChoiceOption; key: number }[] = [];
+    for (const p of this.s.pieces) {
+      if (p.square >= 0 || p.type === 'king') continue;
+      if (f.side === 'enemy' && p.side === tc.owner) continue;
+      if (f.side === 'friendly' && p.side !== tc.owner) continue;
+      if (f.types && !f.types.includes(p.type)) continue;
+      if (f.rank && !this.rankOk(p.type, f.rank, tc)) continue;
+      out.push({
+        o: { kind: 'piece', piece: p.id, square: p.start },
+        key: relOrder(tc.owner, p.start),
+      });
+    }
+    return out.sort((a, b) => a.key - b.key).map((x) => x.o);
   }
 
   /** Candidate pieces for a chosen target, filtered by public rules only (DD-19). */
@@ -805,6 +846,7 @@ export class ActionRun extends EventHost {
       if (f.side === 'friendly' && p.side !== tc.owner) continue;
       if (f.types && !f.types.includes(p.type)) continue;
       if (f.near && !near(f.near.pattern, anchor, p.square)) continue;
+      if (f.rank && !this.rankOk(p.type, f.rank, tc)) continue;
       if (purpose === 'capture') {
         if (p.type === 'king') continue; // Royal Immunity: kings cannot be targeted (R-RULES-004).
         if (this.inv03Verdict({ remove: p.id }, tc.owner) === 'fails') continue;
@@ -825,6 +867,7 @@ export class ActionRun extends EventHost {
   ): Square | null {
     if (spec.s === 'origin') return tc.cap.from;
     if (spec.s === 'start') return piece.start;
+    if (spec.s === 'startElse' && (this.s.board[piece.start] as number) < 0) return piece.start;
     const options = this.squareOptions(spec.filter, piece, tc, kind);
     const choice = this.choose(tc.owner, 'square', options, tc, false, { subject: piece.id });
     if (!choice || choice.kind !== 'square') return null;
@@ -1235,6 +1278,7 @@ export class ActionRun extends EventHost {
       const p = this.s.pieces[id];
       return p !== undefined && c.typeIs.types.includes(p.type);
     }
+    if ('noneMatch' in c) return this.pieceOptions(c.noneMatch, tc, 'capture').length === 0;
     if ('not' in c) return !this.evalCond(c.not, tc);
     return c.all.every((x) => this.evalCond(x, tc));
   }

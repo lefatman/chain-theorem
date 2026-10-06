@@ -5,6 +5,38 @@
 
 export type Side = 'white' | 'black';
 export type PieceType = 'pawn' | 'knight' | 'bishop' | 'rook' | 'queen' | 'king';
+/**
+ * Piece rank for abilities that compare pieces (5.1, DD-97): pawn 1 < knight 2 = bishop 2 < rook 3
+ * < queen 4 < king 5. "Equal or higher" includes the knight/bishop tie.
+ */
+export const PIECE_RANK: Readonly<Record<PieceType, number>> = {
+  pawn: 1,
+  knight: 2,
+  bishop: 2,
+  rook: 3,
+  queen: 4,
+  king: 5,
+};
+export type RankCmp = '<' | '<=' | '==' | '>=' | '>';
+export function pieceRank(t: PieceType): number {
+  return PIECE_RANK[t];
+}
+export function rankCompare(a: PieceType, cmp: RankCmp, b: PieceType): boolean {
+  const x = PIECE_RANK[a];
+  const y = PIECE_RANK[b];
+  switch (cmp) {
+    case '<':
+      return x < y;
+    case '<=':
+      return x <= y;
+    case '==':
+      return x === y;
+    case '>=':
+      return x >= y;
+    case '>':
+      return x > y;
+  }
+}
 export type PromotionType = 'knight' | 'bishop' | 'rook' | 'queen';
 export type ElementId = 'ember' | 'tide' | 'grove' | 'storm' | 'stone' | 'frost' | 'neutral';
 export type Category = 'CAPTURING' | 'CAPTURES' | 'CAPTURED' | 'PASSIVE';

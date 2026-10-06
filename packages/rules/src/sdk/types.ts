@@ -12,6 +12,7 @@ import type {
   GameState,
   PieceId,
   PieceType,
+  RankCmp,
   RevealCause,
   RevealInfo,
   Side,
@@ -63,6 +64,8 @@ export interface PieceFilter {
   types?: PieceType[];
   near?: { of: Anchor; pattern: Pattern };
   exclude?: ('captor' | 'victim' | 'self')[];
+  /** Piece rank (5.1, DD-97) compared with a reference piece's rank. */
+  rank?: { cmp: RankCmp; to: 'captor' | 'victim' | 'self' };
 }
 
 export interface SquareFilter {
@@ -79,9 +82,19 @@ export type TargetSpec =
   | { t: 'captor' }
   | { t: 'victim' }
   | { t: 'chosen'; filter: PieceFilter }
-  | { t: 'mostRecentCaptured'; side: 'friendly' | 'enemy'; type: PieceType };
+  | { t: 'mostRecentCaptured'; side: 'friendly' | 'enemy'; type: PieceType }
+  /**
+   * The owner chooses among captured pieces matching the filter (never a king), in the square
+   * order of their starting squares; each option names that square (Necromancer, DD-103).
+   */
+  | { t: 'chosenCaptured'; filter: PieceFilter };
 
-export type SquareSpec = { s: 'origin' } | { s: 'start' } | { s: 'chosen'; filter: SquareFilter };
+export type SquareSpec =
+  | { s: 'origin' }
+  | { s: 'start' }
+  | { s: 'chosen'; filter: SquareFilter }
+  /** The piece's starting square when empty, otherwise the owner chooses from the filter. */
+  | { s: 'startElse'; filter: SquareFilter };
 
 export interface BonusSpec {
   /** Who may make the bonus move. */
@@ -101,6 +114,8 @@ export type EffectCondition =
   | { survives: 'captor' | 'victim' | 'self' }
   | { noLegalCapturerOf: 'captor' }
   | { typeIs: { of: 'captor' | 'victim' | 'self'; types: PieceType[] } }
+  /** No piece on the board matches the filter as an effect-capture target (Quantum Kill). */
+  | { noneMatch: PieceFilter }
   | { not: EffectCondition }
   | { all: EffectCondition[] };
 
@@ -121,7 +136,9 @@ export type Condition =
   | { victimTypeNot: PieceType }
   | { victimTypeIs: PieceType[] }
   | { captorTypeIs: PieceType[] }
-  | { captorTypeNot: PieceType };
+  | { captorTypeNot: PieceType }
+  /** Compare the victim's and the captor's ranks (5.1, DD-97): `of cmp to`. */
+  | { rank: { of: 'victim' | 'captor'; cmp: RankCmp; to: 'victim' | 'captor' } };
 
 // ---- module definitions ---------------------------------------------------------------------------
 

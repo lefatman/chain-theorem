@@ -17,9 +17,10 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   element in the accents and an emblem. Army style is a setting; the opponent's style always differs.
   Overworld trainers redrawn at 17x26 in the same handheld-era proportions with a 3-frame walk.
 - Catalogue plan (designer brief 2026-10-06, spec 5.7/5.8, DD-97..DD-104): Phase 0 (spec, decisions)
-  and Phase 1 (neutral-first catalogue: one signature per element, 18 cards neutral) are done.
-  Next: Phase 2 (Necromancer, Quantum Kill), Phase 3 (captureFilter: Obstinate, Block Path, Stalwart
-  rework), Phase 4 (Electric Slide), Phase 5 (Redo), Phase 6 (Schrödinger's Joker). Balance after
+  Phase 1 (neutral-first catalogue: one signature per element, 18 cards neutral) and Phase 2
+  (Necromancer, Quantum Kill; piece rank, `rank` filters, `target.chosenCaptured`, `square.startElse`,
+  `cond.noneMatch`, golden E10/E11) are done. Next: Phase 3 (captureFilter: Obstinate, Block Path,
+  Stalwart rework), Phase 4 (Electric Slide), Phase 5 (Redo), Phase 6 (Schrödinger's Joker). Balance after
   Phase 1: see `docs/BALANCE_DD98.md` (First Blood advantaged element 46%, Full Battle 90%: the
   silence rule now dominates long games and traits dominate short ones; the designer's levers are
   `silenceScope` and trait numbers).
@@ -142,6 +143,14 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-10-06 Catalogue Phase 2 (DD-97, DD-103): Necromancer (level 11, 1 charge) and Quantum Kill
+  (level 13, 2 charges) as neutral Captures modules; engine: `PIECE_RANK`/`rankCompare`, trigger
+  condition `rank`, `PieceFilter.rank`, `target.chosenCaptured` (options in square order of starting
+  squares), `square.startElse`, `cond.noneMatch`; AI scores revive/move prompts; client labels
+  captured-piece options; golden examples E10 and E11 in the Scenario Lab. `pnpm check` 1,490 unit
+  tests (necromancer 8, quantum_kill 7, examples 25), `content:validate` ok (28 abilities),
+  `req:coverage` 83/83; `pnpm test:fuzz` 500 games, replays identical, 0 failures.
 
 - 2026-10-06 Catalogue Phase 0-1 (DD-97..DD-104): spec 5.7 rewritten, 5.8 planned abilities, 6.3/6.5/4.3/7.2
   updated; 18 ability modules neutral (versions bumped), signatures Cleave and Stonewall at level 3;

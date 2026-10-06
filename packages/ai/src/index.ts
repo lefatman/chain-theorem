@@ -371,7 +371,8 @@ export function chooseOption(
           pos.board[home] = -1;
           pos.board[from] = opt.piece;
           pos.psq[opt.piece] = from;
-        } else if (req.purpose === 'move' || req.purpose === 'revive') score = 0;
+        } else if (req.purpose === 'revive') score = mine ? v : -v;
+        else if (req.purpose === 'move') score = 0;
         else score = mine ? -v : v;
         break;
       }

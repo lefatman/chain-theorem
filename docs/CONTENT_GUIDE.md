@@ -484,22 +484,24 @@ Notes per primitive (the resolver is `packages/rules/src/engine/action.ts`):
 
 ### 4.3 Target selectors
 
-| Builder                                 | Resolves to                                                                                     |
-| --------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `target.self()`                         | The ability's bearer, on or off the board                                                       |
-| `target.captor()`                       | The piece that made the capture that triggered the ability                                      |
-| `target.victim()`                       | The piece that was captured (off the board after phase 3)                                       |
-| `target.chosen(filter)`                 | A piece on the board matching `filter`, chosen by the ability's owner (§4.6)                    |
-| `target.mostRecentCaptured(side, type)` | The captured piece of that side (relative to the owner) and current type captured most recently |
+| Builder                                 | Resolves to                                                                                                                                                              |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `target.self()`                         | The ability's bearer, on or off the board                                                                                                                                |
+| `target.captor()`                       | The piece that made the capture that triggered the ability                                                                                                               |
+| `target.victim()`                       | The piece that was captured (off the board after phase 3)                                                                                                                |
+| `target.chosen(filter)`                 | A piece on the board matching `filter`, chosen by the ability's owner (§4.6)                                                                                             |
+| `target.mostRecentCaptured(side, type)` | The captured piece of that side (relative to the owner) and current type captured most recently                                                                          |
+| `target.chosenCaptured(filter)`         | A captured piece matching `filter` (never a king), chosen by the owner; options in square order of their starting squares, each naming that square (Necromancer, DD-103) |
 
 `PieceFilter` fields:
 
-| Field     | Meaning                                                                             |
-| --------- | ----------------------------------------------------------------------------------- |
-| `side`    | `'enemy'`, `'friendly'` or `'any'`, relative to the ability's owner                 |
-| `types`   | Optional list of piece types (current type)                                         |
-| `near`    | Optional `{ of: Anchor; pattern: 'adjacent' \| 'diagonal' \| 'orthogonal' }` (§4.5) |
-| `exclude` | Optional list of `'captor'`, `'victim'`, `'self'` to leave out                      |
+| Field     | Meaning                                                                                                                                                                                                        |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `side`    | `'enemy'`, `'friendly'` or `'any'`, relative to the ability's owner                                                                                                                                            |
+| `types`   | Optional list of piece types (current type)                                                                                                                                                                    |
+| `near`    | Optional `{ of: Anchor; pattern: 'adjacent' \| 'diagonal' \| 'orthogonal' }` (§4.5)                                                                                                                            |
+| `exclude` | Optional list of `'captor'`, `'victim'`, `'self'` to leave out                                                                                                                                                 |
+| `rank`    | Optional `{ cmp: '<' \| '<=' \| '==' \| '>=' \| '>'; to: 'captor' \| 'victim' \| 'self' }`: the piece's rank compared with that piece's (5.1, DD-97: pawn 1 < knight 2 = bishop 2 < rook 3 < queen 4 < king 5) |
 
 Patterns: `adjacent` is the eight king-step squares, `diagonal` the four diagonal neighbours,
 `orthogonal` the four orthogonal neighbours. For an effect capture the options also drop kings and
@@ -521,11 +523,12 @@ fx.effectCapture(
 
 ### 4.4 Square selectors
 
-| Builder                 | Resolves to                                                                                     |
-| ----------------------- | ----------------------------------------------------------------------------------------------- |
-| `square.origin()`       | The square the captor moved from in the capture that triggered the ability (for every category) |
-| `square.start()`        | The starting square of the piece being moved or revived (its identity's start, DD-22)           |
-| `square.chosen(filter)` | An empty square matching `filter`, chosen by the ability's owner (§4.6)                         |
+| Builder                    | Resolves to                                                                                                                 |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `square.origin()`          | The square the captor moved from in the capture that triggered the ability (for every category)                             |
+| `square.start()`           | The starting square of the piece being moved or revived (its identity's start, DD-22)                                       |
+| `square.chosen(filter)`    | An empty square matching `filter`, chosen by the ability's owner (§4.6)                                                     |
+| `square.startElse(filter)` | The piece's starting square when it is empty, otherwise an empty square matching `filter` chosen by the owner (Necromancer) |
 
 `SquareFilter` fields (the builder always adds `empty: true`):
 
@@ -624,13 +627,14 @@ removed the knight first (worked example E1).
 
 `fx.when(cond, effects)` evaluates an `EffectCondition` when the effect resolves:
 
-| `cond` builder                   | Data                                           | Holds when                                                                              |
-| -------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `cond.survives(of)`              | `{ survives: 'captor' \| 'victim' \| 'self' }` | That piece is on the board                                                              |
-| `cond.noLegalCapturerOfCaptor()` | `{ noLegalCapturerOf: 'captor' }`              | The captor is on the board and no friendly piece has a legal bonus capture of it (§4.9) |
-| `cond.typeIs(of, types)`         | `{ typeIs: { of, types } }`                    | That piece's current type is in `types`                                                 |
-| `cond.not(c)`                    | `{ not: c }`                                   | `c` does not hold                                                                       |
-| `cond.all(...cs)`                | `{ all: cs }`                                  | Every condition holds                                                                   |
+| `cond` builder                   | Data                                           | Holds when                                                                                   |
+| -------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `cond.survives(of)`              | `{ survives: 'captor' \| 'victim' \| 'self' }` | That piece is on the board                                                                   |
+| `cond.noneMatch(filter)`         | `{ noneMatch: PieceFilter }`                   | No piece on the board matches `filter` as an effect-capture target (Quantum Kill's fallback) |
+| `cond.noLegalCapturerOfCaptor()` | `{ noLegalCapturerOf: 'captor' }`              | The captor is on the board and no friendly piece has a legal bonus capture of it (§4.9)      |
+| `cond.typeIs(of, types)`         | `{ typeIs: { of, types } }`                    | That piece's current type is in `types`                                                      |
+| `cond.not(c)`                    | `{ not: c }`                                   | `c` does not hold                                                                            |
+| `cond.all(...cs)`                | `{ all: cs }`                                  | Every condition holds                                                                        |
 
 There is no `any` combinator; write `cond.not(cond.all(cond.not(a), cond.not(b)))`. A false
 condition skips the wrapped effects silently: the engine emits no event for it (the `condition`
@@ -1568,7 +1572,7 @@ NON_KING // ['pawn', 'knight', 'bishop', 'rook', 'queen']
 ```
 
 Anchors: `'self'`, `'captor'`, `'victim'`, `'origin'`, `'landing'`. Patterns: `'adjacent'`,
-`'diagonal'`, `'orthogonal'`. Trigger conditions: `victimTypeNot`, `victimTypeIs`, `captorTypeIs`,
+`'diagonal'`, `'orthogonal'`. Trigger conditions: `victimTypeNot`, `victimTypeIs`, `captorTypeIs`, `rank` (`{ rank: { of, cmp, to } }` compares the victim's and the captor's ranks),
 `captorTypeNot`.
 
 ## Appendix B: the catalogue as a pattern library

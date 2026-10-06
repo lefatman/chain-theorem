@@ -16,7 +16,9 @@ export function optionLabel(pub: PublicState, o: ChoiceOption): string {
     case 'decline':
       return 'Decline';
     case 'piece':
-      return `${pieceLabel(pub, o.piece)} on ${squareName(o.square)}`;
+      return (pub.pieces[o.piece]?.square ?? 0) < 0
+        ? `${pieceLabel(pub, o.piece)} (captured) back to ${squareName(o.square)}`
+        : `${pieceLabel(pub, o.piece)} on ${squareName(o.square)}`;
     case 'square':
       return squareName(o.square);
     case 'move':

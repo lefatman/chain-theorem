@@ -55,10 +55,29 @@ const KEY_OUTCOME: Record<WorkedExampleId, (r: ScenarioResult) => void> = {
       r.state.pieces[0]?.square,
       r.state.usage['0:rebirth'],
     ]).toEqual([2, -1, 2]),
+  E10: (r) =>
+    expect([
+      eventsOf(r.events, 'PieceRevived').map((e) => [e.piece, squareName(e.square)]),
+      r.state.pieces[0]?.square,
+      idAt(r.state, 'b1'),
+    ]).toEqual([[[2, 'b2']], -1, 3]),
+  E11: (r) =>
+    expect([
+      eventsOf(r.events, 'Captured').map((e) => [e.victim, e.by]),
+      idAt(r.state, 'a7'),
+      idAt(r.state, 'h7'),
+    ]).toEqual([
+      [
+        [2, 'move'],
+        [4, 'effect'],
+      ],
+      3,
+      -1,
+    ]),
 };
 
 describe('R-TEST-001 worked examples as lab data (spec 5.5)', () => {
-  it('R-TEST-001 lists E1 to E9 once each, in order, with the spec result text', () => {
+  it('R-TEST-001 lists E1 to E11 once each, in order, with the spec result text', () => {
     expect(WORKED_EXAMPLES.map((e) => e.id)).toEqual([
       'E1',
       'E2',
@@ -69,6 +88,8 @@ describe('R-TEST-001 worked examples as lab data (spec 5.5)', () => {
       'E7',
       'E8',
       'E9',
+      'E10',
+      'E11',
     ]);
     for (const e of WORKED_EXAMPLES) expect(e.specText.length).toBeGreaterThan(20);
   });

@@ -11,7 +11,8 @@
 import { parseSquare } from '@chain-theorem/rules';
 import type { ScenarioSpec } from './testing.ts';
 
-export type WorkedExampleId = 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'E7' | 'E8' | 'E9';
+export type WorkedExampleId =
+  'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'E7' | 'E8' | 'E9' | 'E10' | 'E11';
 
 export interface WorkedExampleVariant {
   /** Short label, e.g. 'Stalwart king'. */
@@ -194,6 +195,40 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
       white: { elements: ['grove'], abilities: ['rebirth'] },
       black: { elements: ['neutral'] },
       moves: ['c1d2', 'd8d2', 'c1b2', 'd2b2', 'c1d2', 'b2d2'],
+    },
+  },
+  {
+    id: 'E10',
+    title: 'Necromancer: a knight takes a rook and raises the fallen pawn',
+    setupText:
+      'White knight c3, pawn b2 and bishop b1; Black rook b8. The rook takes the pawn, then the bishop with check; the knight (Necromancer) takes the rook',
+    specText:
+      "Rank 3 ≥ rank 2: the owner is offered the captured bishop and pawn in square order (b1, then b2), each at its starting square; the pawn returns to b2. The bishop's start b1 now holds the knight, so choosing it would offer the empty back-rank squares instead.",
+    note: 'Ids: b1 B=0, e1 K=1, b2 P=2, c3 N=3, b8 r=4, e8 k=5. White answers the target prompt with the pawn (DD-97, DD-103).',
+    setup: {
+      fen: '1r2k3/8/8/8/8/2N5/1P6/1B2K3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'], abilities: ['necromancer'] },
+      black: { elements: ['neutral'] },
+      moves: ['c3e4', 'b8b2', 'e4c3', 'b2b1', 'c3b1'],
+      answers: [{ kind: 'piece', piece: 2, square: sq('b2') }],
+    },
+  },
+  {
+    id: 'E11',
+    title: 'Quantum Kill: a pawn takes a knight and a second piece with it',
+    setupText:
+      'White pawn d4 (Quantum Kill) takes a black knight on e5; Black has pawns on a7 and h7 and a rook on a8',
+    specText:
+      'Rank 2 > rank 1: the owner picks one enemy piece of rank ≤ 1 to effect-capture (a7 or h7; the rook and king are never offered). With no such piece the pawn could make one non-capturing move instead.',
+    note: 'Ids: e1 K=0, d4 P=1, e5 n=2, a7 p=3, h7 p=4, a8 r=5, e8 k=6. White answers the target prompt with the h7 pawn (DD-97, DD-103).',
+    setup: {
+      fen: 'r3k3/p6p/8/4n3/3P4/8/8/4K3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'], abilities: ['quantum_kill'] },
+      black: { elements: ['neutral'] },
+      moves: ['d4e5'],
+      answers: [{ kind: 'piece', piece: 4, square: sq('h7') }],
     },
   },
 ];
