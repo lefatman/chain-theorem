@@ -1,16 +1,29 @@
 /**
- * Stalwart scenario tests (R-ABIL-005, R-RULES-003, spec 4.3, 5.7): Passive, neutral, king only.
- * The king cannot be checkmated but still triggers the check alert; its owner may leave it in check,
- * move it into attacked squares and castle through or into attacked squares. It keeps Royal
+ * Stalwart scenario tests (R-ABIL-005, R-RULES-003, spec 4.3, 5.7, 5.8): Passive, neutral, all.
+ * On the king: it cannot be checkmated but still triggers the check alert; its owner may leave it in
+ * check, move it into attacked squares and castle through or into attacked squares. It keeps Royal
  * Immunity; only a piece capturing it with a move takes it, which ends the battle after the chain.
- * No legal move at all is stalemate.
+ * No legal move at all is stalemate. On any piece (designer brief 2026-10-06, DD-102): no effect
+ * removes it except a venom effect (Poisoned Meat); it ignores soft passive restrictions and burning
+ * squares but not Block Path; it shares no set with Capturing or Captures abilities (rule 8).
  *
- * Expected behaviour comes from spec 4.1-4.5, 5.1-5.7, 7.3, 8.2 and DD-25, DD-32, not from the
- * engine's current output.
+ * Expected behaviour comes from spec 4.1-4.5, 5.1-5.8, 7.3, 7.4, 8.2 and DD-25, DD-32, DD-102, not
+ * from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
-import type { ChoiceOption, RevealInfo } from '@chain-theorem/rules';
+import {
+  type ChoiceOption,
+  type Engine,
+  type GameState,
+  type RevealInfo,
+  type Side,
+  moveToUci,
+} from '@chain-theorem/rules';
+import { abilityById } from '../index.ts';
 import { eventsOf, idAt, parseSquare, pieceAt, scenario } from '../src/testing.ts';
+
+const legal = (engine: Engine, state: GameState, side: Side): string[] =>
+  engine.legalMoves(state, side).map(moveToUci);
 
 const sq = parseSquare;
 const STALWART_REVEAL: RevealInfo = { kind: 'ability', pieceType: 'king', ability: 'stalwart' };
@@ -252,7 +265,7 @@ describe('stalwart (R-ABIL-005, R-RULES-003)', () => {
     expect(r.state.result).toBeNull();
   });
 
-  it('R-RULES-003 R-ABIL-005 7.3 stalwart is ineligible on non-kings: on the pawn set only, the king is ordinary and can be checkmated', () => {
+  it('R-RULES-003 R-ABIL-005 7.3 stalwart in the pawn set only: the king is ordinary and can be checkmated', () => {
     const r = scenario({
       fen: 'r5k1/8/8/8/8/8/5PPP/6K1 b - - 0 1',
       white: { sets: [['stalwart'], [], [], [], [], []] },
@@ -262,7 +275,7 @@ describe('stalwart (R-ABIL-005, R-RULES-003)', () => {
     expect(r.state.reveals.white.abilities.king ?? []).not.toContain('stalwart');
   });
 
-  it('R-RULES-003 R-RULES-004 stalwart gives non-king pieces no Royal Immunity: an army-wide Stalwart knight is still effect-captured', () => {
+  it('R-RULES-003 R-RULES-004 DD-102 venom passes Stalwart: Poisoned Meat still effect-captures an army-wide Stalwart knight', () => {
     const r = scenario({
       fen: '4k3/8/8/3p4/8/2N5/8/4K3 w - - 0 1',
       white: { abilities: ['stalwart'] },
@@ -298,5 +311,82 @@ describe('stalwart (R-ABIL-005, R-RULES-003)', () => {
     expect(r.state.result).toEqual({ winner: 'black', reason: 'stalwart_captured' });
     expect(r.events.at(-1)?.k).toBe('BattleEnded');
     expect(pieceAt(r.state, 'd5')?.type).toBe('rook');
+  });
+
+  it('R-ABIL-005 DD-102 module data: Passive, neutral, all, level 16, excludes Capturing and Captures, bypass and effectIntercept hooks', () => {
+    const def = abilityById.get('stalwart');
+    expect(def).toMatchObject({
+      category: 'PASSIVE',
+      affinity: 'neutral',
+      eligible: 'all',
+      minLevel: 16,
+      slotCost: 1,
+      excludes: { categories: ['CAPTURING', 'CAPTURES'] },
+    });
+    expect(def?.hooks?.moveFilter?.kingMode).toBeTypeOf('function');
+    expect(def?.hooks?.moveFilter?.bypass).toBeTypeOf('function');
+    expect(def?.hooks?.effectIntercept).toBeTypeOf('function');
+    expect(abilityById.get('poisoned_meat')?.tags).toContain('venom');
+  });
+
+  it('R-RULES-004 DD-102 a Stalwart pawn survives Cleave: the effect fizzles with stalwart and Stalwart is revealed on pawns', () => {
+    // The white knight (Cleave) takes the knight d5; the Stalwart pawn e6 is diagonal to d5.
+    const r = scenario({
+      fen: '4k3/8/4p3/3n4/8/2N5/8/4K3 w - - 0 1',
+      white: { elements: ['neutral'], abilities: ['cleave'] },
+      black: { elements: ['neutral'], abilities: ['stalwart'] },
+      moves: ['c3d5'],
+    });
+    expect(eventsOf(r.events, 'Captured')).toHaveLength(1);
+    expect(eventsOf(r.events, 'EffectFizzled')).toEqual([
+      expect.objectContaining({
+        ability: 'cleave',
+        reason: 'stalwart',
+        source: { kind: 'ability', id: 'stalwart', piece: -1, side: 'black' },
+      }),
+    ]);
+    expect(eventsOf(r.events, 'Revealed')).toContainEqual(
+      expect.objectContaining({
+        side: 'black',
+        info: { kind: 'ability', pieceType: 'pawn', ability: 'stalwart' },
+        cause: 'observed',
+      }),
+    );
+    expect(pieceAt(r.state, 'e6')).toMatchObject({ type: 'pawn', side: 'black' });
+    expect(eventsOf(r.events, 'ChargeSpent')).toEqual([]);
+  });
+
+  it('R-RULES-003 DD-102 a move capture always takes a Stalwart piece', () => {
+    const r = scenario({
+      fen: '4k3/8/8/3n4/8/2N5/8/4K3 w - - 0 1',
+      black: { abilities: ['stalwart'] },
+      moves: ['c3d5'],
+    });
+    expect(eventsOf(r.events, 'Captured')).toEqual([
+      expect.objectContaining({ victimType: 'knight', by: 'move' }),
+    ]);
+  });
+
+  it('R-ELEM-005 DD-102 a Stalwart piece ignores burning squares: the rook may stop on the fire', () => {
+    // The Ember knight takes on d5 and leaves; d5 ignites. The black (Stalwart) rook then moves there.
+    const fen = '3r3k/8/8/3p4/8/2N5/8/4K3 w - - 0 1';
+    const moves = ['c3d5', 'h8g8', 'd5c3'];
+    const stalwart = scenario({
+      fen,
+      white: { elements: ['ember'] },
+      black: { elements: ['tide'], abilities: ['stalwart'] },
+      moves,
+    });
+    expect(eventsOf(stalwart.events, 'SquareIgnited')).toEqual([
+      expect.objectContaining({ square: sq('d5') }),
+    ]);
+    expect(legal(stalwart.engine, stalwart.state, 'black')).toContain('d8d5');
+    const plain = scenario({
+      fen,
+      white: { elements: ['ember'] },
+      black: { elements: ['tide'] },
+      moves,
+    });
+    expect(legal(plain.engine, plain.state, 'black')).not.toContain('d8d5');
   });
 });

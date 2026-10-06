@@ -168,6 +168,21 @@ export function validateLoadout(
         'capacity_exceeded',
         `the ${label} uses ${cost} ability slots; capacity is ${shape.capacity}`,
       );
+    // Rule 8 (DD-102): an ability that excludes categories shares no set with them.
+    for (const id of inSet) {
+      const def = abilities.get(id);
+      if (!def?.excludes) continue;
+      for (const other of inSet) {
+        const o = abilities.get(other);
+        if (o && other !== id && def.excludes.categories.includes(o.category))
+          err(
+            8,
+            'excluded_category',
+            `${def.name} cannot share the ${label} with ${o.name} (${o.category.toLowerCase()})`,
+            id,
+          );
+      }
+    }
   });
 
   // Elements (rule 6, R-ELEM-004).

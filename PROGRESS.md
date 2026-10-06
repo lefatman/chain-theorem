@@ -17,10 +17,12 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   element in the accents and an emblem. Army style is a setting; the opponent's style always differs.
   Overworld trainers redrawn at 17x26 in the same handheld-era proportions with a 3-frame walk.
 - Catalogue plan (designer brief 2026-10-06, spec 5.7/5.8, DD-97..DD-104): Phase 0 (spec, decisions)
-  Phase 1 (neutral-first catalogue: one signature per element, 18 cards neutral) and Phase 2
+  Phase 1 (neutral-first catalogue: one signature per element, 18 cards neutral), Phase 2
   (Necromancer, Quantum Kill; piece rank, `rank` filters, `target.chosenCaptured`, `square.startElse`,
-  `cond.noneMatch`, golden E10/E11) are done. Next: Phase 3 (captureFilter: Obstinate, Block Path,
-  Stalwart rework), Phase 4 (Electric Slide), Phase 5 (Redo), Phase 6 (Schrödinger's Joker). Balance after
+  `cond.noneMatch`, golden E10/E11) and Phase 3 (Obstinate, Block Path, Stalwart rework;
+  `moveFilter.captureFilter`/`bypass`, `onActionEnd` with `ctx.choose`, loadout rule 8, the `venom`
+  tag, DD-105 prompt visibility, golden E12-E14) are done. Next: Phase 4 (Electric Slide), Phase 5
+  (Redo), Phase 6 (Schrödinger's Joker). Balance after
   Phase 1: see `docs/BALANCE_DD98.md` (First Blood advantaged element 46%, Full Battle 90%: the
   silence rule now dominates long games and traits dominate short ones; the designer's levers are
   `silenceScope` and trait numbers).
@@ -143,6 +145,26 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-10-06 Catalogue Phase 3 (DD-99, DD-102, DD-105): Obstinate (level 9) and Block Path (level 12) as neutral passives; Stalwart (version 2) on any piece: effect captures fizzle (`stalwart`)
+  unless the effect carries the new `venom` tag (Poisoned Meat, version 2), bypass of blocked squares
+  and soft capture restrictions, loadout rule 8 (`excluded_category`, `AbilityDef.excludes`).
+  Engine: `MoveRules` capture restrictions (per victim: attacker ids, hard/soft compass masks,
+  bypass flags) applied in `Pos.pseudo`/`attacked` (a king is not in check from its Block Path
+  facing; castling paths included), `moveFilter.captureFilter`/`bypass` hooks, `onActionEnd` hook
+  with `ctx.choose` (the facing prompt: kind square, purpose `facing`, declinable), `FacingSet`
+  event, reveal-on-observation of restrictions (legal-move and check comparisons at Settle, bonus
+  options, the mover's own relaxed move), DD-46 public-knowledge INV-03 for hidden facings, pending
+  prompts hidden from the opponent until the ability is known (DD-105). Compass helpers
+  (`COMPASS`, `stepTowards`, `compassFrom`, `dirFrom`). AI faces the strongest attacker; client
+  draws facing wedges, labels facing options, names the stalwart fizzle. `pnpm check` 1,528 unit
+  tests (obstinate 9, block_path 13, stalwart 21, examples 28, loadout rule 8 and its property mutation), `content:validate`
+  ok (30 abilities), `req:coverage` 83/83, `format:check` clean; `pnpm test:perft` 30/30;
+  `pnpm test:fuzz` 500 games, replays identical, 0 failures. Reduced `pnpm sim --suite elements`
+  (20 games per pairing First Blood, 12 Full Battle, 20,000 nodes): advantaged element 42.9% /
+  88.2%, white 54.3% / 51.6%, surprise losses 33.1% / 0.0%, unchanged in kind from
+  `docs/BALANCE_DD98.md`; the simulator's build picker skips passives, so Obstinate and Block Path
+  are not in these builds (only the Stalwart king set changed under rule 8).
 
 - 2026-10-06 Catalogue Phase 2 (DD-97, DD-103): Necromancer (level 11, 1 charge) and Quantum Kill
   (level 13, 2 charges) as neutral Captures modules; engine: `PIECE_RANK`/`rankCompare`, trigger

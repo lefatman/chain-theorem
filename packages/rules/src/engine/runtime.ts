@@ -5,20 +5,23 @@
  */
 import { opposite } from '../board.ts';
 import { stateHashOf } from '../hash.ts';
-import { F_EP, type MoveRules, Pos, defaultRules } from '../movegen.ts';
+import { F_EP, type MoveRules, Pos, defaultRules, dirBit } from '../movegen.ts';
 import { rulesAfterTurnEnd } from './simulate.ts';
 import type {
   AbilityDef,
   Caps,
+  CaptureRestriction,
+  ChoiceCtx,
   ContentRegistry,
+  HookChoice,
   HookName,
   ItemDef,
-  MutCtx,
   PieceView,
   RuleHooks,
   TraitDef,
 } from '../sdk/types.ts';
 import {
+  type ChoiceOption,
   type ElementId,
   type EventInput,
   type GameState,
@@ -59,7 +62,19 @@ export interface Host {
     source?: SourceRef,
     piece?: PieceView,
   ): void;
+  /** Mid-action questions (onActionEnd only). */
+  choose?(entry: HookEntry, req: HookChoice): ChoiceOption | null;
 }
+
+/** One capture restriction in force: which module put it on which piece (reveal checks, DD-99). */
+export interface CapSource {
+  entry: HookEntry;
+  victim: PieceId;
+  restriction: CaptureRestriction;
+}
+
+/** Leave out some restrictions when building rules (strict comparisons for reveals, DD-32). */
+export type SkipRestriction = (entry: HookEntry, victim: PieceId) => boolean;
 
 const MODULE_ORDER: Record<HookEntry['kind'], number> = { trait: 0, item: 1, ability: 2 };
 
@@ -220,7 +235,7 @@ export class Runtime {
     };
   }
 
-  ctx(host: Host, entry: HookEntry | null): MutCtx {
+  ctx(host: Host, entry: HookEntry | null): ChoiceCtx {
     return new Ctx(this, host, entry);
   }
 
@@ -229,8 +244,17 @@ export class Runtime {
     return state.armies[side].sets[type];
   }
 
-  /** Movement modifiers for move generation, computed from moveFilter hooks (DD-14). */
-  moveRules(host: Host, kingSources?: Map<Side, HookEntry>): MoveRules {
+  /**
+   * Movement modifiers for move generation, computed from moveFilter hooks (DD-14). `kingSources`
+   * and `capSources` report which module made a king Stalwart or restricted captures of a piece;
+   * `skip` leaves chosen capture restrictions out (strict comparisons for reveals, DD-32, DD-99).
+   */
+  moveRules(
+    host: Host,
+    kingSources?: Map<Side, HookEntry>,
+    capSources?: CapSource[],
+    skip?: SkipRestriction,
+  ): MoveRules {
     const s = host.s;
     const rules = defaultRules(s.pieces.length);
     const entries = this.hook(s, 'moveFilter');
@@ -238,14 +262,18 @@ export class Runtime {
     const pass: HookEntry[] = [];
     const blocked: HookEntry[] = [];
     const kings: HookEntry[] = [];
+    const caps: HookEntry[] = [];
+    const bypass: HookEntry[] = [];
     for (const e of entries) {
       const mf = e.hooks.moveFilter;
       if (!mf) continue;
       if (mf.passThrough) pass.push(e);
       if (mf.blockedSquares) blocked.push(e);
       if (mf.kingMode) kings.push(e);
+      if (mf.captureFilter) caps.push(e);
+      if (mf.bypass) bypass.push(e);
     }
-    const ctxs = new Map<HookEntry, MutCtx>();
+    const ctxs = new Map<HookEntry, ChoiceCtx>();
     const ctxOf = (e: HookEntry) => {
       let c = ctxs.get(e);
       if (!c) {
@@ -254,9 +282,11 @@ export class Runtime {
       }
       return c;
     };
+    const views: PieceView[] = [];
     for (const p of s.pieces) {
       if (p.square < 0) continue;
       const v = this.view(host, p.id);
+      views.push(v);
       for (const e of pass) {
         if (e.hooks.moveFilter?.passThrough?.(ctxOf(e), v)) {
           rules.passThrough[p.id] = 1;
@@ -264,12 +294,21 @@ export class Runtime {
           break;
         }
       }
-      for (const e of blocked) {
-        const squares = e.hooks.moveFilter?.blockedSquares?.(ctxOf(e), v);
-        if (squares && squares.length > 0) {
-          const arr = rules.blocked[p.id] ?? new Uint8Array(64);
-          for (const sq of squares) arr[sq] = 1;
-          rules.blocked[p.id] = arr;
+      for (const e of bypass) {
+        if (e.hooks.moveFilter?.bypass?.(ctxOf(e), v)) {
+          rules.bypass[p.id] = 1;
+          break;
+        }
+      }
+      // A bypassing piece ignores blocked squares (Stalwart over burning squares, DD-102).
+      if (rules.bypass[p.id] !== 1) {
+        for (const e of blocked) {
+          const squares = e.hooks.moveFilter?.blockedSquares?.(ctxOf(e), v);
+          if (squares && squares.length > 0) {
+            const arr = rules.blocked[p.id] ?? new Uint8Array(64);
+            for (const sq of squares) arr[sq] = 1;
+            rules.blocked[p.id] = arr;
+          }
         }
       }
       if (p.type === 'king') {
@@ -278,6 +317,37 @@ export class Runtime {
             rules.stalwart[p.side === 'white' ? 0 : 1] = true;
             kingSources?.set(p.side, e);
             break;
+          }
+        }
+      }
+    }
+    // Capture restrictions need every attacker's bypass flag, so they come in a second pass.
+    if (caps.length > 0) {
+      for (const v of views) {
+        for (const e of caps) {
+          if (skip?.(e, v.id)) continue;
+          const r = e.hooks.moveFilter?.captureFilter?.(ctxOf(e), v);
+          if (!r) continue;
+          let any = false;
+          if (r.attackers && r.attackers.length > 0) {
+            for (const a of r.attackers) {
+              if (!r.hard && rules.bypass[a] === 1) continue;
+              const arr = rules.noCapBy[v.id] ?? new Uint8Array(s.pieces.length);
+              arr[a] = 1;
+              rules.noCapBy[v.id] = arr;
+              any = true;
+            }
+          }
+          if (r.from && r.from.length > 0) {
+            let mask = 0;
+            for (const c of r.from) mask |= dirBit(c);
+            if (r.hard) rules.noCapDirs[v.id] = (rules.noCapDirs[v.id] as number) | mask;
+            else rules.noCapDirsSoft[v.id] = (rules.noCapDirsSoft[v.id] as number) | mask;
+            any = true;
+          }
+          if (any) {
+            rules.anyCap = true;
+            capSources?.push({ entry: e, victim: v.id, restriction: r });
           }
         }
       }
@@ -292,7 +362,7 @@ function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-class Ctx implements MutCtx {
+class Ctx implements ChoiceCtx {
   private readonly rt: Runtime;
   private readonly host: Host;
   private readonly entry: HookEntry | null;
@@ -368,6 +438,11 @@ class Ctx implements MutCtx {
     const e = this.entry;
     if (!e || e.owner === null) return;
     if (e.kind === 'item') this.reveal(e.owner, { kind: 'item', item: e.id }, cause, sourceOf(e));
+  }
+  choose(req: HookChoice): ChoiceOption | null {
+    if (!this.host.choose || !this.entry)
+      throw new RulesError('internal', 'choose() is only allowed in onActionEnd');
+    return this.host.choose(this.entry, req);
   }
 }
 

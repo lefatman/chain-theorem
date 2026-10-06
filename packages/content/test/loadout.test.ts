@@ -137,7 +137,9 @@ const ABILITIES_M7: { id: string; minLevel: number; affinity: ElementId }[] = [
  * costs 1 ability slot; levels sit in the 11-15 band between Reinforce and Stalwart.
  */
 const ABILITIES_5_8: { id: string; minLevel: number }[] = [
+  { id: 'obstinate', minLevel: 9 },
   { id: 'necromancer', minLevel: 11 },
+  { id: 'block_path', minLevel: 12 },
   { id: 'quantum_kill', minLevel: 13 },
 ];
 const ALL_ABILITIES = [...ABILITIES_5_7, ...ABILITIES_M7, ...ABILITIES_5_8];
@@ -353,7 +355,7 @@ const MAX_SETS = perType({
   bishop: ['riposte', 'reinforce', 'poisoned_meat', 'scout', 'veil'],
   rook: ['cleave', 'momentum', 'hit_and_run', 'pierce', 'antidote'],
   queen: ['scout', 'pierce', 'riposte', 'reinforce', 'last_word'],
-  king: ['stalwart', 'antidote', 'veil', 'scout', 'last_word'],
+  king: ['stalwart', 'veil', 'last_word', 'poisoned_meat', 'riposte'],
 });
 
 const BUILDS = [
@@ -486,25 +488,55 @@ describe('R-LOAD-003 ability sets and builds', () => {
     PIECE_TYPES.forEach((t, i) => expect(six.state.armies.white.sets[t], t).toEqual(sets[i]));
   });
 
-  it('R-LOAD-003 R-LOAD-004 an ineligible ability (Stalwart in a pawn set) still uses a slot', () => {
+  it('R-LOAD-003 R-LOAD-004 an ineligible ability (Afterimage in a pawn set) still uses a slot', () => {
     const withScout = lo({
       items: ['multitaskers_schedule'],
-      sets: perType({ pawn: ['stalwart', 'scout'] }),
+      sets: perType({ pawn: ['afterimage', 'scout'] }),
     });
     expect(errs(engine.validateLoadout(withScout, { level: 30 }))).toEqual([
       { rule: 4, code: 'capacity_exceeded' },
     ]);
-    const alone = lo({ items: ['multitaskers_schedule'], sets: perType({ pawn: ['stalwart'] }) });
+    const alone = lo({ items: ['multitaskers_schedule'], sets: perType({ pawn: ['afterimage'] }) });
     expect(engine.validateLoadout(alone, { level: 16 }).errors).toEqual([]);
     const glove = lo({
       items: ['multitaskers_schedule', 'dual_adepts_glove'],
-      sets: perType({ pawn: ['stalwart', 'scout'] }),
+      sets: perType({ pawn: ['afterimage', 'scout'] }),
     });
     const v = engine.validateLoadout(glove, { level: 30 });
     expect(v.errors).toEqual([]);
     expect(v.capacity).toBe(2);
     // 4.3: an army-wide Stalwart is legal.
     expect(engine.validateLoadout(lo({ sets: [['stalwart']] }), { level: 16 }).errors).toEqual([]);
+  });
+
+  it('R-LOAD-004 R-RULES-003 DD-102 rule 8: Stalwart shares no set with a Capturing or Captures ability', () => {
+    const glove = (sets: string[][]) =>
+      errs(
+        engine.validateLoadout(
+          lo({
+            items: ['multitaskers_schedule', 'dual_adepts_glove'],
+            sets: perType({ pawn: sets[0] ?? [], king: sets[1] ?? [] }),
+          }),
+          { level: 30 },
+        ),
+      );
+    // Captures (Cleave) and Capturing (Scout) are offensive (DD-97): rejected with Stalwart.
+    expect(glove([['stalwart', 'cleave']])).toEqual([{ rule: 8, code: 'excluded_category' }]);
+    expect(glove([[], ['stalwart', 'scout']])).toEqual([{ rule: 8, code: 'excluded_category' }]);
+    // Captured and Passive cards may share the set; the same offensive card in another set is fine.
+    expect(
+      glove([
+        ['stalwart', 'last_word'],
+        ['cleave', 'veil'],
+      ]),
+    ).toEqual([]);
+    // Army-wide: the whole set is checked once.
+    const wide = engine.validateLoadout(
+      lo({ items: ['dual_adepts_glove'], sets: [['stalwart', 'pierce']] }),
+      { level: 30 },
+    );
+    expect(errs(wide)).toEqual([{ rule: 8, code: 'excluded_category' }]);
+    expect(wide.errors[0]?.ref).toBe('stalwart');
   });
 
   it('R-LOAD-003 R-RULES-003 Stalwart in a pawn set does nothing in battle: the king stays ordinary', () => {

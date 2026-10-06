@@ -4,9 +4,11 @@
  * snapshots live in test/golden.test.ts; this keeps the lab's copy of the setups honest.
  */
 import { describe, expect, it } from 'vitest';
-import { squareName } from '@chain-theorem/rules';
+import { parseSquare, squareName } from '@chain-theorem/rules';
 import { WORKED_EXAMPLES, type WorkedExampleId, workedExample } from './examples.ts';
 import { type ScenarioResult, eventsOf, idAt, scenario } from './testing.ts';
+
+const sq = parseSquare;
 
 const fizzles = (r: ScenarioResult) =>
   eventsOf(r.events, 'EffectFizzled').map((e) => `${e.ability}:${e.reason}`);
@@ -74,10 +76,29 @@ const KEY_OUTCOME: Record<WorkedExampleId, (r: ScenarioResult) => void> = {
       3,
       -1,
     ]),
+  E12: (r) =>
+    expect([
+      r.state.reveals.black.abilities.knight,
+      r.engine.legalMoves(r.state, 'white').some((m) => m.from === sq('d1') && m.to === sq('d5')),
+      r.engine.legalMoves(r.state, 'white').some((m) => m.from === sq('c3') && m.to === sq('d5')),
+    ]).toEqual([['obstinate'], false, true]),
+  E13: (r) =>
+    expect([
+      eventsOf(r.events, 'FacingSet').map((e) => [e.piece, e.facing]),
+      r.state.reveals.white.abilities.rook,
+      r.engine.legalMoves(r.state, 'black').some((m) => m.from === sq('h4') && m.to === sq('a4')),
+      r.engine.legalMoves(r.state, 'black').some((m) => m.from === sq('a8') && m.to === sq('a4')),
+    ]).toEqual([[[0, 'E']], ['block_path'], false, true]),
+  E14: (r) =>
+    expect([fizzles(r), r.state.reveals.black.abilities.pawn, idAt(r.state, 'e6')]).toEqual([
+      ['cleave:stalwart'],
+      ['stalwart'],
+      3,
+    ]),
 };
 
 describe('R-TEST-001 worked examples as lab data (spec 5.5)', () => {
-  it('R-TEST-001 lists E1 to E11 once each, in order, with the spec result text', () => {
+  it('R-TEST-001 lists E1 to E14 once each, in order, with the spec result text', () => {
     expect(WORKED_EXAMPLES.map((e) => e.id)).toEqual([
       'E1',
       'E2',
@@ -90,6 +111,9 @@ describe('R-TEST-001 worked examples as lab data (spec 5.5)', () => {
       'E9',
       'E10',
       'E11',
+      'E12',
+      'E13',
+      'E14',
     ]);
     for (const e of WORKED_EXAMPLES) expect(e.specText.length).toBeGreaterThan(20);
   });

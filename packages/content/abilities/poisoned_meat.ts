@@ -1,14 +1,17 @@
-/** Poisoned Meat (5.7, 13.5 example, PLAYTEST): Captured, Grove, all. Effect-capture the captor. */
+/**
+ * Poisoned Meat (5.7, 13.5 example, PLAYTEST): Captured, Grove (signature), all. Effect-capture the
+ * captor. The `venom` tag lets it through Stalwart's protection (DD-102).
+ */
 import { defineAbility, fx, target } from '@chain-theorem/rules/sdk';
 
 export default defineAbility({
   id: 'poisoned_meat',
   name: 'Poisoned Meat',
-  version: 1,
+  version: 2,
   category: 'CAPTURED',
   affinity: 'grove',
   eligible: 'all',
-  tags: [],
+  tags: ['venom'],
   minLevel: 2,
   slotCost: 1,
   limits: { perAction: 1 },

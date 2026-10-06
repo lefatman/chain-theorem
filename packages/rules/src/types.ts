@@ -57,6 +57,45 @@ export const PIECE_TYPES: readonly PieceType[] = [
 ];
 export const ELEMENTS: readonly ElementId[] = ['ember', 'tide', 'grove', 'storm', 'stone', 'frost'];
 
+/** Compass directions on the board as drawn (north = towards rank 8), clockwise (DD-99). */
+export type Compass = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
+export const COMPASS: readonly Compass[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const COMPASS_STEP: Readonly<Record<Compass, [number, number]>> = {
+  N: [0, 1],
+  NE: [1, 1],
+  E: [1, 0],
+  SE: [1, -1],
+  S: [0, -1],
+  SW: [-1, -1],
+  W: [-1, 0],
+  NW: [-1, 1],
+};
+/** The adjacent square in that direction, or -1 off the board. */
+export function stepTowards(sq: Square, dir: Compass): Square {
+  const [df, dr] = COMPASS_STEP[dir];
+  const f = (sq & 7) + df;
+  const r = (sq >> 3) + dr;
+  return f < 0 || f > 7 || r < 0 || r > 7 ? -1 : r * 8 + f;
+}
+/**
+ * The direction in which `other` stands as seen from `sq`: along a shared rank, file or diagonal,
+ * or along the long leg of a knight's offset (DD-99); null for any other pair.
+ */
+export function compassFrom(sq: Square, other: Square): Compass | null {
+  const df = (other & 7) - (sq & 7);
+  const dr = (other >> 3) - (sq >> 3);
+  if (df === 0 && dr === 0) return null;
+  if (df === 0) return dr > 0 ? 'N' : 'S';
+  if (dr === 0) return df > 0 ? 'E' : 'W';
+  if (Math.abs(df) === Math.abs(dr)) return dr > 0 ? (df > 0 ? 'NE' : 'NW') : df > 0 ? 'SE' : 'SW';
+  if (Math.abs(df) + Math.abs(dr) === 3) {
+    // Knight offset: the two-square leg names the direction.
+    if (Math.abs(dr) === 2) return dr > 0 ? 'N' : 'S';
+    return df > 0 ? 'E' : 'W';
+  }
+  return null;
+}
+
 export interface Move {
   from: Square;
   to: Square;
@@ -129,9 +168,12 @@ export interface ChoiceRequest {
   chooser: Side;
   source: { ability: string; piece: PieceId; side: Side };
   kind: 'target' | 'square' | 'bonusMove';
-  /** Target prompts: what the effect does to the chosen piece. */
-  purpose?: 'capture' | 'move' | 'revive' | 'protect';
-  /** Square prompts: the piece that will be moved or revived onto the chosen square. */
+  /**
+   * Target prompts: what the effect does to the chosen piece. Square prompts with `facing`: the
+   * chosen square names the direction the subject will face (Block Path, DD-99).
+   */
+  purpose?: 'capture' | 'move' | 'revive' | 'protect' | 'facing';
+  /** Square prompts: the piece that will be moved, revived or turned. */
   subject?: PieceId;
   options: ChoiceOption[];
   /** Index used when the chooser does not answer in time (5.4, DD-18). */
@@ -200,6 +242,8 @@ export type FizzleReason =
   | 'protected'
   | 'bulwark'
   | 'burning'
+  /** A Stalwart piece is removed only by a move capture or a venom effect (DD-102). */
+  | 'stalwart'
   | 'occupied'
   | 'no_target'
   | 'depth_limit'
@@ -302,6 +346,15 @@ export type BattleEvent = EventBase &
       }
     | { k: 'SquareIgnited'; square: Square; side: Side; turns: number }
     | { k: 'SquareExtinguished'; square: Square }
+    /** A piece turned to face a direction (Block Path, DD-99). */
+    | {
+        k: 'FacingSet';
+        piece: PieceId;
+        side: Side;
+        square: Square;
+        facing: Compass;
+        source: SourceRef;
+      }
     | { k: 'Revealed'; side: Side; info: RevealInfo; cause: RevealCause; source?: SourceRef }
     | { k: 'PieceMoved'; piece: PieceId; side: Side; from: Square; to: Square; source: SourceRef }
     | { k: 'PieceRevived'; piece: PieceId; side: Side; square: Square; source: SourceRef }
@@ -362,10 +415,11 @@ export type LoadoutErrorCode =
   | 'unknown_item'
   | 'unknown_ability'
   | 'item_param'
-  | 'bad_level';
+  | 'bad_level'
+  | 'excluded_category';
 
 export interface LoadoutError {
-  rule: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  rule: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   code: LoadoutErrorCode;
   message: string;
   ref?: string;

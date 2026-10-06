@@ -5,6 +5,7 @@
  */
 import { abilityById, itemById, traitById } from '@chain-theorem/content';
 import {
+  type Compass,
   squareName,
   type PublicEvent,
   type PublicState,
@@ -46,6 +47,17 @@ export function sourceName(src: SourceRef | undefined): string {
   }
 }
 
+export const COMPASS_NAMES: Record<Compass, string> = {
+  N: 'north',
+  NE: 'north-east',
+  E: 'east',
+  SE: 'south-east',
+  S: 'south',
+  SW: 'south-west',
+  W: 'west',
+  NW: 'north-west',
+};
+
 const FIZZLE: Record<string, string> = {
   no_body: 'its piece is gone',
   royal_immunity: 'kings are immune to effect captures',
@@ -53,6 +65,7 @@ const FIZZLE: Record<string, string> = {
   protected: 'the target is protected',
   bulwark: 'Bulwark absorbed it',
   burning: 'the square is burning',
+  stalwart: 'Stalwart holds the piece in place',
   occupied: 'the square is occupied',
   no_target: 'there is no valid target',
   depth_limit: 'the chain is too deep',
@@ -98,6 +111,8 @@ export function describe(ev: PublicEvent, pub: PublicState): string {
       return `${squareName(ev.square)} bursts into flame for ${ev.turns} turns.`;
     case 'SquareExtinguished':
       return `The fire on ${squareName(ev.square)} goes out.`;
+    case 'FacingSet':
+      return `${pieceLabel(pub, ev.piece)} turns to face ${COMPASS_NAMES[ev.facing]}.`;
     case 'Revealed': {
       const whose = cap(ev.side);
       const i = ev.info;

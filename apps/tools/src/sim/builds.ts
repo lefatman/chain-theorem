@@ -55,8 +55,15 @@ export function pickAbilities(
     cats.set(a.category, (cats.get(a.category) ?? 0) + a.slotCost);
   }
   if (type === 'king' && n >= 2 && level >= 16 && out.length > 0) {
-    // Stalwart (1 slot) replaces the last pick, which costs at least 1.
-    out[out.length - 1] = 'stalwart';
+    // Stalwart (1 slot) replaces the last pick, which costs at least 1, and shares no set with
+    // Capturing or Captures abilities (loadout rule 8, DD-102): those give way to it as well.
+    out.pop();
+    const keep = out.filter((id) => {
+      const cat = abilities.find((a) => a.id === id)?.category;
+      return cat !== 'CAPTURING' && cat !== 'CAPTURES';
+    });
+    out.length = 0;
+    out.push(...keep, 'stalwart');
   }
   return out;
 }

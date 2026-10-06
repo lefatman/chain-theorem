@@ -12,7 +12,20 @@ import { parseSquare } from '@chain-theorem/rules';
 import type { ScenarioSpec } from './testing.ts';
 
 export type WorkedExampleId =
-  'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'E7' | 'E8' | 'E9' | 'E10' | 'E11';
+  | 'E1'
+  | 'E2'
+  | 'E3'
+  | 'E4'
+  | 'E5'
+  | 'E6'
+  | 'E7'
+  | 'E8'
+  | 'E9'
+  | 'E10'
+  | 'E11'
+  | 'E12'
+  | 'E13'
+  | 'E14';
 
 export interface WorkedExampleVariant {
   /** Short label, e.g. 'Stalwart king'. */
@@ -229,6 +242,55 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
       black: { elements: ['neutral'] },
       moves: ['d4e5'],
       answers: [{ kind: 'piece', piece: 4, square: sq('h7') }],
+    },
+  },
+  {
+    id: 'E12',
+    title: 'Obstinate: a queen may not take the knight, and the denial reveals it',
+    setupText:
+      'White queen d1 and knight c3; Black knight d5 (Obstinate) and pawn a7. Black plays a7a6',
+    specText:
+      "At Settle White sees their legal moves: the queen (rank 4) may not capture the knight (rank 2), the knight c3 may. That difference reveals Obstinate on Black's knights; an effect capture would still remove the knight.",
+    note: 'Ids: d1 Q=0, e1 K=1, c3 N=2, d5 n=3, a7 p=4, e8 k=5. No prompt (DD-97, DD-99).',
+    setup: {
+      fen: '4k3/p7/8/3n4/8/2N5/8/3QK3 b - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'] },
+      black: { elements: ['neutral'], abilities: ['obstinate'] },
+      moves: ['a7a6'],
+    },
+  },
+  {
+    id: 'E13',
+    title: 'Block Path: the rook turns east and the rook on its rank cannot take it',
+    setupText:
+      'White rook a1 (Block Path) moves to a4; Black rooks a8 and h4. White turns the rook to face east (b4)',
+    specText:
+      "After the move White may face the rook anew (declinable; the current facing N is not offered, off-board directions neither). Facing east, the rook h4 may not capture it while the rook a8 (north) may; the missing capture reveals Block Path on White's rooks and the facing becomes visible to Black.",
+    note: 'Ids: a1 R=0, e1 K=1, h4 r=2, a8 r=3, e8 k=4. White answers the facing prompt with b4 (DD-99, DD-105).',
+    setup: {
+      fen: 'r3k3/8/8/8/7r/8/8/R3K3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'], abilities: ['block_path'] },
+      black: { elements: ['neutral'] },
+      moves: ['a1a4'],
+      answers: [{ kind: 'square', square: sq('b4') }],
+    },
+  },
+  {
+    id: 'E14',
+    title: 'Stalwart: Cleave cannot remove the pawn; only venom or a move could',
+    setupText:
+      'White knight c3 (Cleave) takes the black knight d5; the black pawn e6 (Stalwart) is diagonal to d5',
+    specText:
+      "Cleave's effect capture of the pawn fizzles (reason stalwart) and Stalwart is revealed on Black's pawns; no charge is spent. Poisoned Meat (venom) or a capturing move would still take the pawn.",
+    note: 'Ids: e1 K=0, c3 N=1, d5 n=2, e6 p=3, e8 k=4. No prompt: the pawn is the only target (DD-102).',
+    setup: {
+      fen: '4k3/8/4p3/3n4/8/2N5/8/4K3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'], abilities: ['cleave'] },
+      black: { elements: ['neutral'], abilities: ['stalwart'] },
+      moves: ['c3d5'],
     },
   },
 ];

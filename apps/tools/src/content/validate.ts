@@ -16,7 +16,7 @@ import { generate, moduleIds } from './index-gen.ts';
 const ROOT = new URL('../../../../', import.meta.url).pathname;
 const CONTENT = join(ROOT, 'packages/content');
 const STATUSES = ['COMMITTED', 'PROVISIONAL', 'PLAYTEST'];
-const TAGS = ['replay', 'revive'];
+const TAGS = ['replay', 'revive', 'venom'];
 const CATEGORIES = ['CAPTURING', 'CAPTURES', 'CAPTURED', 'PASSIVE'];
 const AFFINITIES = [...ELEMENTS, 'neutral'];
 
@@ -53,6 +53,8 @@ export function effectProblems(a: AbilityDef): string[] {
     out.push(
       revive ? "a revive effect needs the 'revive' tag" : "'revive' tag without a revive effect",
     );
+  if (a.tags.includes('venom') && !all.includes('effectCapture'))
+    out.push("'venom' tag without an effect capture (DD-102)");
   return out;
 }
 

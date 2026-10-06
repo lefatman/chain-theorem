@@ -64,7 +64,7 @@ describe('headmaster ring (R-LOAD-002)', () => {
       FIVE,
       FIVE,
       FIVE,
-      ['scout', 'pierce', 'antidote', 'cleave', 'stalwart'],
+      ['last_word', 'poisoned_meat', 'riposte', 'veil', 'stalwart'],
     ];
     const l = loadout([ID, 'multitaskers_schedule', 'blended_family'], sets, ['tide', 'ember']);
     const v = engine.validateLoadout(l, { level: 25 });

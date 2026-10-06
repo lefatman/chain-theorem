@@ -5,6 +5,9 @@
 import type {
   BattleEvent,
   Category,
+  ChoiceOption,
+  ChoiceRequest,
+  Compass,
   ElementId,
   EventInput,
   FizzleReason,
@@ -20,7 +23,8 @@ import type {
   Square,
 } from '../types.ts';
 
-export type AbilityTag = 'replay' | 'revive';
+/** `venom`: an effect capture that even Stalwart's protection does not stop (DD-102). */
+export type AbilityTag = 'replay' | 'revive' | 'venom';
 export type Status = 'COMMITTED' | 'PROVISIONAL' | 'PLAYTEST';
 export type SilenceScope = 'ALL_TRIGGERS' | 'REACTIONS_ONLY' | 'OFF';
 
@@ -163,6 +167,8 @@ export interface AbilityDef {
   attuned?: { effects: EffectSpec[]; mode: 'replace' | 'append'; conditions?: Condition[] };
   /** PASSIVE abilities change rules through hooks (MODIFY_RULE, DD-14). */
   hooks?: Partial<RuleHooks>;
+  /** Loadout rule 8 (7.4): no set may hold this ability with one of these categories (DD-102). */
+  excludes?: { categories: Category[] };
   text: ModuleText;
   status: Status;
   retired?: boolean;
@@ -244,6 +250,38 @@ export interface MutCtx extends ReadCtx {
 
 export type SetupCtx = MutCtx;
 
+/** A mid-action question a hook asks its owner (5.4; Block Path's facing, DD-99). */
+export interface HookChoice {
+  /** The piece the question is about; the prompt names it as its source and subject. */
+  piece: PieceId;
+  kind: ChoiceRequest['kind'];
+  purpose?: ChoiceRequest['purpose'];
+  options: ChoiceOption[];
+  /** A declinable prompt gets a leading `decline` option, which is also its default (DD-18). */
+  optional: boolean;
+}
+
+export interface ChoiceCtx extends MutCtx {
+  /**
+   * Ask the module's owner. Returns the chosen option, or null when declined or when there is
+   * nothing to choose. Suspends the action until the answer arrives (replayed deterministically).
+   */
+  choose(req: HookChoice): ChoiceOption | null;
+}
+
+/** Restrictions on move captures of one piece (captureFilter, 5.6 and 13.5). */
+export interface CaptureRestriction {
+  /** Enemy pieces that may not move-capture this piece (Obstinate). */
+  attackers?: readonly PieceId[];
+  /**
+   * Compass directions, as seen from this piece, it cannot be move-captured from: sliders, kings
+   * and pawns along the shared line, knights along their long leg (Block Path, DD-99).
+   */
+  from?: readonly Compass[];
+  /** A hard restriction also binds attackers that bypass passive restrictions (DD-102). */
+  hard?: true;
+}
+
 export interface CaptureInfo {
   /** Capture id (captureSeq value of the victim's capture). */
   id: number;
@@ -295,6 +333,13 @@ export interface PieceMovedInfo {
   depth: number;
 }
 
+export interface ActionEndInfo {
+  /** The acting player. */
+  actor: Side;
+  /** Every piece movement of the action, in order (including bonus and effect moves). */
+  moved: readonly PieceMovedInfo[];
+}
+
 export interface RevealRequest {
   side: Side;
   info: RevealInfo;
@@ -326,12 +371,22 @@ export interface RuleHooks {
     passThrough?(ctx: ReadCtx, piece: PieceView): boolean;
     blockedSquares?(ctx: ReadCtx, piece: PieceView): readonly Square[] | null;
     kingMode?(ctx: ReadCtx, king: PieceView): 'stalwart' | undefined;
+    /**
+     * Restrictions on move captures of `victim` (Obstinate, Block Path); effect captures never
+     * consult them. The engine reveals the ability the first time a restriction changes which
+     * moves are legal or whether a king is in check (DD-32, DD-99).
+     */
+    captureFilter?(ctx: ReadCtx, victim: PieceView): CaptureRestriction | null;
+    /** `true`: the piece ignores blocked squares and soft capture restrictions (Stalwart, DD-102). */
+    bypass?(ctx: ReadCtx, piece: PieceView): boolean;
   };
   queueOrder(ctx: ReadCtx, queue: QueuedTrigger[]): QueuedTrigger[];
   triggerFilter(ctx: MutCtx, trigger: TriggerInfo): 'allow' | 'silence' | 'negate';
   silenceOverride(ctx: MutCtx, trigger: TriggerInfo): boolean;
   effectIntercept(ctx: MutCtx, effect: EffectInfo): InterceptVerdict;
   onPieceMoved(ctx: MutCtx, info: PieceMovedInfo): void;
+  /** After the chain has resolved and before Settle; the only hook that may ask a question. */
+  onActionEnd(ctx: ChoiceCtx, info: ActionEndInfo): void;
   onTurnEnd(ctx: MutCtx, info: { side: Side }): void;
   revealFilter: {
     reveal?(ctx: ReadCtx, request: RevealRequest): 'allow' | 'hide';

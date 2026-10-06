@@ -22,7 +22,13 @@
  * mode resolves any chain in under 1 s and 0 ms (reduced motion) skips animation entirely.
  */
 import Phaser from 'phaser';
-import type { PublicPiece, PublicState, Side } from '@chain-theorem/rules';
+import {
+  type Compass,
+  type PublicPiece,
+  type PublicState,
+  type Side,
+  stepTowards,
+} from '@chain-theorem/rules';
 import type { BattleSnapshot, BattleUpdate } from '../controller.ts';
 import type { ArmyStyle } from './army.ts';
 import {
@@ -112,6 +118,22 @@ interface HotFootView {
   pending?: { piece: number; sq: number }[];
 }
 
+/** Block Path facings the viewer may see (the `facings` slice, DD-99). */
+interface FacingsView {
+  facing?: Record<string, Compass>;
+}
+
+const OPPOSITE: Record<Compass, Compass> = {
+  N: 'S',
+  NE: 'SW',
+  E: 'W',
+  SE: 'NW',
+  S: 'N',
+  SW: 'NE',
+  W: 'E',
+  NW: 'SE',
+};
+
 /** Piece layout inside a square (game pixels relative to the square centre). */
 const RING_Y = 20;
 const BODY_BOTTOM = 26;
@@ -148,6 +170,7 @@ export class BoardScene extends Phaser.Scene {
   private coords: Phaser.GameObjects.Container | null = null;
   private under: Phaser.GameObjects.Graphics | null = null;
   private burnLayer: Phaser.GameObjects.Container | null = null;
+  private facingLayer: Phaser.GameObjects.Container | null = null;
   private checkLayer: Phaser.GameObjects.Container | null = null;
   private pieceLayer: Phaser.GameObjects.Container | null = null;
   private over: Phaser.GameObjects.Graphics | null = null;
@@ -188,6 +211,7 @@ export class BoardScene extends Phaser.Scene {
     this.burnLayer = this.add.container(0, 0).setDepth(3);
     this.checkLayer = this.add.container(0, 0).setDepth(4);
     this.pieceLayer = this.add.container(0, 0).setDepth(5);
+    this.facingLayer = this.add.container(0, 0).setDepth(5);
     this.over = this.add.graphics().setDepth(6);
     this.fxLayer = this.add.container(0, 0).setDepth(7);
     this.hoverG = this.add.graphics().setDepth(8);
@@ -374,6 +398,7 @@ export class BoardScene extends Phaser.Scene {
     const onBoard = pub.pieces.filter((p) => p.square >= 0);
     onBoard.sort((a, b) => this.squareXY(a.square).y - this.squareXY(b.square).y);
     for (const p of onBoard) this.addPiece(p, pub, viewer, classic);
+    this.drawFacings(pub);
     this.drawCheck(pub);
     this.drawOverlay();
     this.idleTick(true);
@@ -505,6 +530,58 @@ export class BoardScene extends Phaser.Scene {
         fsq.y + TILE / 2 - 5 * fs - 2,
         fs,
       );
+    }
+  }
+
+  /**
+   * Block Path facings (DD-99): a small shield wedge on the edge of the square the piece faces, for
+   * every piece whose facing the viewer may know (the `facings` slice is already filtered).
+   */
+  private drawFacings(pub: PublicState): void {
+    const layer = this.facingLayer;
+    if (!layer) return;
+    layer.removeAll(true);
+    const view = pub.slices.facings as FacingsView | undefined;
+    if (!view?.facing) return;
+    for (const [id, dir] of Object.entries(view.facing)) {
+      const piece = pub.pieces[Number(id)];
+      if (!piece || piece.square < 0) continue;
+      const { x, y } = this.squareXY(piece.square);
+      // Direction on screen: towards the neighbouring square, or away from the opposite one at the
+      // board edge, so a flipped board points the right way.
+      const ahead = stepTowards(piece.square, dir);
+      const behind = stepTowards(piece.square, OPPOSITE[dir]);
+      let dx = 0;
+      let dy = 0;
+      if (ahead >= 0) {
+        const n = this.squareXY(ahead);
+        dx = Math.sign(n.x - x);
+        dy = Math.sign(n.y - y);
+      } else if (behind >= 0) {
+        const n = this.squareXY(behind);
+        dx = -Math.sign(n.x - x);
+        dy = -Math.sign(n.y - y);
+      }
+      if (dx === 0 && dy === 0) continue;
+      const len = Math.hypot(dx, dy);
+      const ux = dx / len;
+      const uy = dy / len;
+      const cx = x + ux * (TILE / 2 - 5);
+      const cy = y + uy * (TILE / 2 - 5);
+      const px = -uy;
+      const py = ux;
+      const g = this.add.graphics();
+      const tint = piece.side === 'white' ? 0xf4f0e0 : 0x30304a;
+      g.fillStyle(tint, 0.95);
+      g.lineStyle(2, piece.side === 'white' ? 0x30304a : 0xf4f0e0, 1);
+      g.beginPath();
+      g.moveTo(cx + ux * 4, cy + uy * 4);
+      g.lineTo(cx - ux * 4 + px * 7, cy - uy * 4 + py * 7);
+      g.lineTo(cx - ux * 4 - px * 7, cy - uy * 4 - py * 7);
+      g.closePath();
+      g.fillPath();
+      g.strokePath();
+      layer.add(g);
     }
   }
 

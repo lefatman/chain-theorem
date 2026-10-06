@@ -231,14 +231,24 @@ export function project(rt: Runtime, state: GameState, viewer: Side, legal: stri
     viewer,
     ...base,
     slices,
-    pending: state.pending
-      ? {
-          chooser: state.pending.request.chooser,
-          request: state.pending.request.chooser === viewer ? state.pending.request : null,
-        }
-      : null,
+    pending: projectPending(state, viewer),
     legal,
   };
+}
+
+/**
+ * The open prompt: the chooser gets it whole; anyone else only learns that a choice is pending, and
+ * only when the prompting ability is already known to them (an unrevealed passive such as Block
+ * Path's facing prompt shows nothing, DD-105).
+ */
+function projectPending(state: GameState, viewer: Viewer): PublicState['pending'] {
+  const pend = state.pending;
+  if (!pend) return null;
+  const req = pend.request;
+  if (req.chooser === viewer) return { chooser: req.chooser, request: req };
+  const type = req.source.piece >= 0 ? typeOfPiece(state, req.source.piece) : undefined;
+  if (!knownAbility(state, req.source.side, viewer, req.source.ability, type)) return null;
+  return { chooser: req.chooser, request: null };
 }
 
 /**
@@ -253,11 +263,12 @@ export function projectSpectator(rt: Runtime, state: GameState): SpectatorState 
     const decl = hooks.stateSlice;
     if (decl?.spectate) slices[id] = decl.spectate(state.slices[id], rt.ctx(host, null));
   }
+  const pend = projectPending(state, 'spectator');
   return {
     viewer: 'spectator',
     ...base,
     slices,
-    pending: state.pending ? { chooser: state.pending.request.chooser, request: null } : null,
+    pending: pend ? { chooser: pend.chooser, request: null } : null,
     legal: [],
   };
 }
@@ -342,6 +353,15 @@ export function projectEvent(
       if (!ev.source) return ev;
       const src = maskSource(state, viewer, ev.source) ?? { kind: 'hidden' as const };
       return { ...ev, source: src } as PublicEvent;
+    }
+    case 'FacingSet': {
+      // A facing is the owner's secret until Block Path is known on that piece type (DD-99).
+      if (ev.side === knowerOf(ev.side, viewer)) return ev;
+      const src = ev.source;
+      const type = typeOfPiece(state, ev.piece);
+      return src.kind === 'ability' && knownAbility(state, ev.side, viewer, src.id, type)
+        ? ev
+        : null;
     }
     case 'Revealed': {
       if (!ev.source) return ev;

@@ -18,6 +18,8 @@ import type {
 } from './types.ts';
 
 export type * from './types.ts';
+/** Rank and compass helpers for module hooks (5.1 DD-97, DD-99). */
+export { pieceRank, rankCompare, COMPASS, stepTowards, compassFrom } from '../types.ts';
 
 /** Identity helpers that type-check a module definition. */
 export function defineAbility<const T extends AbilityDef>(def: T): T {

@@ -85,7 +85,7 @@ describe('Poisoned Meat', () => {
     expect(def?.category).toBe('CAPTURED');
     expect(def?.affinity).toBe('grove');
     expect(def?.eligible).toBe('all');
-    expect(def?.tags).toEqual([]);
+    expect(def?.tags).toEqual(['venom']);
     expect(def?.minLevel).toBe(2);
     expect(def?.slotCost).toBe(1);
     expect(def?.limits).toEqual({ perAction: 1 });
