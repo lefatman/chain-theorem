@@ -286,10 +286,10 @@ Things to weigh when you price an ability:
 
 ### 3.7 Tags: replay, revive and Warden's Stopwatch
 
-| Tag      | Meaning (DD-02, 5.6)                  | Required when the ability contains (base or attuned) | Current modules                                        |
-| -------- | ------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------ |
-| `replay` | Grants a bonus move                   | `fx.bonusAction(...)`                                | Momentum, Riposte, Squall, Pawn Storm, Slipstream (M7) |
-| `revive` | Returns a captured piece to the board | `fx.revive(...)`                                     | Reinforce, Rebirth, Rebuild (M7)                       |
+| Tag      | Meaning (DD-02, 5.6)                  | Required when the ability contains (base or attuned) | Current modules                                              |
+| -------- | ------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------ |
+| `replay` | Grants a bonus move or rewinds time   | `fx.bonusAction(...)` or `fx.rewind()`               | Momentum, Riposte, Squall, Pawn Storm, Slipstream (M7), Redo |
+| `revive` | Returns a captured piece to the board | `fx.revive(...)`                                     | Reinforce, Rebirth, Rebuild (M7)                             |
 
 Warden's Stopwatch reads nothing but tags: its `triggerFilter` negates every trigger whose ability
 carries either tag, for both players, for the whole battle (7.2, D-39 COMMITTED):
@@ -448,6 +448,7 @@ capture never queues further triggers (5.4).
 | `fx.revive(piece, square)`      | Returns a captured piece to the board                                                          | `square.chosen` (`square`)                             | `no_target`, `already_on_board`, `occupied`, `inv03`, `burning`, hook | The piece returned                    |
 | `fx.bonusAction(bonus)`         | Grants one extra move inside the current action (INV-01, §4.9)                                 | `bonusMove`; Decline first when optional               | `bonus_in_bonus`, `depth_limit`, `no_body`, `no_target`               | A bonus move was made (not a decline) |
 | `fx.reveal(spec)`               | Makes abilities or items public (§8)                                                           | No                                                     | `no_target` (`highestCostItem` with no items)                         | The reveal happened                   |
+| `fx.rewind()`                   | Returns to the position before the previous action; ends the action (Redo, DD-100)             | No                                                     | `no_target` (no snapshot: not a real battle action)                   | The rewind happened                   |
 | `fx.modifyRule(rule, params?)`  | Passive marker; behaviour lives in hooks (§3.10)                                               | No                                                     | —                                                                     | Never                                 |
 | `fx.when(cond, effects)`        | Runs `effects` only if `cond` holds at resolution (§4.7)                                       | As the wrapped effects                                 | As the wrapped effects                                                | A wrapped effect resolved             |
 | `fx.atChainEnd(effects)`        | Defers `effects` until the whole chain has resolved (§4.8)                                     | As the wrapped effects, at chain end                   | As the wrapped effects                                                | Checked at chain end                  |

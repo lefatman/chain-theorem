@@ -142,6 +142,7 @@ const ABILITIES_5_8: { id: string; minLevel: number }[] = [
   { id: 'necromancer', minLevel: 11 },
   { id: 'block_path', minLevel: 12 },
   { id: 'quantum_kill', minLevel: 13 },
+  { id: 'redo', minLevel: 15 },
 ];
 const ALL_ABILITIES = [...ABILITIES_5_7, ...ABILITIES_M7, ...ABILITIES_5_8];
 

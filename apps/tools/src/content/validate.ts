@@ -45,10 +45,15 @@ export function effectProblems(a: AbilityDef): string[] {
   if (count(base, 'bonusAction') > 1 || count(attuned, 'bonusAction') > 1)
     out.push('at most one bonusAction per activation (INV-01)');
   const all = [...base, ...attuned];
-  const bonus = all.includes('bonusAction');
+  // `replay` marks time manipulation: a bonus action or a rewind (Redo, DD-100).
+  const bonus = all.includes('bonusAction') || all.includes('rewind');
   const revive = all.includes('revive');
   if (bonus !== a.tags.includes('replay'))
-    out.push(bonus ? "a bonusAction needs the 'replay' tag" : "'replay' tag without a bonusAction");
+    out.push(
+      bonus
+        ? "a bonusAction or rewind needs the 'replay' tag"
+        : "'replay' tag without a bonusAction or rewind",
+    );
   if (revive !== a.tags.includes('revive'))
     out.push(
       revive ? "a revive effect needs the 'revive' tag" : "'revive' tag without a revive effect",

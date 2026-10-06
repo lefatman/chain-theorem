@@ -591,8 +591,11 @@ describe('property: random battles with random valid loadouts (M2 step 2.9)', ()
               depth: 0,
             });
             if (!post.result) {
-              expect(post.turn).toBe(other(side));
-              expect(post.ply).toBe(move.pre.ply + 1);
+              // The turn passes and one ply is played, unless a REWIND returned to an earlier
+              // position (Redo, DD-100): then the restored side is to move at the restored ply.
+              const rewound = events.find((e) => e.k === 'Rewound');
+              expect(post.turn).toBe(rewound ? rewound.toTurn : other(side));
+              expect(post.ply).toBe(rewound ? rewound.toPly : move.pre.ply + 1);
             }
           }
         }),

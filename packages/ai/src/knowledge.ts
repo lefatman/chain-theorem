@@ -44,6 +44,8 @@ export interface Profile {
   protectsFriend: boolean;
   /** Moves a chosen enemy piece: control (Snowdrift, Snowbound; M7). */
   movesEnemy: boolean;
+  /** CAPTURED: the capture is undone by a rewind (Redo, DD-100). */
+  undoesCapture: boolean;
 }
 
 const EMPTY: Profile = {
@@ -61,6 +63,7 @@ const EMPTY: Profile = {
   sendsCaptorHome: false,
   protectsFriend: false,
   movesEnemy: false,
+  undoesCapture: false,
 };
 
 function scan(effects: readonly EffectSpec[], p: Profile, cat: AbilityDef['category']): void {
@@ -95,6 +98,9 @@ function scan(effects: readonly EffectSpec[], p: Profile, cat: AbilityDef['categ
         break;
       case 'reveal':
         p.reveals = true;
+        break;
+      case 'rewind':
+        if (cat === 'CAPTURED') p.undoesCapture = true;
         break;
       case 'when':
         scan(e.then, p, cat);

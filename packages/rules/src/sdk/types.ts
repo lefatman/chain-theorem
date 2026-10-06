@@ -132,6 +132,12 @@ export type EffectSpec =
   | { op: 'bonusAction'; bonus: BonusSpec }
   | { op: 'reveal'; reveal: RevealSpec }
   | { op: 'modifyRule'; rule: string; params?: Record<string, string | number | boolean> }
+  /**
+   * REWIND (5.2, DD-100): the position returns to the start of the previous action (two plies back,
+   * or one when this is the battle's first action); charges, reveals and clocks survive. Ends the
+   * action: nothing queued after it resolves.
+   */
+  | { op: 'rewind' }
   | { op: 'when'; cond: EffectCondition; then: EffectSpec[] }
   | { op: 'atChainEnd'; effects: EffectSpec[] };
 
@@ -272,6 +278,12 @@ export interface ChoiceCtx extends MutCtx {
    * nothing to choose. Suspends the action until the answer arrives (replayed deterministically).
    */
   choose(req: HookChoice): ChoiceOption | null;
+  /**
+   * Would `side`'s king be safe once `change` (slice writes on a draft) has been applied? Options
+   * that would leave a king in check are never offered (INV-03): a Block Path king may not turn
+   * its guard away from an attacker.
+   */
+  kingSafeAfter(side: Side, change: (draft: MutCtx) => void): boolean;
 }
 
 /** Restrictions on move captures of one piece (captureFilter, 5.6 and 13.5). */

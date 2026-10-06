@@ -86,6 +86,9 @@ export class NeedChoice {
   }
 }
 
+/** Thrown once a REWIND has resolved: the rest of the action is abandoned (DD-100). */
+class RewindSignal {}
+
 interface Cap {
   id: number;
   captor: PieceId;
@@ -180,6 +183,8 @@ export class ActionRun extends EventHost {
   private readonly stalwartCaptured = new Set<Side>();
   /** Every piece movement of the action, for onActionEnd hooks. */
   private readonly movedLog: PieceMovedInfo[] = [];
+  /** Set by a REWIND effect; the action unwinds once its charge is spent. */
+  private rewind: { tc: TCtx } | null = null;
   private objectiveWinner: Side | null = null;
   private irreversible = false;
   private currentQueue: Trig[] = [];
@@ -215,16 +220,63 @@ export class ActionRun extends EventHost {
     this.emit({ k: 'ActionStarted', side: this.actor, ply: s.ply, move: decodeMove(encoded) });
     this.revealStalwartIfRelaxed(encoded, this.actor);
     this.revealRestrictionsIfRelaxed(encoded, this.actor);
-    this.runMove(encoded, 0, this.actor, false);
-    // Chain end (Rebirth and other deferred effects), in the order their triggers resolved.
-    while (this.chainEnd.length > 0) {
-      const d = this.chainEnd.shift() as { effects: EffectSpec[]; tc: TCtx };
+    try {
+      this.runMove(encoded, 0, this.actor, false);
+      // Chain end (Rebirth and other deferred effects), in the order their triggers resolved.
+      while (this.chainEnd.length > 0) {
+        const d = this.chainEnd.shift() as { effects: EffectSpec[]; tc: TCtx };
+        this.depth = 0;
+        if (this.resolveEffects(d.effects, d.tc)) this.spendCharge(d.tc.trig);
+        if (this.rewind) throw new RewindSignal();
+      }
+    } catch (e) {
+      if (!(e instanceof RewindSignal)) throw e;
       this.depth = 0;
-      if (this.resolveEffects(d.effects, d.tc)) this.spendCharge(d.tc.trig);
+      this.applyRewind();
+      return;
     }
     this.depth = 0;
     this.actionEnd();
     this.settle();
+  }
+
+  /**
+   * REWIND (5.2, DD-100): restore the position from before the previous action (two plies back;
+   * one when this is the battle's first action). Charges, reveals, the event sequence and the
+   * snapshots of earlier actions survive; the undone plies leave the repetition history; no format
+   * objective is adjudicated. The side to move in the restored position acts.
+   */
+  private applyRewind(): void {
+    const s = this.s;
+    const tc = (this.rewind as { tc: TCtx }).tc;
+    const history = s.history ?? [];
+    const target = history.length >= 2 ? history[history.length - 2] : history[history.length - 1];
+    if (!target) throw new RulesError('internal', 'rewind without a snapshot');
+    this.emit({
+      k: 'Rewound',
+      side: tc.owner,
+      toPly: target.ply,
+      toTurn: target.turn,
+      plies: s.ply - target.ply + 1,
+      source: tc.source,
+    });
+    s.board = target.board.slice();
+    s.pieces = target.pieces.map((p) => ({ ...p }));
+    s.turn = target.turn;
+    s.castling = target.castling;
+    s.ep = target.ep;
+    s.halfmove = target.halfmove;
+    s.fullmove = target.fullmove;
+    s.ply = target.ply;
+    s.slices = { ...target.slices };
+    s.objective = { ...target.objective };
+    s.inCheck = target.inCheck;
+    s.repetition = [...target.repetition];
+    s.history = history.filter((h) => h.ply < target.ply);
+    s.pending = null;
+    s.result = null;
+    // No TurnPassed: the turn did not pass and no onTurnEnd ran; the restored check alert returns.
+    if (s.inCheck) this.emitCheck(s.inCheck);
   }
 
   /** onActionEnd hooks (Block Path's facing choice, DD-99): after the chain, before Settle. */
@@ -685,6 +737,7 @@ export class ActionRun extends EventHost {
       source: { kind: 'ability', id: t.def.id, piece: t.piece, side: t.side },
     };
     if (this.resolveEffects(effects, tc)) this.spendCharge(t);
+    if (this.rewind) throw new RewindSignal();
   }
 
   /**
@@ -758,6 +811,15 @@ export class ActionRun extends EventHost {
         return this.fxBonus(eff.bonus, tc);
       case 'reveal':
         return this.fxReveal(eff.reveal, tc);
+      case 'rewind': {
+        if ((this.s.history ?? []).length === 0) {
+          this.fizzle(tc, 'rewind', 'no_target');
+          return false;
+        }
+        // Resolves now; the action unwinds after the trigger spends its charge (DD-17, DD-100).
+        this.rewind = { tc };
+        return true;
+      }
       case 'modifyRule':
         return false;
       case 'when':

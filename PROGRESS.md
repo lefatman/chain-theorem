@@ -23,8 +23,8 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   `moveFilter.captureFilter`/`bypass`, `onActionEnd` with `ctx.choose`, loadout rule 8, the `venom`
   tag, DD-105 prompt visibility, golden E12-E14) and Phase 4 (Electric Slide: pawn leapfrog and
   slider redirects in move generation and attack detection, `moveFilter.pawnLeap`/`redirects`,
-  `ctx.attuned`; Squall neutral; golden E15) are done. Next: Phase 5 (Redo), Phase 6
-  (Schrödinger's Joker). Balance after
+  `ctx.attuned`; Squall neutral; golden E15) and Phase 5 (Redo: the REWIND primitive with
+  pre-action snapshots, golden E16) are done. Next: Phase 6 (Schrödinger's Joker). Balance after
   Phase 1: see `docs/BALANCE_DD98.md` (First Blood advantaged element 46%, Full Battle 90%: the
   silence rule now dominates long games and traits dominate short ones; the designer's levers are
   `silenceScope` and trait numbers).
@@ -147,6 +147,16 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-10-06 Catalogue Phase 5 (DD-100): Redo (level 15, Captured, neutral, replay, 1 charge) on
+  the new REWIND primitive: the engine keeps the pre-action snapshots of the last two actions while
+  a rewind ability is in play (`GameState.history`, never projected), a resolved rewind ends the
+  action (`RewindSignal`) and restores board, pieces, turn, ply, slices, objective, check state and
+  the repetition history while charges, reveals and the event sequence survive; `Rewound` event;
+  only capturing moves trigger it (5.4: effect captures do not chain); the `replay` tag now also
+  covers rewinds (Warden's Stopwatch negates Redo). AI treats a known-Redo capture as a loss of
+  tempo. `pnpm check` 1,560 unit tests (redo 11, examples E16, Scenario Lab and replay viewer rebuild rewound frames), `content:validate` ok (32 abilities),
+  `req:coverage` 83/83; `pnpm test:fuzz` 500 games, replays identical, 0 failures.
 
 - 2026-10-06 Catalogue Phase 4 (DD-104): Electric Slide (level 3, Storm signature, Passive) with a
   base/attuned split: pawns leap one adjacent ally (plain move, no en passant, promotes); attuned

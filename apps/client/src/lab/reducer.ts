@@ -47,6 +47,11 @@ export interface ReduceContext {
    * the true element, which a Masquerade Mask can hide from the displayed one.
    */
   trueElement?(piece: number): ElementId | undefined;
+  /**
+   * The viewer's projection of the position at the start of ply `ply`, for a `Rewound` event (Redo,
+   * DD-100): a forward reducer cannot rebuild an earlier position from the event alone.
+   */
+  rewindTarget?(ply: number): PublicState | undefined;
   /** True loadout elements of a side ([A] or [A, B]), for the element a promoted piece takes. */
   trueElements?(side: Side): readonly ElementId[] | undefined;
   /**
@@ -132,10 +137,11 @@ export function applyEventToPublic(
   ev: BattleEvent,
   ctx: ReduceContext = {},
 ): PublicState {
-  const board = pub.board.slice();
-  const pieces: PublicPiece[] = pub.pieces.map((p) => ({ ...p }));
+  let board = pub.board.slice();
+  let pieces: PublicPiece[] = pub.pieces.map((p) => ({ ...p }));
   let hf = readHotFoot(pub.slices);
   let hfChanged = false;
+  let slices: Record<string, unknown> | null = null;
   let { turn, ply, inCheck, result, usage, armies } = pub;
 
   const lift = (id: number) => {
@@ -273,6 +279,23 @@ export function applyEventToPublic(
     case 'BattleEnded':
       result = ev.result;
       break;
+    case 'Rewound': {
+      // The board, turn, ply, check state and public slices return to the start of ply `toPly`;
+      // reveals and spent charges stay as they are (DD-100).
+      const back = ctx.rewindTarget?.(ev.toPly);
+      if (back) {
+        board = back.board.slice();
+        pieces = back.pieces.map((p) => ({ ...p }));
+        turn = back.turn;
+        ply = back.ply;
+        inCheck = back.inCheck;
+        result = null;
+        slices = back.slices;
+        hf = readHotFoot(back.slices);
+        hfChanged = false;
+      }
+      break;
+    }
     case 'Revealed': {
       const army = armies[ev.side];
       const info = ev.info;
@@ -311,7 +334,7 @@ export function applyEventToPublic(
     ...pub,
     board,
     pieces,
-    slices: hfChanged && hf ? { ...pub.slices, [HOT_FOOT]: hf } : pub.slices,
+    slices: slices ?? (hfChanged && hf ? { ...pub.slices, [HOT_FOOT]: hf } : pub.slices),
     turn,
     ply,
     inCheck,

@@ -1355,6 +1355,7 @@ const POOL = [
   'obstinate',
   'block_path',
   'electric_slide',
+  'redo',
 ] as const;
 
 const armyArb = fc.record({

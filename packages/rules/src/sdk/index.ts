@@ -96,6 +96,8 @@ export const fx = {
   /** REVEAL(target) */
   reveal: (reveal: RevealSpec): EffectSpec => ({ op: 'reveal', reveal }),
   /** MODIFY_RULE(ruleId, params): passive marker; the behaviour lives in the module's hooks. */
+  /** REWIND: return to the position before the previous action (Redo, DD-100); ends the action. */
+  rewind: (): EffectSpec => ({ op: 'rewind' }),
   modifyRule: (rule: string, params?: Record<string, string | number | boolean>): EffectSpec =>
     params ? { op: 'modifyRule', rule, params } : { op: 'modifyRule', rule },
   when: (cond: EffectCondition, then: EffectSpec[]): EffectSpec => ({ op: 'when', cond, then }),

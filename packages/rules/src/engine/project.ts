@@ -349,7 +349,8 @@ export function projectEvent(
     }
     case 'Captured':
     case 'PieceMoved':
-    case 'PieceRevived': {
+    case 'PieceRevived':
+    case 'Rewound': {
       if (!ev.source) return ev;
       const src = maskSource(state, viewer, ev.source) ?? { kind: 'hidden' as const };
       return { ...ev, source: src } as PublicEvent;

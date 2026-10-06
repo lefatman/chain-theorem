@@ -191,6 +191,25 @@ export interface PendingAction {
   queue: { piece: PieceId; ability: string }[];
 }
 
+/**
+ * The position before an action, kept for Redo (REWIND, DD-100): everything a rewind restores.
+ * Charges (`usage`), reveals and the event sequence are not part of it and survive a rewind.
+ */
+export interface RewindPoint {
+  ply: number;
+  turn: Side;
+  board: number[];
+  pieces: PieceState[];
+  castling: number;
+  ep: Square;
+  halfmove: number;
+  fullmove: number;
+  slices: Record<string, unknown>;
+  objective: Record<Side, number>;
+  inCheck: Side | null;
+  repetition: string[];
+}
+
 export interface GameState {
   schema: 1;
   contentVersion: string;
@@ -215,6 +234,8 @@ export interface GameState {
   result: BattleResult | null;
   inCheck: Side | null;
   eventSeq: number;
+  /** Pre-action snapshots of the last two actions, kept only while a side carries a REWIND ability. */
+  history?: RewindPoint[];
 }
 
 export type MoveInput = { kind: 'move'; side: Side; move: Move; choices?: ChoiceOption[] };
@@ -355,6 +376,8 @@ export type BattleEvent = EventBase &
         facing: Compass;
         source: SourceRef;
       }
+    /** The position returned to the start of ply `toPly`, undoing `plies` plies (Redo, DD-100). */
+    | { k: 'Rewound'; side: Side; toPly: number; toTurn: Side; plies: number; source: SourceRef }
     | { k: 'Revealed'; side: Side; info: RevealInfo; cause: RevealCause; source?: SourceRef }
     | { k: 'PieceMoved'; piece: PieceId; side: Side; from: Square; to: Square; source: SourceRef }
     | { k: 'PieceRevived'; piece: PieceId; side: Side; square: Square; source: SourceRef }

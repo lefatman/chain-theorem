@@ -18,6 +18,7 @@ import {
   type Side,
 } from '@chain-theorem/rules';
 import type { LogEntry } from '../battle/controller.ts';
+import { applyEventToPublic } from '../lab/reducer.ts';
 
 /** Burning squares live in the Hot Foot trait's public slice (R-ELEM-005). */
 const HOT_FOOT = 'hot_foot';
@@ -170,6 +171,45 @@ export function frameAt(
           });
         break;
       }
+      case 'Rewound': {
+        // Undoing a rewind (Redo, DD-100): the board held now is the restored position, which is
+        // also the position at the start of ply `toPly`; the board just before the rewind is that
+        // position with the undone plies replayed forward (they hold no rewind of their own).
+        let k0 = -1;
+        for (let j = k - 1; j >= 0; j--) {
+          const e = log[j]?.event;
+          if (e?.k === 'ActionStarted' && e.ply === ev.toPly) {
+            k0 = j;
+            break;
+          }
+        }
+        if (k0 < 0) return null;
+        let pub: PublicState = {
+          ...live,
+          board: board.slice(),
+          pieces: pieces.map((p) => ({ ...p })),
+          slices: burns
+            ? {
+                ...live.slices,
+                [HOT_FOOT]: { ...(live.slices[HOT_FOOT] as object), burning: burns },
+              }
+            : live.slices,
+          turn: ev.toTurn,
+          ply: ev.toPly,
+          inCheck: null,
+          result: null,
+        };
+        for (let j = k0; j < k; j++) {
+          const e = log[j];
+          if (e) pub = applyEventToPublic(pub, e.event);
+        }
+        pub.pieces.forEach((q, i) => {
+          pieces[i] = { ...q };
+        });
+        for (let sq = 0; sq < 64; sq++) board[sq] = pub.board[sq] ?? -1;
+        burns = readBurns(pub.slices);
+        break;
+      }
       default:
         break;
     }
@@ -196,6 +236,9 @@ export function frameAt(
     if (ev.k === 'ActionStarted') turn = ev.side;
     else if (ev.k === 'TurnPassed') {
       turn = ev.side;
+      inCheck = null;
+    } else if (ev.k === 'Rewound') {
+      turn = ev.toTurn;
       inCheck = null;
     } else if (ev.k === 'Check') inCheck = ev.side;
     else if (ev.k === 'MoveMade' && ev.side === inCheck && ev.depth === 0) inCheck = null;

@@ -6,16 +6,18 @@
 import { opposite } from '../board.ts';
 import { stateHashOf } from '../hash.ts';
 import { F_EP, type MoveRules, Pos, defaultRules, dirBit } from '../movegen.ts';
-import { rulesAfterTurnEnd } from './simulate.ts';
+import { kingSafeAfter, rulesAfterTurnEnd } from './simulate.ts';
 import type {
   AbilityDef,
   Caps,
   CaptureRestriction,
   ChoiceCtx,
   ContentRegistry,
+  EffectSpec,
   HookChoice,
   HookName,
   ItemDef,
+  MutCtx,
   PieceView,
   RuleHooks,
   TraitDef,
@@ -48,6 +50,17 @@ export interface HookEntry {
 export interface Entries {
   all: HookEntry[];
   by: Map<HookName, HookEntry[]>;
+  /** Some ability in play has a REWIND effect, so pre-action snapshots are kept (DD-100). */
+  rewind: boolean;
+}
+
+function hasRewind(effects: readonly EffectSpec[]): boolean {
+  return effects.some(
+    (e) =>
+      e.op === 'rewind' ||
+      (e.op === 'when' && hasRewind(e.then)) ||
+      (e.op === 'atChainEnd' && hasRewind(e.effects)),
+  );
 }
 
 /** What a hook context reads and writes through. */
@@ -171,6 +184,7 @@ export class Runtime {
     }
     const items: HookEntry[] = [];
     const abilities: HookEntry[] = [];
+    let rewind = false;
     for (const side of ['white', 'black'] as const) {
       const army = state.armies[side];
       for (const id of army.loadout.items) {
@@ -190,6 +204,8 @@ export class Runtime {
           if (seen.has(id)) continue;
           seen.add(id);
           const def = this.abilities.get(id);
+          if (def && (hasRewind(def.effects) || (def.attuned && hasRewind(def.attuned.effects))))
+            rewind = true;
           if (def?.hooks)
             abilities.push({
               kind: 'ability',
@@ -218,7 +234,7 @@ export class Runtime {
         by.set(name, list);
       }
     }
-    const result = { all, by };
+    const result = { all, by, rewind };
     this.cache.set(state.armies, result);
     return result;
   }
@@ -486,6 +502,9 @@ class Ctx implements ChoiceCtx {
     if (!this.host.choose || !this.entry)
       throw new RulesError('internal', 'choose() is only allowed in onActionEnd');
     return this.host.choose(this.entry, req);
+  }
+  kingSafeAfter(side: Side, change: (draft: MutCtx) => void): boolean {
+    return kingSafeAfter(this.rt, this.host.s, this.entry, side, change);
   }
 }
 

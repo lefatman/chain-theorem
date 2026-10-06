@@ -91,9 +91,21 @@ export default defineAbility({
         asked.add(m.piece.id);
         const piece = ctx.piece(m.piece.id);
         if (piece.square < 0 || !ctx.hasAbility(piece, ID)) continue;
-        const current = facingOf(ctx.slice<BlockPathState>(FACINGS), piece);
+        const state = ctx.slice<BlockPathState>(FACINGS);
+        const current = facingOf(state, piece);
         // Each option is the adjacent square in a direction (5.4 square order from the owner's side).
+        // A king may not turn its guard away from an attacker (INV-03): such facings are not offered.
         const options = COMPASS.filter((c) => c !== current)
+          .filter(
+            (c) =>
+              piece.type !== 'king' ||
+              ctx.kingSafeAfter(owner, (draft) =>
+                draft.setSlice<BlockPathState>(
+                  { facing: { ...state.facing, [String(piece.id)]: c } },
+                  FACINGS,
+                ),
+              ),
+          )
           .map((c) => stepTowards(piece.square, c))
           .filter((sq) => sq >= 0)
           .sort((a, b) => relOrder(owner, a) - relOrder(owner, b))

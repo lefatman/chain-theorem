@@ -113,6 +113,8 @@ export function describe(ev: PublicEvent, pub: PublicState): string {
       return `The fire on ${squareName(ev.square)} goes out.`;
     case 'FacingSet':
       return `${pieceLabel(pub, ev.piece)} turns to face ${COMPASS_NAMES[ev.facing]}.`;
+    case 'Rewound':
+      return `${sourceName(ev.source)}: time turns back ${ev.plies === 1 ? 'one ply' : `${ev.plies} plies`}; the position before move ${Math.floor(ev.toPly / 2) + 1} returns.`;
     case 'Revealed': {
       const whose = cap(ev.side);
       const i = ev.info;

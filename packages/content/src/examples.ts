@@ -26,7 +26,8 @@ export type WorkedExampleId =
   | 'E12'
   | 'E13'
   | 'E14'
-  | 'E15';
+  | 'E15'
+  | 'E16';
 
 export interface WorkedExampleVariant {
   /** Short label, e.g. 'Stalwart king'. */
@@ -308,6 +309,22 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
       white: { elements: ['storm'], abilities: ['electric_slide'] },
       black: { elements: ['neutral'] },
       moves: ['b2d1'],
+    },
+  },
+  {
+    id: 'E16',
+    title: 'Redo: the rook takes the knight and time turns back two plies',
+    setupText:
+      'White rook a1, king e1; Black knight d5 (Redo), pawn h7, king e8. White a1-d1, Black h7-h6, White d1xd5',
+    specText:
+      "Rank 3 ≥ rank 2: Redo triggers and the position returns to before Black's h7-h6 (the pawn on h7, the knight on d5, the rook on d1, Black to move at ply 1); Redo's charge is spent and it is revealed on Black's knights; the undone plies leave the repetition history; no objective is adjudicated.",
+    note: 'Ids: a1 R=0, e1 K=1, d5 n=2, h7 p=3, e8 k=4. No prompt (DD-97, DD-100).',
+    setup: {
+      fen: '4k3/7p/8/3n4/8/8/8/R3K3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'] },
+      black: { elements: ['neutral'], abilities: ['redo'] },
+      moves: ['a1d1', 'h7h6', 'd1d5'],
     },
   },
 ];

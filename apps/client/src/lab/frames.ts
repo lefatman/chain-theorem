@@ -4,7 +4,7 @@
  * projection wherever the engine exposes one (at each prompt and when the action settles). Any
  * difference found at those checkpoints is reported as drift, so a reducer bug can never hide.
  */
-import type { BattleEvent, Engine, PublicState, Side } from '@chain-theorem/rules';
+import type { BattleEvent, Engine, GameState, PublicState, Side } from '@chain-theorem/rules';
 import { describe } from '../battle/describe.ts';
 import type { Highlights } from '../battle/scene/BoardScene.ts';
 import { applyEventToPublic, frameDrift } from './reducer.ts';
@@ -42,9 +42,23 @@ function startPub(engine: Engine, action: LabAction, viewer: Side): PublicState 
   };
 }
 
-export function actionFrames(engine: Engine, action: LabAction, viewer: Side): LabFrame[] {
+/**
+ * Frames of one action. `earlier` returns the exact state at the start of a given ply among the
+ * actions up to this one, which a `Rewound` event (Redo, DD-100) jumps back to.
+ */
+export function actionFrames(
+  engine: Engine,
+  action: LabAction,
+  viewer: Side,
+  earlier: (ply: number) => GameState | undefined = (ply) =>
+    action.before.ply === ply ? action.before : undefined,
+): LabFrame[] {
   const hit = cache.get(action)?.[viewer];
   if (hit) return hit;
+  const rewindTarget = (ply: number): PublicState | undefined => {
+    const s = earlier(ply);
+    return s ? { ...engine.project(s, viewer), legal: [], pending: null } : undefined;
+  };
   const checkpoints = new Map<number, { exact: PublicState; settled: boolean }>();
   for (const p of action.prompts)
     checkpoints.set(p.at, { exact: engine.project(p.state, viewer), settled: false });
@@ -67,7 +81,7 @@ export function actionFrames(engine: Engine, action: LabAction, viewer: Side): L
       const key = `${event.piece}:${event.ability}`;
       trueUsage = { ...trueUsage, [key]: (trueUsage[key] ?? 0) + 1 };
     }
-    pub = applyEventToPublic(pub, event, { trueElement, trueElements, trueUsage });
+    pub = applyEventToPublic(pub, event, { trueElement, trueElements, trueUsage, rewindTarget });
     const cp = checkpoints.get(k + 1);
     let drift: string[] | null = null;
     if (cp) {
@@ -94,7 +108,16 @@ export function actionFrames(engine: Engine, action: LabAction, viewer: Side): L
 
 /** Every frame of the session in order (the step-through list). */
 export function sessionFrames(s: LabSession, viewer: Side): LabFrame[] {
-  return s.actions.flatMap((a) => actionFrames(s.engine, a, viewer));
+  return s.actions.flatMap((a, i) =>
+    actionFrames(s.engine, a, viewer, (ply) => {
+      // The most recent action up to this one that started at `ply` (a rewind can repeat a ply).
+      for (let j = i; j >= 0; j--) {
+        const b = s.actions[j]?.before;
+        if (b && b.ply === ply) return b;
+      }
+      return undefined;
+    }),
+  );
 }
 
 /** Where a piece was last seen up to frame `f` (for pointing at a piece that was just removed). */
