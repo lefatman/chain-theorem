@@ -37,7 +37,7 @@ export const CAPS = {
   // R-ELEM-002 tuning knob: 'ALL_TRIGGERS' (default) | 'REACTIONS_ONLY' | 'OFF'.
   SILENCE_SCOPE: 'ALL_TRIGGERS',
   // 6.5 (COMMITTED rollout): the MVP shipped Ember, Tide and Grove; M7 7.3 adds Storm, Stone and
-  // Frost, each with six creatures and at least four affinity abilities.
+  // Frost, each with its accents and emblem and at least four affinity abilities.
   ENABLED_ELEMENTS: ['ember', 'tide', 'grove', 'storm', 'stone', 'frost'],
   FORMATS,
   MAX_EVENTS_PER_ACTION: 512,

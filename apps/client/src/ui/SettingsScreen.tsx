@@ -1,9 +1,10 @@
-/** Accessibility and presentation settings (11.2, 10.3). */
+/** Accessibility and presentation settings (11.2, 10.3) and the army style (11.1). */
 import { settings, updateSettings, type Settings } from '../state/settings.ts';
+import { ARMY_STYLE_LABEL, ARMY_STYLES, type ArmyStyle } from '../battle/scene/army.ts';
 import { go } from '../app/router.ts';
 
 const TOGGLES: [keyof Settings, string][] = [
-  ['classicView', 'Classic View (chess glyphs instead of creatures)'],
+  ['classicView', 'Classic View (chess glyphs instead of army sprites)'],
   ['fastMode', 'Fast mode (reaction chains resolve in under a second)'],
   ['reducedMotion', 'Reduced motion (no animations)'],
   ['moveHighlights', 'Highlight legal moves'],
@@ -17,6 +18,21 @@ export function SettingsScreen() {
   return (
     <main class="setup">
       <h2>Settings</h2>
+      <label>
+        Army style (your pieces)
+        <select
+          value={s.armyStyle}
+          onChange={(e) =>
+            updateSettings({ armyStyle: (e.target as HTMLSelectElement).value as ArmyStyle })
+          }
+        >
+          {ARMY_STYLES.map((style) => (
+            <option value={style} key={style}>
+              {ARMY_STYLE_LABEL[style]}
+            </option>
+          ))}
+        </select>
+      </label>
       {TOGGLES.map(([key, label]) => (
         <label class="check" key={key}>
           <input

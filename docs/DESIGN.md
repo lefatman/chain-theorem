@@ -625,13 +625,13 @@ Quests are data files with step types: talk, reach location, defeat a named NPC,
 
 ## 11. Art direction and presentation
 
-The look is cute, rounded, handheld-era pixel art with entirely original creatures; on the battle board, readability beats spectacle. Placeholder art (coloured shapes plus chess glyphs) is used until milestone M4.
+The look is cute, rounded, handheld-era pixel art with entirely original characters: human armies on the battle board and chibi trainers in the overworld; on the board, readability beats spectacle. Placeholder art (coloured shapes plus chess glyphs) is used until milestone M4.
 
 ### 11.1 Style (R-ART-001)
 
-- Pixel art with a limited, GBA-era palette, nearest-neighbour integer scaling, and a 16x16 overworld tile grid.
-- MVP roster: 18 creatures (3 elements x 6 piece types), rising to 36 with Storm, Stone and Frost. Cosmetic variants are earned in play only, never sold. Each needs a front sprite, a back sprite, a 2-frame idle and a faint frame. Capture and ability effects are shared VFX.
-- Silhouettes follow piece type across all elements: pawns small, knights leaping beasts, bishops slender casters, rooks sturdy and blocky, the queen large and regal, the king crowned. A player should identify a piece's type from its outline alone.
+- Pixel art with a limited, handheld-era palette, nearest-neighbour integer scaling, and a 16x16 overworld tile grid. Characters use handheld-era chibi proportions: a large head, big eyes with a highlight, a short body, a 1 px outline and two-tone shading.
+- Roster: the pieces are human soldiers in four army styles (Roman, medieval, Arab, samurai), six piece types each (24 units, DD-96). A player chooses the style their own army wears; styles and any later variants are cosmetic, chosen or earned in play, never sold. Each unit needs a front sprite, a back sprite, a 2-frame idle and a faint frame. The owner shows in the armour (white steel for White, black iron for Black); the element shows in the accent colour (plumes, cloaks, sashes, trim) and the element's emblem on the shield, chest or cape. Capture and ability effects are shared VFX.
+- Silhouettes follow piece type across all styles: pawns short with a spear and a shield, knights mounted, bishops tall and slender with tall headgear and a staff, rooks broad behind a tower shield under a crenellated helm, queens tall in a bell gown with a crown, kings broad with a tall crown and a long cloak. A player should identify a piece's type from its outline alone.
 - Original chiptune music and sound in Opus or OGG, lazy-loaded per zone.
 
 ### 11.2 Board readability (R-ART-002, INVARIANT)
@@ -641,14 +641,14 @@ Across all 32 pieces a player must read role, owner, element and status at a gla
 | Information | How it is shown |
 | --- | --- |
 | Role | Silhouette plus a small chess glyph badge in the square corner |
-| Owner | Your pieces show back sprites, opponent pieces front sprites, plus a coloured base ring |
-| Element | Element icon on the base ring plus a tint |
+| Owner | Your pieces show back sprites, opponent pieces front sprites; White wears white steel and Black black iron; plus a coloured base ring |
+| Element | Element icon on the base ring plus the accent colour and the element's emblem on the unit |
 | Revealed abilities | Small pips under the piece; tap or hover for details |
 | Charges | Remaining uses shown as pips on the ability's detail card |
 | Burning square | Flame overlay with the number of opponent turns left |
 | Check | The king's square pulses; the same alert shows for Stalwart kings |
 
-- A Classic View toggle replaces creatures with standard chess glyphs for veterans.
+- A Classic View toggle replaces the unit sprites with standard chess glyphs for veterans.
 - Animations are skippable, and a fast mode resolves reaction chains in under 1 second.
 - Every reaction chain is replayable step by step with a plain-language log line per step.
 - Colour is never the only signal: every colour cue has an icon or shape partner. Support reduced motion and text scaling.
@@ -664,7 +664,7 @@ No Pokémon names, creature designs, sprites, UI chrome, fonts, sounds, item loo
 | First load, to the title screen | 2 MB |
 | First playable, tutorial town | 5 MB total |
 | Each additional zone (tiles, NPCs, music) | 500 KB |
-| All 18 creature sprite sheets | 400 KB |
+| All army sprite sheets (procedural, or drop-in PNGs) | 400 KB |
 
 ## 12. Technical stack
 
@@ -1091,7 +1091,7 @@ Build the battle game first and prove it is fun before building the world: M0–
 - [ ] 4.2 `@chain-theorem/protocol` and the BattleRoom Durable Object: hibernating sockets, per-player projection, alarm-driven clocks, reconnect replay, choice prompts (13.4).
 - [ ] 4.3 Matchmaker Durable Object for casual queues and challenge links.
 - [ ] 4.4 Database package: Kysely schema, migrations and repositories for players, loadouts, inventory, battles and wagers; PostgreSQL on Neon through Hyperdrive in production, SQLite in tests; archive logs to R2 (13.3, 13.6).
-- [ ] 4.5 Replace placeholders with the 18 creature sprite sets (11.1).
+- [ ] 4.5 Replace placeholders with the army sprite sets (11.1).
 
 * **Done when:** two browsers on different networks complete timed battles with a mid-battle disconnect and reconnect, and the R-SEC-001 payload scan passes.
 
@@ -1118,7 +1118,7 @@ Build the battle game first and prove it is fun before building the world: M0–
 
 - [ ] 7.1 TournamentRoom with Swiss and single-elimination brackets.
 - [ ] 7.2 Delayed, public-projection spectating.
-- [ ] 7.3 Storm, Stone and Frost with their 18 creatures (6.5); more zones, NPCs, abilities and items; balance passes driven by telemetry.
+- [ ] 7.3 Storm, Stone and Frost with their accents and emblems (6.5); more zones, NPCs, abilities and items; balance passes driven by telemetry.
 
 * **Done when:** the first public tournament completes.
 
@@ -1267,3 +1267,4 @@ The designer delegated every remaining design decision on 2026-09-24 (D-37). The
 | DD-93 | Tournaments: Swiss uses a simplified Dutch system (score groups pair top half against bottom half; a backtracking search avoids repeat pairings and equal colour needs, falling back to a greedy pairing; the bye goes to the lowest-ranked player without one, worth 1 point), tie-breaks points, Buchholz (a bye adds 0), Sonneborn-Berger, seed; ceil(log2 n) + 1 rounds capped at a round robin. Single elimination is seeded by Glicko-2 rating in the event's format and bracket (1500 unrated, then registration order) with byes to the top seeds; a drawn game sends Black through, a double loss sends nobody, places are 1, 2, 3, 3, 5. No-shows use the 60 s battle disconnect grace (a side that sent no frame before an abandonment is absent; both absent is a double loss; one missed game withdraws). Pairings are published 60 s before battles start; battle ids are deterministic (t-<id>-<round>-<board>) so a watchdog can recreate them. Prizes (PLAYTEST) go only to players who played, once per tournament and player, retried by alarm; tournament games pay normal PvP XP and are unrated. Scheduled daily events per bracket are created on first read (unique schedule key); the room is the registration authority (bracket and entitlement checked at registration, suspended or deleted players dropped at start); the tournament page polls. | Deterministic, pure pairing that is easy to test; tie-breaks defined for ties of any size; no cron or sockets needed; spec 12.2 alarms only. |
 | DD-94 | M7 elements: Storm, Stone and Frost are enabled with four affinity abilities each built from the 6.1 identities using existing primitives only (Storm: squall 1, afterimage 5, pawn_storm 7, slipstream 12; Stone: buttress 2, stonewall 6, phalanx 10, rebuild 17; Frost: frost_heave 3, snowdrift 9, snowbound 14 with 2 charges, permafrost 20 with 1 charge), so each element has a starter-level card; Phalanx replaced an unreleased Close Ranks whose forced step-in weakened Stone's own defence (paired sim evidence); pawns are only ever pushed straight back or sent to their start; two items: Mooring Chain (level 8, the first opponent ability that would move one of your pieces fizzles; named to avoid the franchise '<word> Stone' pattern) and Mainspring (level 11, +1 charge per piece for charged bonus-move abilities, revealed when an extra charge is spent); the Masquerade Mask drops when Bulwark, Stillness or Always First ordering gives away the real element; Squall joins every starter collection through the all-level-1-cards rule. | Spec 6.5 rollout with original designs and no engine change; charge limits cap repeatable control; public charge counts never contradict what the opponent sees. |
 | DD-95 | M7 world and balance tooling: Highcairn Pass (snow, scree, frost-grass) hangs off Thistle Meadow's west edge with Storm, Stone and Frost wild encounters (rate 0.1, grace 5, levels 5-9), trainers Stormcaller Imre, Mason Hedda, Rimeguard Osk and practice Cragwalker Bev, and quests highcairn_climb (needs academy_first_road) and highcairn_trial (win with Storm abilities only); the Academy is unchanged. The simulator plays every element pair in both colours (removing a false 60-62% white score) and gains --elements; the NPC sweep test's random opponent no longer makes moves that leave its own king in check (the root cause of early endings with the new content; its assertions are unchanged). Balance targets still missed after M7 (advantaged element 64% First Blood and 73% Full Battle against 55-60%; Tide and Grove kits beat the new elements across triangles; First Blood surprise losses; Focused builds) are left to the designer with five questions in docs/BALANCE_M7.md; silenceScope stays ALL_TRIGGERS because REACTIONS_ONLY flips Frost over Stone the wrong way. | PLAYTEST values are tuned only with evidence and never COMMITTED rules; the designer decides kit-level changes (Playtest Gate 1 question 2). |
+| DD-96 | Battle pieces are human soldiers in four army styles (Roman, medieval, Arab, samurai) instead of creatures: 24 units at 32 px in handheld-era proportions. The owner shows in the armour colour (white steel for White, black iron for Black) on top of the front/back pose and the base ring; the element in the accent colour and the element's emblem on the shield, chest or cape. A player's own army style is a local cosmetic setting; the opponent's style derives from their name and always differs from the player's. Drop-in art moves to assets/army/<style>/<side>[/<element>]/<type>.png. | Designer direction after the M7 build. Human armies keep every 11.2 readability cue (silhouette by type across styles, owner by pose, ring and now armour, element by icon, tint and emblem, each checked by tests under colour-vision simulations), need no protocol change (styles are cosmetic and local) and stay inside R-ART-003 (original designs, plain historical unit names checked against the deny list). |

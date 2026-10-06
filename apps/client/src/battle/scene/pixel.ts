@@ -26,6 +26,12 @@ export const M = {
 } as const;
 export type Material = (typeof M)[keyof typeof M];
 
+const DEFAULT_SHADE_PAIRS: readonly (readonly [number, number, number])[] = [
+  [M.BASE, M.LIGHT, M.SHADE],
+  [M.ACC, M.ACC_LT, M.ACC_SH],
+  [M.GOLD, M.GOLD, M.GOLD_SH],
+];
+
 /** 16 entries (index 0 = transparent), each 0xRRGGBB. One GBA-style 16-colour sprite palette. */
 export type Palette = readonly number[];
 
@@ -231,16 +237,12 @@ export class PixelGrid {
   /**
    * Rim lighting from the top-left: body, accent and gold pixels on the silhouette's upper edge
    * get the light variant, those near the lower-right edge the shade variant (2 px at the bottom).
+   * `pairs` lists [base, light, shade] material triples (default: the M materials).
    */
-  shade(): this {
+  shade(pairs: readonly (readonly [number, number, number])[] = DEFAULT_SHADE_PAIRS): this {
     const src = this.px.slice();
     const at = (x: number, y: number) =>
       x < 0 || y < 0 || x >= this.w || y >= this.h ? M.EMPTY : (src[y * this.w + x] ?? M.EMPTY);
-    const pairs: [number, number, number][] = [
-      [M.BASE, M.LIGHT, M.SHADE],
-      [M.ACC, M.ACC_LT, M.ACC_SH],
-      [M.GOLD, M.GOLD, M.GOLD_SH],
-    ];
     for (let y = 0; y < this.h; y++) {
       for (let x = 0; x < this.w; x++) {
         const v = at(x, y);
@@ -252,7 +254,7 @@ export class PixelGrid {
         } else if (
           at(x, y + 1) === M.EMPTY ||
           at(x + 1, y) === M.EMPTY ||
-          (at(x, y + 2) === M.EMPTY && v !== M.GOLD)
+          (at(x, y + 2) === M.EMPTY && lt !== v)
         ) {
           this.set(x, y, sh);
         }

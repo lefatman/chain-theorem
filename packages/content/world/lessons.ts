@@ -22,7 +22,7 @@ export const LESSONS: readonly LessonDef[] = [
     topic: 'movement',
     skippable: true,
     intro: [
-      'Welcome! Every battle here is played on a chessboard, and your creatures move like chess pieces. Let us learn how each one moves.',
+      'Welcome! Every battle here is played on a chessboard, and your soldiers move like chess pieces. Let us learn how each one moves.',
       'In each puzzle, make one move that captures the enemy piece. Tap your piece, then tap where it should go. A wrong move is fine: you will get a hint.',
       'Already know chess? You may skip this lesson.',
     ],

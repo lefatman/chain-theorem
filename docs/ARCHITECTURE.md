@@ -884,7 +884,7 @@ connections per invocation, and Hyperdrive does the real pooling. Repositories n
 
 ## 8. Client (`apps/client`)
 
-- `src/battle/`: Phaser `BoardScene` (procedural creature silhouettes per piece type, glyph badges,
+- `src/battle/`: Phaser `BoardScene` (procedural army units: silhouettes per piece type in four styles, glyph badges,
   element rings and tints, burning-square overlay with counters, check pulse, ability pips, Classic
   View), `BattleController` (local engine or online socket), animation queue with fast mode and
   reduced motion.

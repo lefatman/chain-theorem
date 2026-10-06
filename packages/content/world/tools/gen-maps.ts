@@ -197,7 +197,7 @@ const ACADEMY_TOWN: ZoneLayout = {
       type: 'sign',
       x: 13,
       y: 4,
-      text: 'North: Knight’s Way. Tall grass grows on both sides of the road; stay on the path to walk past wild creatures.',
+      text: 'North: Knight’s Way. Tall grass grows on both sides of the road; stay on the path to walk past wild challengers.',
     },
     {
       type: 'sign',
@@ -285,7 +285,7 @@ const ROUTE_1: ZoneLayout = {
       type: 'sign',
       x: 9,
       y: 8,
-      text: 'Tall grass on both sides! Wild creatures only appear in the grass: stay on the road to pass by, step in when you want a battle.',
+      text: 'Tall grass on both sides! Wild challengers only appear in the grass: stay on the road to pass by, step in when you want a battle.',
     },
     {
       type: 'sign',
@@ -350,13 +350,13 @@ const THISTLE_MEADOW: ZoneLayout = {
       type: 'sign',
       x: 13,
       y: 22,
-      text: 'Thistle Meadow. The grass here is thick with wild creatures. Paths ring every field, so you choose when to battle.',
+      text: 'Thistle Meadow. The grass here is thick with wild challengers. Paths ring every field, so you choose when to battle.',
     },
     {
       type: 'sign',
       x: 1,
       y: 9,
-      text: 'West: Highcairn Pass. Storm, Stone and Frost creatures live on its slopes; the trainers there will show you how they fight.',
+      text: 'West: Highcairn Pass. Storm, Stone and Frost fighters live on its slopes; the trainers there will show you how they fight.',
     },
     { type: 'area', name: 'meadow_heart', x: 14, y: 10, w: 4, h: 3 },
   ],

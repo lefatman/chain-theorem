@@ -68,7 +68,7 @@ export const QUESTS: readonly QuestDef[] = [
       { kind: 'defeat', npc: 'trainer_pell', text: 'Defeat Trainer Pell on Knight’s Way.' },
       {
         kind: 'win',
-        text: 'Step into the tall grass and win a battle against a wild creature.',
+        text: 'Step into the tall grass and win a battle against a wild challenger.',
         constraint: { wild: true, tier: 'wild', format: 'first_blood' },
       },
       { kind: 'talk', npc: 'gatekeeper_tomas', text: 'Tell Gatekeeper Tomas how it went.' },
@@ -182,7 +182,7 @@ export const KEY_ITEMS: readonly KeyItemDef[] = [
   {
     id: 'hush_candle',
     name: 'Hush Candle',
-    text: 'A candle with a soft blue flame, given to every Chess Academy graduate. Wild creatures keep their distance from its light: wild encounters happen half as often while you carry it. It never uses an item slot.',
+    text: 'A candle with a soft blue flame, given to every Chess Academy graduate. Wild challengers keep their distance from its light: wild encounters happen half as often while you carry it. It never uses an item slot.',
     // PLAYTEST (10.2): multiplies every zone's encounter rate.
     encounterRate: 0.5,
   },

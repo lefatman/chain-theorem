@@ -24,16 +24,17 @@
 import Phaser from 'phaser';
 import type { PublicPiece, PublicState, Side } from '@chain-theorem/rules';
 import type { BattleSnapshot, BattleUpdate } from '../controller.ts';
+import type { ArmyStyle } from './army.ts';
 import {
   ART_SCALE,
   artStats,
   badgeFrame,
   BOARD_KEY,
-  creatureFrameName,
-  creatureScale,
+  unitFrameName,
+  unitScale,
   ELEMENT_COLORS,
   ensureClassicTexture,
-  ensureCreatureTexture,
+  ensureUnitTexture,
   ensureUiTextures,
   fontFrame,
   iconFrame,
@@ -59,6 +60,8 @@ export interface Highlights {
 export interface BoardSceneHost {
   onSquare(square: number): void;
   classicView(): boolean;
+  /** The army style each side wears (army.ts); cosmetic, chosen per client. */
+  armyStyle(side: Side): ArmyStyle;
   /** Base animation duration in ms; 0 = reduced motion (no animation, no idle motion). */
   animationMs(): number;
   /** Pointer moved onto a square (or off the board: null), for hover previews. */
@@ -74,7 +77,7 @@ interface PieceView {
   side: Side;
   root: Phaser.GameObjects.Container;
   body: Phaser.GameObjects.Image;
-  /** Creature facing, or null in Classic View. */
+  /** Unit facing, or null in Classic View. */
   facing: 'front' | 'back' | null;
   fainted: boolean;
 }
@@ -111,7 +114,7 @@ interface HotFootView {
 
 /** Piece layout inside a square (game pixels relative to the square centre). */
 const RING_Y = 20;
-const BODY_BOTTOM = 24;
+const BODY_BOTTOM = 26;
 const ICON_X = 19;
 const ICON_Y = 20;
 const PIP_X0 = -16;
@@ -393,11 +396,12 @@ export class BoardScene extends Phaser.Scene {
     } else {
       facing = p.side === viewer ? 'back' : 'front';
       root.add(this.add.image(0, RING_Y, UI, ringFrame(p.side, p.element)).setScale(ART_SCALE));
-      const key = ensureCreatureTexture(this, p.type, p.element);
+      const style = this.host?.armyStyle(p.side) ?? 'medieval';
+      const key = ensureUnitTexture(this, style, p.type, p.side, p.element);
       body = this.add
-        .image(0, BODY_BOTTOM, key, creatureFrameName(facing, 'idle0'))
+        .image(0, BODY_BOTTOM, key, unitFrameName(facing, 'idle0'))
         .setOrigin(0.5, 1)
-        .setScale(creatureScale(p.type, p.element));
+        .setScale(unitScale(style, p.type, p.side, p.element));
       root.add(body);
       root.add(this.add.image(ICON_X, ICON_Y, UI, iconFrame(p.element)).setScale(ART_SCALE));
       root.add(
@@ -641,7 +645,7 @@ export class BoardScene extends Phaser.Scene {
     this.host?.onHover?.(sq);
   }
 
-  /** 2-frame idle for creatures and flame flicker; frozen when motion is reduced. */
+  /** 2-frame idle for units and flame flicker; frozen when motion is reduced. */
   private idleTick(redrawOnly = false): void {
     const moving = this.motion();
     if (!redrawOnly) {
@@ -654,7 +658,7 @@ export class BoardScene extends Phaser.Scene {
     for (const v of this.pieces.values()) {
       if (!v.facing || v.fainted) continue;
       const phase = moving ? (v.id % 2) ^ this.idlePhase : 0;
-      v.body.setFrame(creatureFrameName(v.facing, phase ? 'idle1' : 'idle0'), false, false);
+      v.body.setFrame(unitFrameName(v.facing, phase ? 'idle1' : 'idle0'), false, false);
     }
     for (const b of this.burns.values())
       b.flame.setFrame(moving && this.idlePhase ? 'flame-1' : 'flame-0', false, false);
@@ -767,7 +771,7 @@ export class BoardScene extends Phaser.Scene {
             const v = this.pieces.get(st.piece);
             if (!v) return;
             v.fainted = true;
-            if (v.facing) v.body.setFrame(creatureFrameName(v.facing, 'faint'), false, false);
+            if (v.facing) v.body.setFrame(unitFrameName(v.facing, 'faint'), false, false);
             this.pieceLayer?.bringToTop(v.root);
           },
           apply: (t) => {
@@ -825,9 +829,10 @@ export class BoardScene extends Phaser.Scene {
             const v = this.pieces.get(st.piece);
             if (!v) return;
             if (v.facing) {
-              const key = ensureCreatureTexture(this, st.type, st.element);
-              v.body.setTexture(key, creatureFrameName(v.facing, 'idle0'));
-              v.body.setScale(creatureScale(st.type, st.element));
+              const style = this.host?.armyStyle(v.side) ?? 'medieval';
+              const key = ensureUnitTexture(this, style, st.type, v.side, st.element);
+              v.body.setTexture(key, unitFrameName(v.facing, 'idle0'));
+              v.body.setScale(unitScale(style, st.type, v.side, st.element));
             } else {
               v.body.setTexture(ensureClassicTexture(this, st.type, v.side));
             }

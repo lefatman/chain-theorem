@@ -17,6 +17,7 @@ import {
   type Side,
 } from '@chain-theorem/rules';
 import { settings } from '../state/settings.ts';
+import { armyStylesFor } from './scene/army.ts';
 import { Clocks } from '../ui/Clocks.tsx';
 import { EventLog } from '../ui/EventLog.tsx';
 import { CategoryTag, ElementBadge, PieceGlyph } from '../ui/bits.tsx';
@@ -90,6 +91,8 @@ export function SpectatorView({
             setInspect(id >= 0 ? sq : null);
           },
           classicView: () => settings.value.classicView,
+          armyStyle: (side) =>
+            armyStylesFor(settings.value.armyStyle, controller.snapshot.value.names, [])[side],
           animationMs,
           fastMode: () => settings.value.fastMode,
           textScale: () => settings.value.textScale,
@@ -113,6 +116,7 @@ export function SpectatorView({
   useSignalEffect(() => {
     const s = controller.snapshot.value;
     void settings.value.classicView;
+    void settings.value.armyStyle;
     board.current?.scene.setSnapshot(s);
   });
 

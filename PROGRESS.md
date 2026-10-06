@@ -11,7 +11,10 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   of the release checklist (17.3) is human-only: balance sign-off and the review of section 18.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
-  know), Storm, Stone and Frost with 12 abilities, 2 items, 18 creatures and Highcairn Pass.
+  know), Storm, Stone and Frost with 12 abilities, 2 items and Highcairn Pass.
+- Post-release art pass (designer direction, DD-96): the battle pieces are human soldiers in four
+  army styles (Roman, medieval, Arab, samurai) at 32 px; the owner shows in the armour colour, the
+  element in the accents and an emblem. Army style is a setting; the opponent's style always differs.
 - Open for the designer: balance targets partly missed (`docs/BALANCE_M7.md` section 5, five
   questions), Playtest Gate 1 questions, review of spec section 18 (DD-01..DD-95; DD-10 onwards each
   have a record in `docs/decisions/`).
@@ -131,6 +134,11 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-10-06 Art: human armies (DD-96). `pnpm check` 1,469 unit tests (art: silhouettes by type
+  across styles, front/back faces, owner brightness, emblems per element under colour-vision
+  simulations, badge corner clear), `req:coverage` 83/83; `pnpm test:e2e` 19/19; `pnpm format:check`
+  clean; board screenshots at 1280x800 and 390x844 with each side in a different style.
 
 - 2026-09-25 Release: CI run 54 on `fb97bb1` green on all 8 jobs (check, perft, quick fuzz, SQLite,
   PostgreSQL, Durable Objects, Playwright local and online, and load, first win and both tournament

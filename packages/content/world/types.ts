@@ -115,7 +115,7 @@ export interface EncounterEntry {
   weight: number;
   /** Wild NPC level range, inclusive (clamped to the player's level ± 2 by the server). */
   levels: [number, number];
-  /** Element of the wild creature army; omitted = any enabled element. */
+  /** Element of the wild challenger's army; omitted = any enabled element. */
   element?: ElementId;
   /** Display name, e.g. "Wild Blazelope". */
   name: string;
