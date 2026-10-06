@@ -1,9 +1,11 @@
 /**
  * Procedural overworld trainers (M5, spec 10.1 and 11.1, R-ART-001, R-ART-003): original chibi
- * characters for players and NPCs, 16x20 pixels, four directions with a 2-frame walk. The four
- * directions have distinct outlines (front: hands at the sides; back: a satchel covering the arms;
- * sides: a profile with the satchel behind), so facing reads without colour. Looks vary by head style
- * (knit cap, spiky hair, tail, headband), hair, skin and clothes; NPCs wear their element's colour.
+ * characters for players and NPCs in handheld-era proportions (a large head with big highlighted
+ * eyes, a short body), 17x26 pixels, four directions with a 3-frame walk (stand, left step, right
+ * step, played stand-left-stand-right). The four directions have distinct outlines (front: hands
+ * at the sides; back: a satchel across the shoulders; sides: a profile with the satchel behind), so
+ * facing reads without colour. Looks vary by head style (knit cap, spiky hair, ponytail, headband),
+ * hair, skin and clothes; NPCs wear their element's colour.
  *
  * Also the small world marks: the battling marker (a speech bubble holding a chessboard), the
  * selection brackets, a ground shadow and the challenge-zone hatch. Pure: no DOM, no Phaser.
@@ -13,23 +15,29 @@ import type { Dir } from '@chain-theorem/protocol';
 import { elementTone } from '../battle/scene/palette.ts';
 import { gba, mix, PixelGrid, type Palette } from '../battle/scene/pixel.ts';
 
-export const TRAINER_W = 16;
-export const TRAINER_H = 20;
+export const TRAINER_W = 17;
+export const TRAINER_H = 26;
 
-/** Frame order in a trainer sheet: direction x (stand, stride). */
-export const TRAINER_FRAMES: readonly { dir: Dir; frame: 0 | 1 }[] = [
-  { dir: 's', frame: 0 },
-  { dir: 's', frame: 1 },
-  { dir: 'n', frame: 0 },
-  { dir: 'n', frame: 1 },
-  { dir: 'e', frame: 0 },
-  { dir: 'e', frame: 1 },
-  { dir: 'w', frame: 0 },
-  { dir: 'w', frame: 1 },
-];
+/** Walk frames: standing, the left foot forward, the right foot forward. */
+export type WalkFrame = 0 | 1 | 2;
+export const WALK_FRAMES: readonly WalkFrame[] = [0, 1, 2];
 
-export function trainerFrameIndex(dir: Dir, frame: 0 | 1): number {
+/** Frame order in a trainer sheet: direction x (stand, left step, right step). */
+export const TRAINER_FRAMES: readonly { dir: Dir; frame: WalkFrame }[] = (
+  ['s', 'n', 'e', 'w'] as const
+).flatMap((dir) => WALK_FRAMES.map((frame) => ({ dir, frame })));
+
+export function trainerFrameIndex(dir: Dir, frame: WalkFrame): number {
   return TRAINER_FRAMES.findIndex((f) => f.dir === dir && f.frame === frame);
+}
+
+/**
+ * The walk frame to show `t` of the way through a step (0..1): a stride on the first part of
+ * each step, alternating feet by step parity, then the standing pose.
+ */
+export function walkFrame(t: number, steps: number): WalkFrame {
+  if (!(t >= 0 && t < 0.6)) return 0;
+  return steps % 2 === 0 ? 1 : 2;
 }
 
 /** Materials (palette indices). */
@@ -53,10 +61,10 @@ const T = {
 } as const;
 
 export type HeadStyle = 0 | 1 | 2 | 3;
-export const HEAD_STYLES = ['knit cap', 'spiky hair', 'tail', 'headband'] as const;
+export const HEAD_STYLES = ['knit cap', 'spiky hair', 'ponytail', 'headband'] as const;
 
 export interface TrainerLook {
-  /** 0 knit cap, 1 spiky hair, 2 tail, 3 headband. */
+  /** 0 knit cap, 1 spiky hair, 2 ponytail, 3 headband. */
   style: HeadStyle;
   hair: number;
   skin: number;
@@ -141,132 +149,173 @@ export function trainerPalette(l: TrainerLook): Palette {
 
 // ---- drawing -------------------------------------------------------------------------------------
 
-type Rows = readonly (readonly [number, number, number])[];
+type View = 'front' | 'back' | 'side';
 
-/** Head outline rows [y, x0, x1] for the front/back view and for the east-facing profile. */
-const HEAD_FRONT: Rows = [
-  [2, 5, 10],
-  [3, 4, 11],
-  [4, 3, 12],
-  [5, 3, 12],
-  [6, 3, 12],
-  [7, 3, 12],
-  [8, 3, 12],
-  [9, 4, 11],
-  [10, 5, 10],
-];
-const HEAD_SIDE: Rows = [
-  [2, 6, 10],
-  [3, 5, 11],
-  [4, 4, 12],
-  [5, 4, 12],
-  [6, 4, 12],
-  [7, 4, 12],
-  [8, 4, 12],
-  [9, 5, 11],
-  [10, 6, 10],
-];
-
-function rows(g: PixelGrid, r: Rows, m: number, pred?: (x: number, y: number) => boolean): void {
-  for (const [y, x0, x1] of r)
-    for (let x = x0; x <= x1; x++) if (!pred || pred(x, y)) g.set(x, y, m);
-}
+/** The figure's axis is column 8 (pixel centre 8.5); the head spans columns 2..14. */
+const CX = 8.5;
+/** Rows of the shoulders, the hands, the hips and the shoe soles. */
+const SHOULDER = 15;
+const HAND = 21;
+const HIP = 21;
+const SOLE = 25;
 
 /** Set single pixels: pts are [x, y] pairs. */
 function dots(g: PixelGrid, m: number, ...pts: (readonly [number, number])[]): void {
   for (const [x, y] of pts) g.set(x, y, m);
 }
 
-function headStyle(g: PixelGrid, style: HeadStyle, view: 'front' | 'back' | 'side'): void {
-  const head = view === 'side' ? HEAD_SIDE : HEAD_FRONT;
+/** Paint `m` onto every pixel of the head area (rows top..bottom) that already holds skin or hair. */
+function capRows(g: PixelGrid, top: number, bottom: number, m: number): void {
+  for (let y = top; y <= bottom; y++)
+    for (let x = 0; x < g.w; x++) g.paintOnto(x, y, m, [T.SKIN, T.SKIN_SH, T.HAIR, T.HAIR_SH]);
+}
+
+/** A round head: hair over the top, skin from the brow down (none for the back view). */
+function head(g: PixelGrid, view: View): void {
+  const rx = view === 'side' ? 6 : 6.5;
+  g.ellipse(CX, 9, rx, 5.6, view === 'back' ? T.HAIR : T.SKIN);
+  if (view === 'back') {
+    // The hair darkens toward the nape.
+    for (let y = 12; y <= 14; y++)
+      for (let x = 0; x < g.w; x++) g.paintOnto(x, y, T.HAIR_SH, [T.HAIR]);
+    return;
+  }
+  // Hair covers the top of the head and frames the face.
+  capRows(g, 3, 6, T.HAIR);
+  if (view === 'side') {
+    for (let y = 7; y <= 12; y++) for (let x = 2; x <= 7; x++) g.paintOnto(x, y, T.HAIR, [T.SKIN]);
+    for (let y = 11; y <= 13; y++)
+      for (let x = 2; x <= 6; x++) g.paintOnto(x, y, T.HAIR_SH, [T.HAIR]);
+  } else {
+    for (let y = 7; y <= 10; y++) {
+      g.paintOnto(2, y, T.HAIR, [T.SKIN]);
+      g.paintOnto(3, y, T.HAIR, [T.SKIN]);
+      g.paintOnto(13, y, T.HAIR, [T.SKIN]);
+      g.paintOnto(14, y, T.HAIR, [T.SKIN]);
+    }
+  }
+  // A jaw shade.
+  for (let x = 0; x < g.w; x++) g.paintOnto(x, 14, T.SKIN_SH, [T.SKIN]);
+}
+
+/** Big eyes with a highlight, and a small mouth. */
+function face(g: PixelGrid, view: View): void {
+  if (view === 'front') {
+    g.rect(5, 8, 2, 3, T.EYE).rect(10, 8, 2, 3, T.EYE);
+    dots(g, T.WHITE, [5, 8], [10, 8]);
+    g.set(8, 12, T.SKIN_SH);
+  } else {
+    g.rect(11, 8, 2, 3, T.EYE);
+    g.set(11, 8, T.WHITE);
+    g.set(14, 10, T.SKIN);
+    g.set(13, 12, T.SKIN_SH);
+  }
+}
+
+function headStyle(g: PixelGrid, style: HeadStyle, view: View): void {
   switch (style) {
     case 0: // knit cap with a pom
-      rows(g, head, T.HAT, (_x, y) => y <= 4);
-      rows(g, head, T.HAT_SH, (_x, y) => y === 4);
-      dots(g, T.HAT, [7, 1], [8, 1]);
+      capRows(g, 3, 6, T.HAT);
+      capRows(g, 6, 6, T.HAT_SH);
+      g.rect(7, 1, 3, 2, T.HAT);
       break;
     case 1: // spiky hair
-      if (view === 'side') dots(g, T.HAIR, [6, 1], [8, 1], [10, 1]);
-      else dots(g, T.HAIR, [5, 1], [8, 1], [10, 1]);
+      if (view === 'side') dots(g, T.HAIR, [4, 2], [7, 1], [10, 1], [12, 2], [6, 1], [11, 1]);
+      else dots(g, T.HAIR, [3, 2], [6, 1], [8, 1], [10, 1], [13, 2], [7, 2], [9, 2]);
       break;
-    case 2: // a tail at the back
-      if (view === 'back') g.rect(7, 10, 2, 3, T.HAIR).set(7, 12, T.HAIR_SH);
-      if (view === 'side') g.rect(2, 5, 2, 4, T.HAIR).set(2, 8, T.HAIR_SH);
+    case 2: // a ponytail at the back
+      if (view === 'back') g.rect(7, 13, 3, 7, T.HAIR).rect(7, 18, 3, 2, T.HAIR_SH);
+      if (view === 'side') g.rect(1, 8, 2, 7, T.HAIR).rect(1, 13, 2, 2, T.HAIR_SH);
+      g.rect(7, 2, 3, 1, T.HAIR);
       break;
     case 3: // headband
-      rows(g, head, T.HAT, (_x, y) => y === 4);
-      dots(g, T.HAIR, [7, 1], [8, 1]);
+      capRows(g, 6, 6, T.HAT);
+      dots(g, T.HAIR, [7, 2], [8, 2], [9, 2]);
       break;
   }
 }
 
-function legs(g: PixelGrid, view: 'front' | 'back' | 'side', frame: 0 | 1): void {
+/** Legs and shoes under the hips; a stepping foot lifts by one row. */
+function legs(g: PixelGrid, view: View, frame: WalkFrame): void {
   if (view === 'side') {
     if (frame === 0) {
-      g.rect(6, 16, 4, 2, T.PANTS).rect(6, 18, 5, 1, T.SHOE);
+      g.rect(6, HIP, 5, 3, T.PANTS).rect(6, SOLE - 1, 6, 2, T.SHOE);
+      return;
+    }
+    // One foot forward and one behind; the rear foot lifts on the left step, the front foot on
+    // the right step.
+    if (frame === 1) {
+      g.rect(9, HIP, 3, 3, T.PANTS).rect(9, SOLE - 1, 4, 2, T.SHOE);
+      g.rect(5, HIP, 3, 2, T.PANTS).rect(4, SOLE - 2, 4, 2, T.SHOE);
     } else {
-      g.rect(5, 16, 2, 2, T.PANTS).rect(4, 18, 3, 1, T.SHOE);
-      g.rect(9, 16, 2, 2, T.PANTS).rect(9, 18, 3, 1, T.SHOE);
+      g.rect(5, HIP, 3, 3, T.PANTS).rect(4, SOLE - 1, 4, 2, T.SHOE);
+      g.rect(9, HIP, 3, 2, T.PANTS).rect(10, SOLE - 2, 4, 2, T.SHOE);
     }
     return;
   }
-  // Front and back: the stride lifts one leg (left seen from the front, right from behind).
-  const lifted = frame === 1 ? (view === 'front' ? 5 : 9) : -1;
+  // Front and back: the stepping leg (left seen from the front, right from behind) lifts.
+  const lifted = frame === 0 ? -1 : (frame === 1) === (view === 'front') ? 5 : 9;
   for (const x of [5, 9]) {
-    if (x === lifted) g.rect(x, 16, 2, 1, T.PANTS).rect(x, 17, 2, 1, T.SHOE);
-    else g.rect(x, 16, 2, 2, T.PANTS).rect(x, 18, 2, 1, T.SHOE);
+    if (x === lifted) g.rect(x, HIP, 3, 2, T.PANTS).rect(x - 1, SOLE - 2, 4, 2, T.SHOE);
+    else g.rect(x, HIP, 3, 3, T.PANTS).rect(x - 1, SOLE - 1, 4, 2, T.SHOE);
   }
 }
 
-function front(g: PixelGrid, style: HeadStyle, frame: 0 | 1): void {
-  rows(g, HEAD_FRONT, T.SKIN);
-  rows(g, HEAD_FRONT, T.HAIR, (x, y) => y <= 4 || ((y === 5 || y === 6) && (x <= 4 || x >= 11)));
-  dots(g, T.HAIR, [9, 5], [10, 5], [5, 5]);
-  g.rect(5, 6, 1, 2, T.EYE).rect(10, 6, 1, 2, T.EYE);
-  dots(g, T.SKIN_SH, [4, 8], [11, 8]);
-  g.rect(6, 10, 4, 1, T.SKIN_SH);
-  // Body, scarf and arms with hands at the sides.
-  g.rect(4, 11, 8, 5, T.TOP).rect(4, 11, 1, 4, T.TOP_LT).rect(11, 11, 1, 5, T.TOP_SH);
-  g.rect(4, 15, 8, 1, T.TOP_SH).rect(7, 12, 2, 3, T.TOP_SH);
-  g.rect(5, 11, 6, 1, T.HAT);
-  g.rect(3, 11, 1, 4, T.TOP).rect(12, 11, 1, 4, T.TOP_SH);
-  g.set(3, 15, T.SKIN);
-  g.set(12, 15, T.SKIN_SH);
+/** Torso, collar and arms; arms swing with the stride. */
+function body(g: PixelGrid, view: View, frame: WalkFrame): void {
+  if (view === 'side') {
+    g.rect(5, SHOULDER, 7, 6, T.TOP).rect(11, SHOULDER, 1, 6, T.TOP_SH);
+    g.rect(5, HAND - 1, 7, 1, T.TOP_SH);
+    g.rect(6, SHOULDER, 5, 1, T.HAT);
+    // The satchel behind, then the near arm swinging forward or back.
+    g.rect(3, SHOULDER + 1, 2, 4, T.BAG).set(3, SHOULDER + 4, T.HAIR_SH);
+    const swing = frame === 0 ? 0 : frame === 1 ? 2 : -2;
+    g.rect(7 + swing, SHOULDER + 1, 2, 4, T.TOP_SH).rect(7 + swing, HAND - 1, 2, 1, T.SKIN);
+    return;
+  }
+  g.rect(4, SHOULDER, 9, 6, T.TOP).rect(3, SHOULDER, 11, 2, T.TOP);
+  g.rect(4, SHOULDER + 1, 1, 4, T.TOP_LT).rect(12, SHOULDER + 1, 1, 5, T.TOP_SH);
+  g.rect(4, HAND - 1, 9, 1, T.TOP_SH);
+  if (view === 'front') {
+    g.rect(5, SHOULDER, 7, 1, T.HAT);
+    g.rect(7, SHOULDER + 1, 3, 3, T.TOP_SH);
+  } else {
+    // A satchel slung across the back, wider than the shoulders.
+    g.rect(1, SHOULDER + 1, 15, 3, T.BAG).rect(2, SHOULDER + 1, 13, 1, T.TOP_SH);
+    g.set(14, SHOULDER + 2, T.HAIR_SH);
+  }
+  // Arms: the arm on the stepping side swings back (shorter), the other forward (longer).
+  const left = frame === 0 ? 0 : (frame === 1) === (view === 'front') ? -1 : 1;
+  g.rect(2, SHOULDER + 1, 2, 4 + left, T.TOP).rect(2, HAND + left, 2, 1, T.SKIN);
+  g.rect(13, SHOULDER + 1, 2, 4 - left, T.TOP_SH).rect(13, HAND - left, 2, 1, T.SKIN_SH);
+}
+
+function front(g: PixelGrid, style: HeadStyle, frame: WalkFrame): void {
   legs(g, 'front', frame);
+  body(g, 'front', frame);
+  head(g, 'front');
+  face(g, 'front');
   headStyle(g, style, 'front');
 }
 
-function back(g: PixelGrid, style: HeadStyle, frame: 0 | 1): void {
-  rows(g, HEAD_FRONT, T.HAIR);
-  rows(g, HEAD_FRONT, T.HAIR_SH, (x, y) => y >= 9 || x === 12);
-  g.rect(6, 10, 4, 1, T.SKIN_SH);
-  // Body with a satchel that covers the arms (no hands from behind).
-  g.rect(4, 11, 8, 5, T.TOP).rect(4, 15, 8, 1, T.TOP_SH);
-  g.rect(3, 11, 10, 4, T.BAG).rect(3, 11, 10, 1, T.TOP_SH).rect(12, 12, 1, 3, T.HAIR_SH);
-  g.rect(6, 12, 4, 1, T.HAT);
+function back(g: PixelGrid, style: HeadStyle, frame: WalkFrame): void {
   legs(g, 'back', frame);
+  body(g, 'back', frame);
+  head(g, 'back');
   headStyle(g, style, 'back');
 }
 
 /** The east-facing profile (west is its mirror image). */
-function side(g: PixelGrid, style: HeadStyle, frame: 0 | 1): void {
-  rows(g, HEAD_SIDE, T.SKIN);
-  rows(g, HEAD_SIDE, T.HAIR, (x, y) => y <= 4 || x <= 8);
-  rows(g, HEAD_SIDE, T.HAIR_SH, (x, y) => y >= 8 && x <= 7);
-  dots(g, T.SKIN, [8, 7], [13, 7]);
-  g.set(12, 8, T.SKIN_SH);
-  g.rect(11, 6, 1, 2, T.EYE);
-  // Body, scarf, the near arm and the satchel behind.
-  g.rect(5, 11, 6, 5, T.TOP).rect(10, 11, 1, 5, T.TOP_SH).rect(5, 15, 6, 1, T.TOP_SH);
-  g.rect(6, 11, 5, 1, T.HAT);
-  g.rect(7, 12, 2, 3, T.TOP_SH).set(8, 15, T.SKIN);
-  g.rect(3, 11, 2, 4, T.BAG).set(3, 14, T.HAIR_SH);
+function side(g: PixelGrid, style: HeadStyle, frame: WalkFrame): void {
   legs(g, 'side', frame);
+  body(g, 'side', frame);
+  head(g, 'side');
+  face(g, 'side');
   headStyle(g, style, 'side');
 }
 
 /** One frame (material grid) of a trainer. */
-export function trainerGrid(style: HeadStyle, dir: Dir, frame: 0 | 1): PixelGrid {
+export function trainerGrid(style: HeadStyle, dir: Dir, frame: WalkFrame): PixelGrid {
   const g = new PixelGrid(TRAINER_W, TRAINER_H);
   if (dir === 's') front(g, style, frame);
   else if (dir === 'n') back(g, style, frame);
@@ -276,10 +325,10 @@ export function trainerGrid(style: HeadStyle, dir: Dir, frame: 0 | 1): PixelGrid
   return g;
 }
 
-/** RGBA pixels of a whole trainer sheet (8 frames in one row, TRAINER_FRAMES order). */
+/** RGBA pixels of a whole trainer sheet (12 frames in one row, TRAINER_FRAMES order). */
 export function trainerSheet(look: TrainerLook): Uint8ClampedArray<ArrayBuffer> {
   const w = TRAINER_W * TRAINER_FRAMES.length;
-  const out = new Uint8ClampedArray(w * TRAINER_H * 4);
+  const out = new Uint8ClampedArray(new ArrayBuffer(w * TRAINER_H * 4));
   const pal = trainerPalette(look);
   TRAINER_FRAMES.forEach((f, i) => {
     const g = trainerGrid(look.style, f.dir, f.frame);

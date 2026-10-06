@@ -15,6 +15,7 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
 - Post-release art pass (designer direction, DD-96): the battle pieces are human soldiers in four
   army styles (Roman, medieval, Arab, samurai) at 32 px; the owner shows in the armour colour, the
   element in the accents and an emblem. Army style is a setting; the opponent's style always differs.
+  Overworld trainers redrawn at 17x26 in the same handheld-era proportions with a 3-frame walk.
 - Open for the designer: balance targets partly missed (`docs/BALANCE_M7.md` section 5, five
   questions), Playtest Gate 1 questions, review of spec section 18 (DD-01..DD-95; DD-10 onwards each
   have a record in `docs/decisions/`).
@@ -134,6 +135,12 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-10-06 Art: overworld trainers at 17x26 with a 3-frame walk (stand, left, right; alternating
+  by step parity). `pnpm check` 1,469 unit tests; `pnpm format:check` clean; `pnpm test:e2e` 19/19;
+  `docs/screenshots` refreshed from the running game (local battles with medieval, samurai and
+  Roman armies, the Academy with the new trainers). `pnpm test:e2e:online` and `pnpm measure:client`
+  on this tree: see the next entry.
 
 - 2026-10-06 Art: human armies (DD-96). `pnpm check` 1,469 unit tests (art: silhouettes by type
   across styles, front/back faces, owner brightness, emblems per element under colour-vision

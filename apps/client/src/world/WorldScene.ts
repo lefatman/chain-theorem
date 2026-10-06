@@ -2,7 +2,7 @@
  * Phaser overworld scene (M5, spec 10.1, 11.1, 12.3). Lazy-loaded with Phaser, never in the first
  * load. Draws the zone from its Tiled geometry (`kinds` per layer, procedural 16x16 tiles painted
  * in chunks), the challenge-zone overlay (hatch plus border, R-WORLD-006), players and NPCs as
- * procedural trainers (four directions, 2-frame walk) with name tags, the battling marker (10.1)
+ * procedural trainers (four directions, 3-frame walk) with name tags, the battling marker (10.1)
  * and selection brackets. The camera follows the player at an integer zoom (nearest-neighbour,
  * R-ART-001). Rendering is on demand: the loop sleeps when nothing moves and any change wakes it.
  *
@@ -26,6 +26,8 @@ import {
   shadowMark,
   trainerFrameIndex,
   trainerSheet,
+  walkFrame,
+  type WalkFrame,
   TRAINER_FRAMES,
   TRAINER_H,
   TRAINER_W,
@@ -328,7 +330,7 @@ export class WorldScene extends Phaser.Scene {
   private place(
     a: Actor,
     m: { x: number; y: number; dir: Mover['dir'] },
-    frame: 0 | 1,
+    frame: WalkFrame,
     battling: boolean,
     selected: boolean,
   ): void {
@@ -354,7 +356,7 @@ export class WorldScene extends Phaser.Scene {
       const d = drawnPos(m, now);
       if (d.moving) moving = true;
       const t = (now - m.at) / STEP_MS;
-      return { d, frame: (d.moving && t < 0.5 ? 1 : 0) as 0 | 1 };
+      return { d, frame: d.moving ? walkFrame(t, m.steps) : 0 };
     };
     for (const n of c.npcs.value) {
       const a = this.actor(`n:${n.id}`, this.host.npcLook(n.id), n.name, '#b8f0ff', true);

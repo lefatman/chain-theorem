@@ -1,5 +1,5 @@
 /**
- * Overworld art (M5, spec 10.1, 11.1, R-ART-001, R-ART-003): procedural 16x16 tiles and 16x20
+ * Overworld art (M5, spec 10.1, 11.1, R-ART-001, R-ART-003): procedural 16x16 tiles and 17x26
  * trainers are deterministic, the right size, cover every kind of the content tileset, show wild
  * grass with a visible pattern, fall back for unknown kinds, and give the four facing directions
  * distinct outlines.
@@ -27,6 +27,8 @@ import {
   TRAINER_FRAMES,
   TRAINER_H,
   TRAINER_W,
+  WALK_FRAMES,
+  walkFrame,
   type HeadStyle,
 } from './trainers.ts';
 import { worldZoom } from './view.ts';
@@ -171,17 +173,22 @@ describe('overworld tiles (R-ART-001, R-WORLD-001)', () => {
 });
 
 describe('overworld trainers (R-ART-001, R-ART-003)', () => {
-  it('R-ART-001 sheets hold 8 frames of 16x20: four directions with a 2-frame walk', () => {
-    expect(TRAINER_FRAMES).toHaveLength(8);
+  it('R-ART-001 sheets hold 12 frames of 17x26: four directions with a 3-frame walk', () => {
+    expect(TRAINER_FRAMES).toHaveLength(12);
     for (const dir of ['n', 's', 'e', 'w'] as const)
-      for (const frame of [0, 1] as const)
+      for (const frame of WALK_FRAMES)
         expect(trainerFrameIndex(dir, frame)).toBeGreaterThanOrEqual(0);
     const sheet = trainerSheet(playerLook('p1'));
-    expect(sheet).toHaveLength(TRAINER_W * 8 * TRAINER_H * 4);
+    expect(sheet).toHaveLength(TRAINER_W * 12 * TRAINER_H * 4);
     expect(trainerSheet(playerLook('p1'))).toEqual(sheet);
+    // A step plays stride, stand; successive steps alternate feet.
+    expect(walkFrame(0.2, 0)).toBe(1);
+    expect(walkFrame(0.2, 1)).toBe(2);
+    expect(walkFrame(0.8, 0)).toBe(0);
+    expect(walkFrame(-1, 0)).toBe(0);
   });
 
-  it('R-ART-001 the four directions have distinct outlines, and the walk frame moves the legs', () => {
+  it('R-ART-001 the four directions have distinct outlines, and the walk frames move the legs and arms', () => {
     for (let s = 0; s < HEAD_STYLES.length; s++) {
       const style = s as HeadStyle;
       const masks = (['n', 's', 'e', 'w'] as const).map((d) => trainerGrid(style, d, 0).mask());
@@ -190,13 +197,20 @@ describe('overworld trainers (R-ART-001, R-ART-003)', () => {
           expect(masks[i], `style ${s}: directions ${i} and ${j}`).not.toEqual(masks[j]);
       for (const d of ['n', 's', 'e', 'w'] as const) {
         const stand = trainerGrid(style, d, 0);
-        const walk = trainerGrid(style, d, 1);
-        expect(walk.w).toBe(TRAINER_W);
-        expect(walk.h).toBe(TRAINER_H);
-        expect(walk.mask(), `${d} walk frame`).not.toEqual(stand.mask());
-        // The head and body stay put: only the legs (rows 16+) change.
-        expect(walk.px.slice(0, 15 * TRAINER_W)).toEqual(stand.px.slice(0, 15 * TRAINER_W));
+        const left = trainerGrid(style, d, 1);
+        const right = trainerGrid(style, d, 2);
+        expect(left.w).toBe(TRAINER_W);
+        expect(left.h).toBe(TRAINER_H);
+        expect(left.mask(), `${d} left step`).not.toEqual(stand.mask());
+        expect(right.mask(), `${d} right step`).not.toEqual(stand.mask());
+        expect(right.mask(), `${d} steps differ`).not.toEqual(left.mask());
+        // The head stays put: only the body (arms) and the legs change.
+        expect(left.px.slice(0, 14 * TRAINER_W)).toEqual(stand.px.slice(0, 14 * TRAINER_W));
+        expect(right.px.slice(0, 14 * TRAINER_W)).toEqual(stand.px.slice(0, 14 * TRAINER_W));
       }
+      // Front sprites show eyes; back sprites never do.
+      expect([...trainerGrid(style, 's', 0).px].filter((v) => v === 11).length).toBeGreaterThan(0);
+      expect([...trainerGrid(style, 'n', 0).px].filter((v) => v === 11)).toHaveLength(0);
     }
     // West is the mirror image of east.
     const e = trainerGrid(0, 'e', 0);
