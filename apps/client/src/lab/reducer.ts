@@ -206,10 +206,11 @@ export function applyEventToPublic(
     case 'Captured': {
       const p = pieces[ev.victim];
       if (p) {
-        if (board[ev.square] === ev.victim) board[ev.square] = -1;
+        if (!ev.waiting && board[ev.square] === ev.victim) board[ev.square] = -1;
         lift(ev.victim);
         p.square = -1;
         p.type = ev.victimType;
+        delete p.spawnSquare;
       }
       clearPending((b) => b.piece !== ev.victim);
       break;
@@ -220,6 +221,27 @@ export function applyEventToPublic(
     case 'PieceRevived':
       put(ev.piece, ev.square);
       break;
+    case 'Spawned': {
+      // A twin waits off the board until its owner's next turn (DD-101).
+      const twin: PublicPiece = {
+        id: ev.piece,
+        side: ev.side,
+        type: ev.type,
+        element: ev.element,
+        square: -1,
+        start: ev.square,
+        capturedSeq: -1,
+        spawnSquare: ev.square,
+      };
+      pieces[ev.piece] = twin;
+      break;
+    }
+    case 'Emerged': {
+      const p = pieces[ev.piece];
+      if (p) delete p.spawnSquare;
+      put(ev.piece, ev.square);
+      break;
+    }
     case 'Promoted': {
       const p = pieces[ev.piece];
       if (p) {

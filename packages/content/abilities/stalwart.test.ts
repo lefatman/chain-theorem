@@ -329,7 +329,7 @@ describe('stalwart (R-ABIL-005, R-RULES-003)', () => {
     expect(abilityById.get('poisoned_meat')?.tags).toContain('venom');
   });
 
-  it('R-RULES-004 DD-102 a Stalwart pawn survives Cleave: the effect fizzles with stalwart and Stalwart is revealed on pawns', () => {
+  it('R-RULES-004 DD-102 a Stalwart pawn survives Cleave: the effect fizzles with stalwart_guard and Stalwart is revealed on pawns', () => {
     // The white knight (Cleave) takes the knight d5; the Stalwart pawn e6 is diagonal to d5.
     const r = scenario({
       fen: '4k3/8/4p3/3n4/8/2N5/8/4K3 w - - 0 1',
@@ -341,7 +341,7 @@ describe('stalwart (R-ABIL-005, R-RULES-003)', () => {
     expect(eventsOf(r.events, 'EffectFizzled')).toEqual([
       expect.objectContaining({
         ability: 'cleave',
-        reason: 'stalwart',
+        reason: 'stalwart_guard',
         source: { kind: 'ability', id: 'stalwart', piece: -1, side: 'black' },
       }),
     ]);

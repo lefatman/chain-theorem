@@ -91,7 +91,7 @@ const KEY_OUTCOME: Record<WorkedExampleId, (r: ScenarioResult) => void> = {
     ]).toEqual([[[0, 'E']], ['block_path'], false, true]),
   E14: (r) =>
     expect([fizzles(r), r.state.reveals.black.abilities.pawn, idAt(r.state, 'e6')]).toEqual([
-      ['cleave:stalwart'],
+      ['cleave:stalwart_guard'],
       ['stalwart'],
       3,
     ]),
@@ -111,10 +111,18 @@ const KEY_OUTCOME: Record<WorkedExampleId, (r: ScenarioResult) => void> = {
       idAt(r.state, 'h7'),
       r.state.usage['2:redo'],
     ]).toEqual([[[1, 2]], 'black', 1, 2, 3, 1]),
+  E17: (r) =>
+    expect([
+      eventsOf(r.events, 'Spawned').map((e) => [e.piece, e.twinOf]),
+      eventsOf(r.events, 'Emerged').map((e) => [e.piece, squareName(e.square)]),
+      idAt(r.state, 'f6'),
+      idAt(r.state, 'd5'),
+      r.state.links,
+    ]).toEqual([[[5, 1]], [[5, 'd5']], 1, 5, [{ ability: 'schrodingers_joker', members: [1, 5] }]]),
 };
 
 describe('R-TEST-001 worked examples as lab data (spec 5.5)', () => {
-  it('R-TEST-001 lists E1 to E16 once each, in order, with the spec result text', () => {
+  it('R-TEST-001 lists E1 to E17 once each, in order, with the spec result text', () => {
     expect(WORKED_EXAMPLES.map((e) => e.id)).toEqual([
       'E1',
       'E2',
@@ -132,6 +140,7 @@ describe('R-TEST-001 worked examples as lab data (spec 5.5)', () => {
       'E14',
       'E15',
       'E16',
+      'E17',
     ]);
     for (const e of WORKED_EXAMPLES) expect(e.specText.length).toBeGreaterThan(20);
   });

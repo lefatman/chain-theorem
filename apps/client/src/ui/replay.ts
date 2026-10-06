@@ -124,6 +124,11 @@ export function frameAt(
           const rook = board[rookTo] ?? -1;
           if (rook < 0 || !place(ev.piece, ev.to, ev.from) || !place(rook, rookTo, rookFrom))
             return null;
+        } else if (ev.twin && (board[ev.from] ?? -1) >= 0) {
+          // A twin that moved out from under its original: it was waiting on that square (DD-101).
+          if (!place(ev.piece, ev.to, -1)) return null;
+          const w = pieces[ev.piece];
+          if (w) w.spawnSquare = ev.from;
         } else if (!place(ev.piece, ev.to, ev.from)) return null;
         const p = pieces[ev.piece];
         if (p && p.type !== ev.pieceType) {
@@ -133,6 +138,13 @@ export function frameAt(
         break;
       }
       case 'Captured': {
+        if (ev.waiting) {
+          // A waiting twin removed with its group: it goes back to waiting, not onto the board.
+          const w = pieces[ev.victim];
+          if (!w || w.square !== -1) return null;
+          w.spawnSquare = ev.square;
+          break;
+        }
         if (!place(ev.victim, -1, ev.square)) return null;
         const p = pieces[ev.victim];
         if (p && p.type !== ev.victimType) {
@@ -147,6 +159,18 @@ export function frameAt(
       case 'PieceRevived':
         if (!place(ev.piece, ev.square, -1)) return null;
         break;
+      case 'Spawned': {
+        // Twins take the next ids, so walking backwards the spawned piece is the last one.
+        if (pieces.length - 1 !== ev.piece) return null;
+        pieces.pop();
+        break;
+      }
+      case 'Emerged': {
+        if (!place(ev.piece, ev.square, -1)) return null;
+        const p = pieces[ev.piece];
+        if (p) p.spawnSquare = ev.square;
+        break;
+      }
       case 'SquareIgnited':
         // A re-ignited square loses its earlier count here; the square itself stays exact.
         if (burns) burns = burns.filter((b) => b.sq !== ev.square);

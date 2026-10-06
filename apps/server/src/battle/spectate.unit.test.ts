@@ -209,10 +209,13 @@ describe('M7 7.2 spectating in the battle core', () => {
         white: { playerId: 'w', name: 'W', level, loadout: randomLoadout(engine, rng, level) },
         black: { playerId: 'b', name: 'B', level, loadout: randomLoadout(engine, rng, level) },
       });
-      const received: { msg: SpectatorMsg; livePly: number; ended: boolean }[] = [];
+      // The delay is counted in committed moves, which only grow; a Redo rewind sends the ply
+      // number back (DD-100), so plies cannot measure it.
+      const movesSoFar = () => core.log().filter((r) => r.input?.kind === 'move').length;
+      const received: { msg: SpectatorMsg; liveActs: number; ended: boolean }[] = [];
       const take = (out: Outbox) => {
         for (const msg of spec(out))
-          received.push({ msg, livePly: core.fullState().ply, ended: core.result !== null });
+          received.push({ msg, liveActs: movesSoFar(), ended: core.result !== null });
       };
       const created = BattleCore.create(i, T0);
       const core = created.core;
@@ -236,7 +239,7 @@ describe('M7 7.2 spectating in the battle core', () => {
         // A spectator (re)joins now and then, from a random point.
         if (rng.chance(0.1))
           for (const msg of core.spectatorHello(rng.int(core.snapshot().events + 3), 1))
-            received.push({ msg, livePly: core.fullState().ply, ended: core.result !== null });
+            received.push({ msg, liveActs: movesSoFar(), ended: core.result !== null });
       }
       if (!core.result) take(core.message('white', frame('resign', {}), t + 1));
       const log = core.log();
@@ -249,16 +252,16 @@ describe('M7 7.2 spectating in the battle core', () => {
         for (const id of hidden)
           if (raw.includes(`"${id}"`) && !spec.includes(`"${id}"`)) stripped++;
       });
-      for (const { msg, livePly, ended } of received) {
+      for (const { msg, liveActs, ended } of received) {
         frames++;
         let state = states.at(-1) as GameState;
         if (msg.t === 'sev' || msg.t === 'sstart') {
           const to = msg.t === 'sev' ? msg.d.to : msg.d.eventCount;
           const n = recordEndingAt(log, to);
           state = must(states[n], `state ${n}`);
-          const shownPly = pubOf(msg).ply;
+          const shownActs = log.slice(0, n + 1).filter((r) => r.input?.kind === 'move').length;
           if (n > 0 && !ended)
-            expect(shownPly, `seed ${seed}`).toBeLessThanOrEqual(livePly - DELAY);
+            expect(shownActs, `seed ${seed}`).toBeLessThanOrEqual(liveActs - DELAY);
         }
         // Count frames shown while some id was still unknown to one player (not a vacuous scan).
         if (spectatorHiddenIds(state).size > 0) withSecrets++;

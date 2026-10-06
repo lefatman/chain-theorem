@@ -1356,6 +1356,7 @@ const POOL = [
   'block_path',
   'electric_slide',
   'redo',
+  'schrodingers_joker',
 ] as const;
 
 const armyArb = fc.record({

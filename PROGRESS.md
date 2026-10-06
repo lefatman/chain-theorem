@@ -23,8 +23,11 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   `moveFilter.captureFilter`/`bypass`, `onActionEnd` with `ctx.choose`, loadout rule 8, the `venom`
   tag, DD-105 prompt visibility, golden E12-E14) and Phase 4 (Electric Slide: pawn leapfrog and
   slider redirects in move generation and attack detection, `moveFilter.pawnLeap`/`redirects`,
-  `ctx.attuned`; Squall neutral; golden E15) and Phase 5 (Redo: the REWIND primitive with
-  pre-action snapshots, golden E16) are done. Next: Phase 6 (Schrödinger's Joker). Balance after
+  `ctx.attuned`; Squall neutral; golden E15), Phase 5 (Redo: the REWIND primitive with pre-action
+  snapshots, golden E16) and Phase 6 (Schrödinger's Joker: SPAWN, linked fate, twin moves after the
+  normal move, behind `PLAYTEST_FLAGS.schrodingers_joker`; golden E17) are done. The eight abilities
+  of the brief are all in. Open for the designer: the 100,000-game fuzz (`pnpm test:fuzz:full`) for
+  the Joker gate (17.3), and the balance questions in `docs/BALANCE_DD98.md`. Balance after
   Phase 1: see `docs/BALANCE_DD98.md` (First Blood advantaged element 46%, Full Battle 90%: the
   silence rule now dominates long games and traits dominate short ones; the designer's levers are
   `silenceScope` and trait numbers).
@@ -148,6 +151,20 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 
 (Newest first: date, step, commands run, pass counts.)
 
+- 2026-10-06 Catalogue Phase 6 (DD-101): Schrödinger's Joker (level 20, Captures, neutral, non-king,
+  1 charge) on the new SPAWN primitive: a twin (new piece id from 32, same type/element/abilities)
+  waits on the captor's square; after the owner's normal move and chain every twin makes its own
+  declinable move (a waiting twin steps onto an empty spawn square first, or its original moves out
+  and it takes the square), each with its own chain; linked fate removes the whole group on any
+  member's capture (`linked_fate` rule source, waiting twins flagged); `TWIN_GROUP_MAX` 3 in CAPS;
+  `Spawned`/`Emerged` events, `MoveMade.twin`; Zobrist keys for ids past 31 appended so old hashes
+  stay; waiting twins and groups hashed; rewinds restore them. Client draws waiting twins, lab and
+  replay rebuild them; AI values a spawning capture. Behind `PLAYTEST_FLAGS.schrodingers_joker`
+  (on); the spectator delay now counts committed moves (DD-92 amended). `pnpm check` 1,575 unit tests (schrodingers_joker 11, examples E17); `pnpm test:fuzz` 500 games 0 failures;
+  `tsx apps/tools/src/fuzz/cli.ts --games 3000 --seed 7`: 3,000 games, 268,707 plies, replays
+  identical, 3,000 projection-scanned, no crash, max 22 events per action. The 100,000-game run
+  (`pnpm test:fuzz:full`, hours on this hardware) stays on the release checklist (17.3).
+
 - 2026-10-06 Catalogue Phase 5 (DD-100): Redo (level 15, Captured, neutral, replay, 1 charge) on
   the new REWIND primitive: the engine keeps the pre-action snapshots of the last two actions while
   a rewind ability is in play (`GameState.history`, never projected), a resolved rewind ends the
@@ -170,7 +187,7 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
   ok (31 abilities), `req:coverage` 83/83; `pnpm test:perft` 30/30; `pnpm test:fuzz` 500 games,
   replays identical, 0 failures.
 
-- 2026-10-06 Catalogue Phase 3 (DD-99, DD-102, DD-105): Obstinate (level 9) and Block Path (level 12) as neutral passives; Stalwart (version 2) on any piece: effect captures fizzle (`stalwart`)
+- 2026-10-06 Catalogue Phase 3 (DD-99, DD-102, DD-105): Obstinate (level 9) and Block Path (level 12) as neutral passives; Stalwart (version 2) on any piece: effect captures fizzle (`stalwart_guard`)
   unless the effect carries the new `venom` tag (Poisoned Meat, version 2), bypass of blocked squares
   and soft capture restrictions, loadout rule 8 (`excluded_category`, `AbilityDef.excludes`).
   Engine: `MoveRules` capture restrictions (per victim: attacker ids, hard/soft compass masks,

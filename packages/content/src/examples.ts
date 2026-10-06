@@ -27,7 +27,8 @@ export type WorkedExampleId =
   | 'E13'
   | 'E14'
   | 'E15'
-  | 'E16';
+  | 'E16'
+  | 'E17';
 
 export interface WorkedExampleVariant {
   /** Short label, e.g. 'Stalwart king'. */
@@ -285,7 +286,7 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     setupText:
       'White knight c3 (Cleave) takes the black knight d5; the black pawn e6 (Stalwart) is diagonal to d5',
     specText:
-      "Cleave's effect capture of the pawn fizzles (reason stalwart) and Stalwart is revealed on Black's pawns; no charge is spent. Poisoned Meat (venom) or a capturing move would still take the pawn.",
+      "Cleave's effect capture of the pawn fizzles (reason stalwart_guard) and Stalwart is revealed on Black's pawns; no charge is spent. Poisoned Meat (venom) or a capturing move would still take the pawn.",
     note: 'Ids: e1 K=0, c3 N=1, d5 n=2, e6 p=3, e8 k=4. No prompt: the pawn is the only target (DD-102).',
     setup: {
       fen: '4k3/8/4p3/3n4/8/2N5/8/4K3 w - - 0 1',
@@ -325,6 +326,23 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
       white: { elements: ['neutral'] },
       black: { elements: ['neutral'], abilities: ['redo'] },
       moves: ['a1d1', 'h7h6', 'd1d5'],
+    },
+  },
+  {
+    id: 'E17',
+    title: "Schr\u00f6dinger's Joker: the knight that beat a rook becomes two",
+    setupText:
+      "White knight c3 (Schr\u00f6dinger's Joker), king e1; Black rook d5, pawn h7, king e8. White c3xd5, Black h7-h6, White e1-f1 and the twin's move d5-f6",
+    specText:
+      "Rank 3 > rank 2: the capture spawns a twin that waits on d5. On White's next turn, after the king move, the owner is asked for the twin's move: the knight moves out to f6 and the twin takes d5 (two knights, one group). Capturing either later removes both.",
+    note: 'Ids: e1 K=0, c3 N=1, d5 r=2, h7 p=3, e8 k=4; the twin is piece 5. White answers the twin prompt with d5-f6 (DD-97, DD-101).',
+    setup: {
+      fen: '4k3/7p/8/3r4/8/2N5/8/4K3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'], abilities: ['schrodingers_joker'] },
+      black: { elements: ['neutral'] },
+      moves: ['c3d5', 'h7h6', 'e1f1'],
+      answers: [{ kind: 'move', from: sq('d5'), to: sq('f6') }],
     },
   },
 ];

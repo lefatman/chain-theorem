@@ -399,6 +399,7 @@ export class BoardScene extends Phaser.Scene {
     onBoard.sort((a, b) => this.squareXY(a.square).y - this.squareXY(b.square).y);
     for (const p of onBoard) this.addPiece(p, pub, viewer, classic);
     this.drawFacings(pub);
+    this.drawTwins(pub);
     this.drawCheck(pub);
     this.drawOverlay();
     this.idleTick(true);
@@ -581,6 +582,23 @@ export class BoardScene extends Phaser.Scene {
       g.closePath();
       g.fillPath();
       g.strokePath();
+      layer.add(g);
+    }
+  }
+
+  /** Twins waiting to emerge (DD-101): a ghost ring in the corner of the square they wait on. */
+  private drawTwins(pub: PublicState): void {
+    const layer = this.facingLayer;
+    if (!layer) return;
+    for (const p of pub.pieces) {
+      if (p.square >= 0 || p.spawnSquare === undefined) continue;
+      const { x, y } = this.squareXY(p.spawnSquare);
+      const g = this.add.graphics();
+      const tint = p.side === 'white' ? 0xf4f0e0 : 0x30304a;
+      g.lineStyle(2, tint, 0.95);
+      g.strokeCircle(x + TILE / 2 - 9, y + TILE / 2 - 9, 5);
+      g.lineStyle(2, p.side === 'white' ? 0x30304a : 0xf4f0e0, 0.6);
+      g.strokeCircle(x + TILE / 2 - 9, y + TILE / 2 - 9, 7);
       layer.add(g);
     }
   }

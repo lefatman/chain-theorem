@@ -764,14 +764,18 @@ export class BattleCore {
     const sp = this.s.spectate;
     if (!sp) return;
     const st = this.s.state;
+    // The delay counts committed moves (a snapshot from before this field starts from the ply).
+    sp.moves = (sp.moves ?? st.ply) + (rec.input?.kind === 'move' ? 1 : 0);
+    const moves = sp.moves;
     sp.pending.push({
       n: rec.n,
       ply: st.ply,
+      act: moves,
       public: payload(this.engine.projectSpectator(st)),
       clocks: { ...this.clocksAt(t), running: null },
     });
-    const due = (p: { n: number; ply: number }) =>
-      p.n === 0 || st.result !== null || p.ply <= st.ply - sp.delay;
+    const due = (p: { n: number; ply: number; act?: number }) =>
+      p.n === 0 || st.result !== null || (p.act ?? p.ply) <= moves - sp.delay;
     let shown = false;
     for (let next = sp.pending[0]; next && due(next); next = sp.pending[0]) {
       sp.pending.shift();

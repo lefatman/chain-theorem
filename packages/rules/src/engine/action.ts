@@ -60,6 +60,7 @@ import {
   type GameState,
   type MoveInput,
   type PieceId,
+  type PieceState,
   type PieceType,
   type RevealCause,
   type Side,
@@ -220,15 +221,15 @@ export class ActionRun extends EventHost {
     this.emit({ k: 'ActionStarted', side: this.actor, ply: s.ply, move: decodeMove(encoded) });
     this.revealStalwartIfRelaxed(encoded, this.actor);
     this.revealRestrictionsIfRelaxed(encoded, this.actor);
+    // Twins spawned during this action wait for the next turn: list the movers first (DD-101).
+    const twins = this.twinsOf(this.actor);
     try {
       this.runMove(encoded, 0, this.actor, false);
-      // Chain end (Rebirth and other deferred effects), in the order their triggers resolved.
-      while (this.chainEnd.length > 0) {
-        const d = this.chainEnd.shift() as { effects: EffectSpec[]; tc: TCtx };
-        this.depth = 0;
-        if (this.resolveEffects(d.effects, d.tc)) this.spendCharge(d.tc.trig);
-        if (this.rewind) throw new RewindSignal();
-      }
+      this.drainChainEnd();
+      // Twin groups move after the owner's normal move (DD-101), each with its own chain.
+      this.twinMoves(twins);
+      this.depth = 0;
+      this.actionEnd();
     } catch (e) {
       if (!(e instanceof RewindSignal)) throw e;
       this.depth = 0;
@@ -236,8 +237,196 @@ export class ActionRun extends EventHost {
       return;
     }
     this.depth = 0;
-    this.actionEnd();
     this.settle();
+  }
+
+  /** Chain end (Rebirth and other deferred effects), in the order their triggers resolved. */
+  private drainChainEnd(): void {
+    while (this.chainEnd.length > 0) {
+      const d = this.chainEnd.shift() as { effects: EffectSpec[]; tc: TCtx };
+      this.depth = 0;
+      if (this.resolveEffects(d.effects, d.tc)) this.spendCharge(d.tc.trig);
+      if (this.rewind) throw new RewindSignal();
+    }
+  }
+
+  // ---- twin groups (SPAWN, linked fate, extra moves; DD-101) ----------------------------------------
+
+  /**
+   * After the owner's normal move, every twin of theirs makes its own move (a declinable prompt): a
+   * twin on the board moves from where it stands; a waiting twin steps onto its spawn square when
+   * that is empty and then moves; when its original still stands there, the two are one piece in
+   * two places: the original moves out and the twin takes the square. Twins spawned during this
+   * action wait for the next turn.
+   */
+  private twinsOf(side: Side): { id: PieceId; ability: string }[] {
+    const out: { id: PieceId; ability: string }[] = [];
+    for (const g of this.s.links ?? []) {
+      for (const id of g.members.slice(1)) {
+        const p = this.s.pieces[id];
+        if (p && p.side === side && (p.square >= 0 || p.spawnSquare !== undefined))
+          out.push({ id, ability: g.ability });
+      }
+    }
+    return out;
+  }
+
+  private twinMoves(twins: readonly { id: PieceId; ability: string }[]): void {
+    const s = this.s;
+    for (const { id, ability } of twins) {
+      const p = s.pieces[id];
+      if (!p) continue;
+      if (p.square >= 0) {
+        this.extraMove(id, ability, id);
+        continue;
+      }
+      if (p.spawnSquare === undefined) continue; // removed with its group meanwhile
+      const sq = p.spawnSquare;
+      const occupant = s.board[sq] as number;
+      if (occupant < 0) {
+        this.emerge(id, sq);
+        this.extraMove(id, ability, id);
+        continue;
+      }
+      const o = s.pieces[occupant];
+      if (!o || o.side !== p.side || o.type !== p.type) continue;
+      if (this.extraMove(occupant, ability, id) && (s.board[sq] as number) < 0) this.emerge(id, sq);
+    }
+  }
+
+  private emerge(id: PieceId, sq: Square): void {
+    const p = this.s.pieces[id] as PieceState;
+    delete p.spawnSquare;
+    p.square = sq;
+    this.s.board[sq] = id;
+    this.emit({ k: 'Emerged', piece: id, side: p.side, square: sq });
+    this.pieceMoved(id, -1, sq, 'revive', false);
+  }
+
+  /** One extra move for `mover`, chosen by the actor; `subject` names the twin in the prompt. */
+  private extraMove(mover: PieceId, ability: string, subject: PieceId): boolean {
+    const s = this.s;
+    const p = s.pieces[mover];
+    if (!p || p.square < 0) return false;
+    const moves = this.legalFor(this.actor).filter((m) => mFrom(m) === p.square && !(m & F_CASTLE));
+    if (moves.length === 0) return false;
+    const options = this.moveOptions(moves, this.actor);
+    const choice = this.prompt(
+      this.actor,
+      'bonusMove',
+      options,
+      true,
+      { ability, piece: subject, side: this.actor },
+      false,
+    );
+    if (!choice || choice.kind !== 'move') return false;
+    const m = moves.find((x) => {
+      const mv = decodeMove(x);
+      return mv.from === choice.from && mv.to === choice.to && mv.promotion === choice.promotion;
+    });
+    if (m === undefined) return false;
+    this.depth = 0;
+    this.runMove(m, 0, this.actor, false, true);
+    this.drainChainEnd();
+    return true;
+  }
+
+  /** Bonus-move options in square order from the owner's side (5.4), promotions queen first. */
+  private moveOptions(moves: readonly number[], owner: Side): ChoiceOption[] {
+    const keyed = moves.map((m) => ({
+      m,
+      key: relOrder(owner, mFrom(m)) * 64 * 8 + relOrder(owner, mTo(m)) * 8 + (7 - mPromo(m)),
+    }));
+    keyed.sort((a, b) => a.key - b.key);
+    return keyed.map(({ m }) => {
+      const mv = decodeMove(m);
+      return mv.promotion
+        ? { kind: 'move', from: mv.from, to: mv.to, promotion: mv.promotion }
+        : { kind: 'move', from: mv.from, to: mv.to };
+    });
+  }
+
+  /** SPAWN (DD-101): a twin of the bearer waits on its square until the owner's next turn. */
+  private fxSpawn(tc: TCtx): boolean {
+    const s = this.s;
+    const bearer = s.pieces[tc.bearer];
+    if (!bearer || bearer.square < 0) {
+      this.fizzle(tc, 'spawn', 'no_body');
+      return false;
+    }
+    const links = s.links ?? [];
+    const gi = links.findIndex((g) => g.members.includes(bearer.id));
+    const group = gi >= 0 ? (links[gi] as { ability: string; members: PieceId[] }) : null;
+    if ((group?.members.length ?? 1) >= this.rt.caps.TWIN_GROUP_MAX) {
+      this.fizzle(tc, 'spawn', 'group_full', undefined, { kind: 'rule', id: 'twin_group' });
+      return false;
+    }
+    const id = s.pieces.length;
+    const twin: PieceState = {
+      id,
+      side: bearer.side,
+      type: bearer.type,
+      element: bearer.element,
+      square: -1,
+      start: bearer.square,
+      capturedSeq: -1,
+      spawnSquare: bearer.square,
+    };
+    s.pieces.push(twin);
+    const next = group
+      ? { ...group, members: [...group.members, id] }
+      : { ability: tc.trig.def.id, members: [bearer.id, id] };
+    s.links = group ? links.map((g, i) => (i === gi ? next : g)) : [...links, next];
+    this.emit({
+      k: 'Spawned',
+      piece: id,
+      twinOf: bearer.id,
+      side: twin.side,
+      type: twin.type,
+      element: twin.element,
+      square: bearer.square,
+      source: tc.source,
+    });
+    return true;
+  }
+
+  /** Linked fate (DD-101): the rest of a captured piece's twin group goes with it. */
+  private linkedFate(vid: PieceId): void {
+    const s = this.s;
+    const links = s.links;
+    if (!links) return;
+    const gi = links.findIndex((g) => g.members.includes(vid));
+    if (gi < 0) return;
+    const group = links[gi] as { ability: string; members: PieceId[] };
+    const rest = links.filter((_, i) => i !== gi);
+    if (rest.length > 0) s.links = rest;
+    else delete s.links;
+    const source: SourceRef = { kind: 'rule', id: 'linked_fate' };
+    for (const m of group.members) {
+      if (m === vid) continue;
+      const p = s.pieces[m];
+      if (!p) continue;
+      if (p.square >= 0) {
+        this.capturePiece(m, 'effect', null, source);
+      } else if (p.spawnSquare !== undefined) {
+        const sq = p.spawnSquare;
+        delete p.spawnSquare;
+        this.lastSq.set(m, sq);
+        p.capturedSeq = ++s.captureSeq;
+        this.irreversible = true;
+        this.emit({
+          k: 'Captured',
+          victim: m,
+          victimSide: p.side,
+          victimType: p.type,
+          square: sq,
+          by: 'effect',
+          captor: null,
+          source,
+          waiting: true,
+        });
+      }
+    }
   }
 
   /**
@@ -272,6 +461,8 @@ export class ActionRun extends EventHost {
     s.objective = { ...target.objective };
     s.inCheck = target.inCheck;
     s.repetition = [...target.repetition];
+    if (target.links) s.links = target.links.map((g) => ({ ...g, members: [...g.members] }));
+    else delete s.links;
     s.history = history.filter((h) => h.ply < target.ply);
     s.pending = null;
     s.result = null;
@@ -308,7 +499,7 @@ export class ActionRun extends EventHost {
 
   // ---- phases ------------------------------------------------------------------------------------
 
-  private runMove(m: number, depth: number, mover: Side, bonus: boolean): void {
+  private runMove(m: number, depth: number, mover: Side, bonus: boolean, twin = false): void {
     const s = this.s;
     const from = mFrom(m);
     const to = mTo(m);
@@ -350,7 +541,8 @@ export class ActionRun extends EventHost {
       this.capturePiece(vid, 'move', pid, undefined);
       captured = true;
     }
-    this.movePiece(m, bonus, captured);
+    this.movePiece(m, bonus, captured, twin);
+    if (captured) this.linkedFate(vid);
     // Phase 4: Reactions. Victim's CAPTURED first, then captor's CAPTURES; Always First reorders.
     if (cap && captured) {
       let queue: Trig[] = [];
@@ -423,7 +615,7 @@ export class ActionRun extends EventHost {
     return v.capturedSeq;
   }
 
-  private movePiece(m: number, bonus: boolean, capture: boolean): void {
+  private movePiece(m: number, bonus: boolean, capture: boolean, twin = false): void {
     const s = this.s;
     const from = mFrom(m);
     const to = mTo(m);
@@ -466,6 +658,7 @@ export class ActionRun extends EventHost {
       to,
       capture,
       bonus,
+      ...(twin ? { twin: true as const } : {}),
       ...(m & F_EP ? { enPassant: true } : {}),
       ...(m & F_CASTLE ? { castle: to > from ? ('K' as const) : ('Q' as const) } : {}),
       ...(promo ? { promotion: p.type as 'queen' } : {}),
@@ -811,6 +1004,8 @@ export class ActionRun extends EventHost {
         return this.fxBonus(eff.bonus, tc);
       case 'reveal':
         return this.fxReveal(eff.reveal, tc);
+      case 'spawn':
+        return this.fxSpawn(tc);
       case 'rewind': {
         if ((this.s.history ?? []).length === 0) {
           this.fizzle(tc, 'rewind', 'no_target');
@@ -918,6 +1113,7 @@ export class ActionRun extends EventHost {
   private capturedOptions(f: PieceFilter, tc: TCtx): ChoiceOption[] {
     const out: { o: ChoiceOption; key: number }[] = [];
     for (const p of this.s.pieces) {
+      if (p.capturedSeq < 0) continue; // never captured (a twin waiting to emerge, DD-101)
       if (p.square >= 0 || p.type === 'king') continue;
       if (f.side === 'enemy' && p.side === tc.owner) continue;
       if (f.side === 'friendly' && p.side !== tc.owner) continue;
@@ -1107,6 +1303,7 @@ export class ActionRun extends EventHost {
       return false;
     }
     this.capturePiece(target.id, 'effect', tc.bearer, tc.source);
+    this.linkedFate(target.id);
     return true;
   }
 
@@ -1364,21 +1561,13 @@ export class ActionRun extends EventHost {
       this.fizzle(tc, 'bonusAction', 'no_target');
       return false;
     }
-    const keyed = moves.map((m) => ({
-      m,
-      key: relOrder(tc.owner, mFrom(m)) * 64 * 8 + relOrder(tc.owner, mTo(m)) * 8 + (7 - mPromo(m)),
-    }));
-    keyed.sort((a, b) => a.key - b.key);
-    const options: ChoiceOption[] = keyed.map(({ m }) => {
-      const mv = decodeMove(m);
-      return mv.promotion
-        ? { kind: 'move', from: mv.from, to: mv.to, promotion: mv.promotion }
-        : { kind: 'move', from: mv.from, to: mv.to };
-    });
+    const options = this.moveOptions(moves, tc.owner);
     const choice = this.chooseFor(tc.owner, 'bonusMove', options, tc, spec.optional);
     if (!choice || choice.kind !== 'move') return false;
-    const idx = options.findIndex((o) => sameOption(o, choice));
-    const m = (keyed[idx] as { m: number }).m;
+    const m = moves.find((x) => {
+      const mv = decodeMove(x);
+      return mv.from === choice.from && mv.to === choice.to && mv.promotion === choice.promotion;
+    }) as number;
     this.revealStalwartIfRelaxed(m, tc.owner);
     if (tc.owner !== this.actor && this.inv03Verdict({ chess: m }, null) === 'relaxed') {
       // The opponent's bonus capture leaves the actor's Stalwart king in check: observable (DD-32).

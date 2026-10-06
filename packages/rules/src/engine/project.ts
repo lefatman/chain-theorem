@@ -40,6 +40,8 @@ export interface PublicPiece {
   square: Square;
   start: Square;
   capturedSeq: number;
+  /** A twin waiting to emerge on this square (DD-101). */
+  spawnSquare?: Square;
 }
 
 export interface PublicArmy {
@@ -169,6 +171,7 @@ function projectBase(
     square: p.square,
     start: p.start,
     capturedSeq: p.capturedSeq,
+    ...(p.spawnSquare !== undefined ? { spawnSquare: p.spawnSquare } : {}),
   }));
   const armies = {} as Record<Side, PublicArmy>;
   for (const side of ['white', 'black'] as const) {
@@ -346,6 +349,25 @@ export function projectEvent(
         start: -1,
       };
       return { ...ev, element: displayElement(rt, new ReadHost(state), viewer, view) };
+    }
+    case 'Spawned': {
+      // The twin shows its displayed element, like a promotion (DD-26); the source is masked.
+      const src = maskSource(state, viewer, ev.source) ?? { kind: 'hidden' as const };
+      if (ev.side === knowerOf(ev.side, viewer)) return { ...ev, source: src };
+      const view: PieceView = {
+        id: ev.piece,
+        side: ev.side,
+        type: ev.type,
+        element: ev.element,
+        square: -1,
+        lastSquare: -1,
+        start: -1,
+      };
+      return {
+        ...ev,
+        element: displayElement(rt, new ReadHost(state), viewer, view),
+        source: src,
+      };
     }
     case 'Captured':
     case 'PieceMoved':

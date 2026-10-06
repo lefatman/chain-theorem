@@ -81,6 +81,7 @@ export function cloneState(s: GameState): GameState {
     reveals: { white: s.reveals.white, black: s.reveals.black },
     objective: { ...s.objective },
     ...(s.history ? { history: s.history } : {}),
+    ...(s.links ? { links: s.links } : {}),
   };
 }
 
@@ -99,6 +100,8 @@ function rewindPoint(s: GameState): RewindPoint {
     objective: { ...s.objective },
     inCheck: s.inCheck,
     repetition: [...s.repetition],
+    pieceCount: s.pieces.length,
+    ...(s.links ? { links: s.links.map((g) => ({ ...g, members: [...g.members] })) } : {}),
   };
 }
 

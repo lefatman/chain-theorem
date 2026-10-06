@@ -43,7 +43,7 @@ export default defineAbility({
         const def = ctx.registry.abilities.find((a) => a.id === src.id);
         if (def?.tags.includes('venom')) return 'allow';
       }
-      return { fizzle: 'stalwart' };
+      return { fizzle: 'stalwart_guard' };
     },
   },
   text: {

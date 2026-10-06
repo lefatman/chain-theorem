@@ -51,6 +51,8 @@ export interface Caps {
   FORMATS: Readonly<Record<FormatId, FormatDef>>;
   /** Termination guard: an action emitting more events than this is an engine bug. */
   MAX_EVENTS_PER_ACTION: number;
+  /** Most pieces in one twin group, the original included (Schrödinger's Joker, DD-101). */
+  TWIN_GROUP_MAX: number;
 }
 
 // ---- effect data (5.2) ----------------------------------------------------------------------------
@@ -138,6 +140,12 @@ export type EffectSpec =
    * action: nothing queued after it resolves.
    */
   | { op: 'rewind' }
+  /**
+   * SPAWN (5.2, DD-101): the bearer gets a twin of its type, element and abilities that waits on the
+   * bearer's square until its owner's next turn, then makes its own move after the owner's normal
+   * move each turn. Capturing any member of the group removes them all. Fizzles `group_full`.
+   */
+  | { op: 'spawn' }
   | { op: 'when'; cond: EffectCondition; then: EffectSpec[] }
   | { op: 'atChainEnd'; effects: EffectSpec[] };
 

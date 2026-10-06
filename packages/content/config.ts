@@ -41,7 +41,18 @@ export const CAPS = {
   ENABLED_ELEMENTS: ['ember', 'tide', 'grove', 'storm', 'stone', 'frost'],
   FORMATS,
   MAX_EVENTS_PER_ACTION: 512,
+  // 5.8 Schrödinger's Joker (DD-101, PLAYTEST): a twin group holds at most this many pieces.
+  TWIN_GROUP_MAX: 3,
 } as const satisfies Caps;
+
+/**
+ * PLAYTEST feature flags (5.8). A flagged-off ability stays in the registry as retired: replays
+ * keep it, loadouts cannot equip it (7.4 rule 7). Schrödinger's Joker ships on after the fuzz runs
+ * recorded in PROGRESS.md (DD-101).
+ */
+export const PLAYTEST_FLAGS = {
+  schrodingers_joker: true,
+} as const;
 
 /** Hot Foot burns for this many turns of the igniting player's opponent (D-40, COMMITTED). */
 export const HOT_FOOT_TURNS = 3;

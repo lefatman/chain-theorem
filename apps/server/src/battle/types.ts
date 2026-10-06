@@ -95,6 +95,8 @@ export interface LogRecord {
 
 /** A log record inside the spectator delay window (M7 7.2). */
 export interface SpectatePending {
+  /** Committed moves when the record was queued (the delay is measured in these, DD-100). */
+  act?: number;
   /** Log record index. */
   n: number;
   /** Live ply after the record. */
@@ -107,10 +109,14 @@ export interface SpectatePending {
 
 /**
  * Spectating state of a public battle (M7 7.2, spec 10.4). Spectators see log records up to
- * `delay` plies behind the live ply (every record once the battle ends); the start record at once.
+ * `delay` committed moves behind the live game (every record once the battle ends); the start
+ * record at once. Moves, not ply numbers, measure the delay: a Redo rewind sends the ply back
+ * (DD-100) while the moves played only grow.
  */
 export interface SpectateState {
   delay: number;
+  /** Committed moves so far; the delay counts these, not ply numbers, which a rewind sends back. */
+  moves?: number;
   /** Log records shown so far: 0 .. released - 1. */
   released: number;
   /** Full-log index after the last shown record (spectators' `hello.from` on a reconnect). */

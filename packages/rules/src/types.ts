@@ -43,7 +43,7 @@ export type Category = 'CAPTURING' | 'CAPTURES' | 'CAPTURED' | 'PASSIVE';
 export type FormatId = 'first_blood' | 'vanguard' | 'full';
 /** 0..63, a1 = 0, b1 = 1, ..., h8 = 63. */
 export type Square = number;
-/** Stable piece identity 0..31, assigned at battle start in square order a1..h8. */
+/** Stable piece identity: 0..31 assigned at battle start in square order a1..h8; spawned twins follow. */
 export type PieceId = number;
 
 export const SIDES: readonly Side[] = ['white', 'black'];
@@ -122,6 +122,17 @@ export interface PieceState {
   start: Square;
   /** captureSeq value when this piece was last captured; -1 if never. */
   capturedSeq: number;
+  /**
+   * A twin (Schrödinger's Joker, DD-101) waiting to emerge on this square: it is off the board
+   * (`square` -1) until its owner's next turn. Absent for every other piece.
+   */
+  spawnSquare?: Square;
+}
+
+/** Pieces that share one fate (DD-101): capturing any member removes them all. `members[0]` is the original. */
+export interface TwinGroup {
+  ability: string;
+  members: PieceId[];
 }
 
 export interface ArmyState {
@@ -208,6 +219,8 @@ export interface RewindPoint {
   objective: Record<Side, number>;
   inCheck: Side | null;
   repetition: string[];
+  links?: TwinGroup[];
+  pieceCount: number;
 }
 
 export interface GameState {
@@ -236,6 +249,8 @@ export interface GameState {
   eventSeq: number;
   /** Pre-action snapshots of the last two actions, kept only while a side carries a REWIND ability. */
   history?: RewindPoint[];
+  /** Twin groups (Schrödinger's Joker, DD-101); absent until one is spawned. */
+  links?: TwinGroup[];
 }
 
 export type MoveInput = { kind: 'move'; side: Side; move: Move; choices?: ChoiceOption[] };
@@ -252,7 +267,17 @@ export type SourceRef =
   | { kind: 'ability'; id: string; piece: PieceId; side: Side }
   | { kind: 'item'; id: string; side: Side }
   | { kind: 'trait'; id: string; element: ElementId }
-  | { kind: 'rule'; id: 'royal_immunity' | 'inv03' | 'silence' | 'depth' | 'bonus_in_bonus' }
+  | {
+      kind: 'rule';
+      id:
+        | 'royal_immunity'
+        | 'inv03'
+        | 'silence'
+        | 'depth'
+        | 'bonus_in_bonus'
+        | 'twin_group'
+        | 'linked_fate';
+    }
   /** Projection only: the source is hidden from this viewer. */
   | { kind: 'hidden' };
 
@@ -264,7 +289,9 @@ export type FizzleReason =
   | 'bulwark'
   | 'burning'
   /** A Stalwart piece is removed only by a move capture or a venom effect (DD-102). */
-  | 'stalwart'
+  | 'stalwart_guard'
+  /** A twin group already holds the most pieces allowed (DD-101). */
+  | 'group_full'
   | 'occupied'
   | 'no_target'
   | 'depth_limit'
@@ -295,6 +322,8 @@ export type BattleEvent = EventBase &
     | { k: 'ActionStarted'; side: Side; ply: number; move: Move }
     | {
         k: 'MoveMade';
+        /** An extra move of a twin group member after the owner's normal move (DD-101). */
+        twin?: true;
         side: Side;
         piece: PieceId;
         pieceType: PieceType;
@@ -308,6 +337,8 @@ export type BattleEvent = EventBase &
       }
     | {
         k: 'Captured';
+        /** The victim was a twin still waiting to emerge on `square` (linked fate, DD-101). */
+        waiting?: true;
         victim: PieceId;
         victimSide: Side;
         victimType: PieceType;
@@ -378,6 +409,19 @@ export type BattleEvent = EventBase &
       }
     /** The position returned to the start of ply `toPly`, undoing `plies` plies (Redo, DD-100). */
     | { k: 'Rewound'; side: Side; toPly: number; toTurn: Side; plies: number; source: SourceRef }
+    /** A twin of `twinOf` now waits on `square` until its owner's next turn (DD-101). */
+    | {
+        k: 'Spawned';
+        piece: PieceId;
+        twinOf: PieceId;
+        side: Side;
+        type: PieceType;
+        element: ElementId;
+        square: Square;
+        source: SourceRef;
+      }
+    /** A waiting twin stepped onto the board on `square` (DD-101). */
+    | { k: 'Emerged'; piece: PieceId; side: Side; square: Square }
     | { k: 'Revealed'; side: Side; info: RevealInfo; cause: RevealCause; source?: SourceRef }
     | { k: 'PieceMoved'; piece: PieceId; side: Side; from: Square; to: Square; source: SourceRef }
     | { k: 'PieceRevived'; piece: PieceId; side: Side; square: Square; source: SourceRef }
