@@ -21,8 +21,10 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   (Necromancer, Quantum Kill; piece rank, `rank` filters, `target.chosenCaptured`, `square.startElse`,
   `cond.noneMatch`, golden E10/E11) and Phase 3 (Obstinate, Block Path, Stalwart rework;
   `moveFilter.captureFilter`/`bypass`, `onActionEnd` with `ctx.choose`, loadout rule 8, the `venom`
-  tag, DD-105 prompt visibility, golden E12-E14) are done. Next: Phase 4 (Electric Slide), Phase 5
-  (Redo), Phase 6 (Schrödinger's Joker). Balance after
+  tag, DD-105 prompt visibility, golden E12-E14) and Phase 4 (Electric Slide: pawn leapfrog and
+  slider redirects in move generation and attack detection, `moveFilter.pawnLeap`/`redirects`,
+  `ctx.attuned`; Squall neutral; golden E15) are done. Next: Phase 5 (Redo), Phase 6
+  (Schrödinger's Joker). Balance after
   Phase 1: see `docs/BALANCE_DD98.md` (First Blood advantaged element 46%, Full Battle 90%: the
   silence rule now dominates long games and traits dominate short ones; the designer's levers are
   `silenceScope` and trait numbers).
@@ -145,6 +147,18 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 ## Evidence log
 
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-10-06 Catalogue Phase 4 (DD-104): Electric Slide (level 3, Storm signature, Passive) with a
+  base/attuned split: pawns leap one adjacent ally (plain move, no en passant, promotes); attuned
+  sliders turn at allied squares once per move (queen twice), never stopping on the ally nor
+  continuing straight or back; `Pos.attacked` walks the same paths backwards (checks, pins and
+  Block Path's approach direction through turns); `moveFilter.pawnLeap`/`redirects` hooks,
+  `ReadCtx.attuned` for passives, movement grants in the reveal-on-observation framework (the
+  Attunement Charm is revealed with the first observed turn it alone allows). Squall is neutral
+  (version 2, attuned version retired); NPC and simulator builds pick an element's signature
+  passive. `pnpm check` 1,544 unit tests (electric_slide 12, squall tests updated, examples E15), `content:validate`
+  ok (31 abilities), `req:coverage` 83/83; `pnpm test:perft` 30/30; `pnpm test:fuzz` 500 games,
+  replays identical, 0 failures.
 
 - 2026-10-06 Catalogue Phase 3 (DD-99, DD-102, DD-105): Obstinate (level 9) and Block Path (level 12) as neutral passives; Stalwart (version 2) on any piece: effect captures fizzle (`stalwart`)
   unless the effect carries the new `venom` tag (Poisoned Meat, version 2), bypass of blocked squares

@@ -95,10 +95,17 @@ const KEY_OUTCOME: Record<WorkedExampleId, (r: ScenarioResult) => void> = {
       ['stalwart'],
       3,
     ]),
+  E15: (r) =>
+    expect([
+      eventsOf(r.events, 'Check').map((e) => e.side),
+      r.state.reveals.white.abilities.rook,
+      r.engine.legalMoves(r.state, 'black').some((m) => m.from === sq('d7') && m.to === sq('d6')),
+      r.engine.legalMoves(r.state, 'black').some((m) => m.from === sq('d7') && m.to === sq('e6')),
+    ]).toEqual([['black'], ['electric_slide'], false, true]),
 };
 
 describe('R-TEST-001 worked examples as lab data (spec 5.5)', () => {
-  it('R-TEST-001 lists E1 to E14 once each, in order, with the spec result text', () => {
+  it('R-TEST-001 lists E1 to E15 once each, in order, with the spec result text', () => {
     expect(WORKED_EXAMPLES.map((e) => e.id)).toEqual([
       'E1',
       'E2',
@@ -114,6 +121,7 @@ describe('R-TEST-001 worked examples as lab data (spec 5.5)', () => {
       'E12',
       'E13',
       'E14',
+      'E15',
     ]);
     for (const e of WORKED_EXAMPLES) expect(e.specText.length).toBeGreaterThan(20);
   });

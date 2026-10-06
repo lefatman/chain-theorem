@@ -258,7 +258,7 @@ export const NPCS: readonly NpcDef[] = [
       loadout: {
         elements: ['storm'],
         items: ['triple_adepts_gloves'],
-        sets: [['afterimage', 'squall', 'last_word']],
+        sets: [['electric_slide', 'squall', 'last_word']],
       },
       reward: {
         xp: 140,

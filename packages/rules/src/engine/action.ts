@@ -1482,6 +1482,18 @@ export class ActionRun extends EventHost {
       'observed',
       sourceOf(c.entry),
     );
+    // A movement grant that only an item's attunement allows (a redirect on a non-Storm piece)
+    // makes the item observable too (8.2, DD-104).
+    const def = this.rt.ability(c.entry.id);
+    if (
+      c.kind === 'movement' &&
+      def &&
+      def.affinity !== 'neutral' &&
+      victim.element !== def.affinity
+    ) {
+      const { via } = this.attunement(this.rt.view(this, victim.id), def);
+      if (via) this.revealEntry(via, 'observed');
+    }
   }
 
   /**

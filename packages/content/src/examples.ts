@@ -25,7 +25,8 @@ export type WorkedExampleId =
   | 'E11'
   | 'E12'
   | 'E13'
-  | 'E14';
+  | 'E14'
+  | 'E15';
 
 export interface WorkedExampleVariant {
   /** Short label, e.g. 'Stalwart king'. */
@@ -291,6 +292,22 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
       white: { elements: ['neutral'], abilities: ['cleave'] },
       black: { elements: ['neutral'], abilities: ['stalwart'] },
       moves: ['c3d5'],
+    },
+  },
+  {
+    id: 'E15',
+    title: 'Electric Slide: the rook turns at its knight and checks through the corner',
+    setupText:
+      'White (Storm, Electric Slide) rook a1, knight b2, king a2; Black king d7. The knight goes to d1',
+    specText:
+      "The rook's rank-1 ray now meets its knight on d1 and turns north: the king on d7 is in check through the turn (attacks follow the paths), may not stay on the d-file, and Electric Slide is revealed on White's rooks. Unattuned, the same move gives no check.",
+    note: 'Ids: a1 R=0, a2 K=1, b2 N=2, d7 k=3. No prompt (DD-104).',
+    setup: {
+      fen: '8/3k4/8/8/8/8/KN6/R7 w - - 0 1',
+      format: 'full',
+      white: { elements: ['storm'], abilities: ['electric_slide'] },
+      black: { elements: ['neutral'] },
+      moves: ['b2d1'],
     },
   },
 ];

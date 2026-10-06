@@ -110,11 +110,15 @@ describe('wild rewards and encounter pacing (R-WORLD-002)', () => {
     expect(cards / 2000).toBeGreaterThan(WILD_DROPS.cardChance * 0.6);
     expect(cards / 2000).toBeLessThan(WILD_DROPS.cardChance * 1.4);
     // DD-98: a wild army drops its own signature and neutral cards, never another element's
-    // signature. Level 1 has no Grove card, so only the neutral level-1 cards drop.
-    expect(wildCardPool(1, 'grove')).toEqual(['last_word', 'scout']);
+    // signature. Level 1 has no Grove card, so only the neutral level-1 cards drop (Squall is
+    // neutral since Electric Slide shipped, DD-104).
+    expect(wildCardPool(1, 'grove')).toEqual(['last_word', 'scout', 'squall']);
     expect(wildCardPool(1, 'grove').every((id) => abilityById.get(id)?.minLevel === 1)).toBe(true);
     // M7 (6.5): each new element drops its signature from the level it unlocks.
     expect(wildCardPool(1, 'storm')).toEqual(['last_word', 'scout', 'squall']);
+    expect(wildCardPool(2, 'storm')).not.toContain('electric_slide');
+    expect(wildCardPool(3, 'storm')).toContain('electric_slide');
+    expect(wildCardPool(3, 'grove')).not.toContain('electric_slide');
     expect(wildCardPool(2, 'stone')).not.toContain('stonewall');
     expect(wildCardPool(3, 'stone')).toContain('stonewall');
     expect(wildCardPool(3, 'stone')).not.toContain('frost_heave');

@@ -1349,6 +1349,12 @@ const POOL = [
   'snowdrift',
   'snowbound',
   'permafrost',
+  // 5.8 (designer brief 2026-10-06): rank cards and the movement-and-protection passives.
+  'necromancer',
+  'quantum_kill',
+  'obstinate',
+  'block_path',
+  'electric_slide',
 ] as const;
 
 const armyArb = fc.record({

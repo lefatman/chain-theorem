@@ -115,11 +115,11 @@ const ABILITIES_5_7: { id: string; minLevel: number }[] = [
 
 /**
  * M7 7.3 abilities, spread over levels 1-20 (PLAYTEST, DD-05); each costs 1 ability slot like the
- * starter set. Since DD-98 only each element's signature keeps an affinity (Storm: squall, interim;
- * Stone: stonewall; Frost: frost_heave); the rest are neutral.
+ * starter set. Since DD-98 only each element's signature keeps an affinity (Stone: stonewall;
+ * Frost: frost_heave; Storm's is electric_slide from 5.8, DD-104); the rest are neutral.
  */
 const ABILITIES_M7: { id: string; minLevel: number; affinity: ElementId }[] = [
-  { id: 'squall', minLevel: 1, affinity: 'storm' },
+  { id: 'squall', minLevel: 1, affinity: 'neutral' },
   { id: 'afterimage', minLevel: 5, affinity: 'neutral' },
   { id: 'pawn_storm', minLevel: 7, affinity: 'neutral' },
   { id: 'slipstream', minLevel: 12, affinity: 'neutral' },
@@ -137,6 +137,7 @@ const ABILITIES_M7: { id: string; minLevel: number; affinity: ElementId }[] = [
  * costs 1 ability slot; levels sit in the 11-15 band between Reinforce and Stalwart.
  */
 const ABILITIES_5_8: { id: string; minLevel: number }[] = [
+  { id: 'electric_slide', minLevel: 3 },
   { id: 'obstinate', minLevel: 9 },
   { id: 'necromancer', minLevel: 11 },
   { id: 'block_path', minLevel: 12 },
@@ -283,7 +284,7 @@ describe('R-LOAD-002 item catalogue and level requirements (DD-05)', () => {
       ember: 'cleave',
       tide: 'hit_and_run',
       grove: 'poisoned_meat',
-      storm: 'squall',
+      storm: 'electric_slide',
       stone: 'stonewall',
       frost: 'frost_heave',
     };

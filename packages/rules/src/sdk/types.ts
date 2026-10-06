@@ -236,6 +236,11 @@ export interface ReadCtx {
   /** Ability ids in the piece's current set, in order (ineligible ones included). */
   abilitiesOf(piece: PieceView): readonly string[];
   hasAbility(piece: PieceView, abilityId: string): boolean;
+  /**
+   * Is the ability attuned on this piece (6.3): the piece's element matches the ability's affinity,
+   * or an `attunement` hook (Attunement Charm) says so? For passives whose hooks differ when attuned.
+   */
+  attuned(piece: PieceView, abilityId: string): boolean;
   hasItem(side: Side, itemId: string): boolean;
   itemParam(side: Side, itemId: string): { element?: ElementId } | undefined;
 }
@@ -379,6 +384,10 @@ export interface RuleHooks {
     captureFilter?(ctx: ReadCtx, victim: PieceView): CaptureRestriction | null;
     /** `true`: the piece ignores blocked squares and soft capture restrictions (Stalwart, DD-102). */
     bypass?(ctx: ReadCtx, piece: PieceView): boolean;
+    /** `true`: this pawn may leap straight over one adjacent ally to the empty square beyond. */
+    pawnLeap?(ctx: ReadCtx, pawn: PieceView): boolean;
+    /** Redirects per move this slider may make at allied squares (0, 1 or 2; Electric Slide). */
+    redirects?(ctx: ReadCtx, slider: PieceView): number;
   };
   queueOrder(ctx: ReadCtx, queue: QueuedTrigger[]): QueuedTrigger[];
   triggerFilter(ctx: MutCtx, trigger: TriggerInfo): 'allow' | 'silence' | 'negate';

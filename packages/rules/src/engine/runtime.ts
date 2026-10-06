@@ -66,14 +66,20 @@ export interface Host {
   choose?(entry: HookEntry, req: HookChoice): ChoiceOption | null;
 }
 
-/** One capture restriction in force: which module put it on which piece (reveal checks, DD-99). */
+/**
+ * One hidden-able movement rule in force: which ability module changed the rules for which piece
+ * (a capture restriction, DD-99, or a movement grant such as Electric Slide, DD-104), for the
+ * reveal-on-observation checks. Traits are public and never listed.
+ */
 export interface CapSource {
   entry: HookEntry;
+  /** The restricted victim, or the piece granted the movement. */
   victim: PieceId;
-  restriction: CaptureRestriction;
+  kind: 'capture' | 'movement';
+  restriction?: CaptureRestriction;
 }
 
-/** Leave out some restrictions when building rules (strict comparisons for reveals, DD-32). */
+/** Leave out some sources when building rules (strict comparisons for reveals, DD-32). */
 export type SkipRestriction = (entry: HookEntry, victim: PieceId) => boolean;
 
 const MODULE_ORDER: Record<HookEntry['kind'], number> = { trait: 0, item: 1, ability: 2 };
@@ -264,6 +270,8 @@ export class Runtime {
     const kings: HookEntry[] = [];
     const caps: HookEntry[] = [];
     const bypass: HookEntry[] = [];
+    const leaps: HookEntry[] = [];
+    const redirects: HookEntry[] = [];
     for (const e of entries) {
       const mf = e.hooks.moveFilter;
       if (!mf) continue;
@@ -272,7 +280,12 @@ export class Runtime {
       if (mf.kingMode) kings.push(e);
       if (mf.captureFilter) caps.push(e);
       if (mf.bypass) bypass.push(e);
+      if (mf.pawnLeap) leaps.push(e);
+      if (mf.redirects) redirects.push(e);
     }
+    const source = (e: HookEntry, v: PieceView, kind: CapSource['kind']) => {
+      if (e.owner !== null) capSources?.push({ entry: e, victim: v.id, kind });
+    };
     const ctxs = new Map<HookEntry, ChoiceCtx>();
     const ctxOf = (e: HookEntry) => {
       let c = ctxs.get(e);
@@ -320,6 +333,26 @@ export class Runtime {
           }
         }
       }
+      if (p.type === 'pawn') {
+        for (const e of leaps) {
+          if (skip?.(e, p.id)) continue;
+          if (e.hooks.moveFilter?.pawnLeap?.(ctxOf(e), v)) {
+            rules.leap[p.id] = 1;
+            source(e, v, 'movement');
+            break;
+          }
+        }
+      } else if (p.type === 'rook' || p.type === 'bishop' || p.type === 'queen') {
+        for (const e of redirects) {
+          if (skip?.(e, p.id)) continue;
+          const n = e.hooks.moveFilter?.redirects?.(ctxOf(e), v) ?? 0;
+          if (n > 0) {
+            rules.redirect[p.id] = Math.max(rules.redirect[p.id] as number, Math.min(2, n));
+            rules.anyRedirect[p.side === 'white' ? 0 : 1] = true;
+            source(e, v, 'movement');
+          }
+        }
+      }
     }
     // Capture restrictions need every attacker's bypass flag, so they come in a second pass.
     if (caps.length > 0) {
@@ -347,7 +380,8 @@ export class Runtime {
           }
           if (any) {
             rules.anyCap = true;
-            capSources?.push({ entry: e, victim: v.id, restriction: r });
+            if (e.owner !== null)
+              capSources?.push({ entry: e, victim: v.id, kind: 'capture', restriction: r });
           }
         }
       }
@@ -417,6 +451,15 @@ class Ctx implements ChoiceCtx {
   }
   hasAbility(piece: PieceView, abilityId: string): boolean {
     return this.abilitiesOf(piece).includes(abilityId);
+  }
+  attuned(piece: PieceView, abilityId: string): boolean {
+    const def = this.rt.ability(abilityId);
+    if (!def) return false;
+    if (def.affinity !== 'neutral' && piece.element === def.affinity) return true;
+    for (const e of this.rt.hook(this.host.s, 'attunement')) {
+      if (e.hooks.attunement?.(this.rt.ctx(this.host, e), piece, def)) return true;
+    }
+    return false;
   }
   hasItem(side: Side, itemId: string): boolean {
     return this.host.s.armies[side].loadout.items.includes(itemId);

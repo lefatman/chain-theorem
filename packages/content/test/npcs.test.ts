@@ -44,7 +44,7 @@ describe('NPC loadouts (R-FMT-005)', () => {
 
   it('R-FMT-005 an NPC of a new element leads with its signature card (6.3: the attuned version; DD-98)', () => {
     for (const [element, first] of [
-      ['storm', 'squall'],
+      ['storm', 'electric_slide'],
       ['stone', 'stonewall'],
       ['frost', 'frost_heave'],
     ] as const) {

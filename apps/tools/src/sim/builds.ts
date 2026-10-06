@@ -31,7 +31,12 @@ export function pickAbilities(
 ): string[] {
   const pool = abilities
     .filter(
-      (a) => !a.retired && a.minLevel <= level && a.category !== 'PASSIVE' && eligible(a, type),
+      (a) =>
+        !a.retired &&
+        a.minLevel <= level &&
+        // Passives stay out of the picks, except an element's own signature (Electric Slide).
+        (a.category !== 'PASSIVE' || a.affinity === element) &&
+        eligible(a, type),
     )
     .filter((a) => POOL === 'any' || a.affinity === element || a.affinity === 'neutral')
     .map((a) => ({

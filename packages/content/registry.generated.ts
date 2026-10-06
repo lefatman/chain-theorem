@@ -6,6 +6,7 @@ import ability_backdraft from './abilities/backdraft.ts';
 import ability_block_path from './abilities/block_path.ts';
 import ability_buttress from './abilities/buttress.ts';
 import ability_cleave from './abilities/cleave.ts';
+import ability_electric_slide from './abilities/electric_slide.ts';
 import ability_frost_heave from './abilities/frost_heave.ts';
 import ability_hit_and_run from './abilities/hit_and_run.ts';
 import ability_last_word from './abilities/last_word.ts';
@@ -50,6 +51,6 @@ import trait_hot_foot from './traits/hot_foot.ts';
 import trait_overabundance from './traits/overabundance.ts';
 import trait_stillness from './traits/stillness.ts';
 
-export const abilities: readonly AbilityDef[] = [ability_afterimage, ability_antidote, ability_backdraft, ability_block_path, ability_buttress, ability_cleave, ability_frost_heave, ability_hit_and_run, ability_last_word, ability_momentum, ability_necromancer, ability_obstinate, ability_pawn_storm, ability_permafrost, ability_phalanx, ability_pierce, ability_poisoned_meat, ability_quantum_kill, ability_rebirth, ability_rebuild, ability_reinforce, ability_riposte, ability_scout, ability_slipstream, ability_snowbound, ability_snowdrift, ability_squall, ability_stalwart, ability_stonewall, ability_veil];
+export const abilities: readonly AbilityDef[] = [ability_afterimage, ability_antidote, ability_backdraft, ability_block_path, ability_buttress, ability_cleave, ability_electric_slide, ability_frost_heave, ability_hit_and_run, ability_last_word, ability_momentum, ability_necromancer, ability_obstinate, ability_pawn_storm, ability_permafrost, ability_phalanx, ability_pierce, ability_poisoned_meat, ability_quantum_kill, ability_rebirth, ability_rebuild, ability_reinforce, ability_riposte, ability_scout, ability_slipstream, ability_snowbound, ability_snowdrift, ability_squall, ability_stalwart, ability_stonewall, ability_veil];
 export const items: readonly ItemDef[] = [item_attunement_charm, item_blended_family, item_dual_adepts_glove, item_headmaster_ring, item_journeymans_medallion, item_mainspring, item_masquerade_mask, item_mooring_chain, item_multitaskers_schedule, item_resonance_crystal, item_scouts_lens, item_triple_adepts_gloves, item_wardens_stopwatch];
 export const traits: readonly TraitDef[] = [trait_always_first, trait_bulwark, trait_flow, trait_hot_foot, trait_overabundance, trait_stillness];

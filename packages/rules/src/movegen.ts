@@ -11,6 +11,9 @@
  *   (captureFilter, 5.6 and 13.5: Obstinate, Block Path) and the attackers that ignore the soft
  *   ones (Stalwart, DD-102). A restriction only ever removes a move capture or an attack; effect
  *   captures never consult it.
+ * - leap[id]:        Electric Slide base — a pawn may move straight over one adjacent ally.
+ * - redirect[id]:    Electric Slide attuned — a slider may turn at an ally's square this many times
+ *                    per move (never stopping on the ally); attacks follow the same paths (DD-104).
  */
 import {
   BISHOP,
@@ -69,6 +72,12 @@ export interface MoveRules {
   bypass: Uint8Array;
   /** Fast path: no capture restriction is in force. */
   anyCap: boolean;
+  /** 1 for a pawn that may leap over one adjacent ally to the empty square beyond (DD-104). */
+  leap: Uint8Array;
+  /** Redirects per move a slider may make at allied squares (0, 1 or 2; DD-104). */
+  redirect: Uint8Array;
+  /** Per side: some piece of that side has a redirect budget (fast path for `attacked`). */
+  anyRedirect: [boolean, boolean];
 }
 
 export function defaultRules(n: number): MoveRules {
@@ -82,8 +91,14 @@ export function defaultRules(n: number): MoveRules {
     noCapDirsSoft: new Uint8Array(n),
     bypass: new Uint8Array(n),
     anyCap: false,
+    leap: new Uint8Array(n),
+    redirect: new Uint8Array(n),
+    anyRedirect: [false, false],
   };
 }
+
+/** Opposite ray index in DIRS order (N<->S, E<->W, NE<->SW, NW<->SE). */
+const REVERSE = [1, 0, 3, 2, 7, 6, 5, 4];
 
 /** Compass directions in the DIRS table order (N, S, E, W, NE, NW, SE, SW). */
 const DIR_COMPASS: readonly Compass[] = ['N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW'];
@@ -302,6 +317,7 @@ export class Pos {
       if (id >= 0 && pside[id] === by && ptype[id] === KING && ok(id, s)) return true;
     }
     const anyPass = this.rules.anyPass[by] === true;
+    const anyRedirect = this.rules.anyRedirect[by] === true;
     const pass = this.rules.passThrough;
     const rays = RAYS[target] as number[][];
     for (let d = 0; d < 8; d++) {
@@ -316,8 +332,69 @@ export class Pos {
         const t = ptype[id];
         const matches = t === QUEEN || (diag ? t === BISHOP : t === ROOK);
         if (matches && (!allyBlocked || pass[id] === 1) && ok(id, sq)) return true;
+        // A slider that turned at this ally reaches `target` along ray d from here (DD-104).
+        if (
+          anyRedirect &&
+          this.reachesVia(sq, d, by, 1, victim, target, allyBlocked, d < 4 ? 1 : 2)
+        )
+          return true;
         if (!anyPass) break;
         allyBlocked = true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Is there a slider of side `by` that arrives at the ally square `corner` with its last segment
+   * along ray `last` (DIRS index, as walked from the target) after `used` redirects? Walking
+   * backwards from the target: the next segment leaves `corner` along any ray but `last` and its
+   * reverse. `segs` collects the geometry of every segment so far (1 orthogonal, 2 diagonal), which
+   * the slider's type must allow; `passed` says the previous segment crossed an ally, which only a
+   * Flow slider may do (DD-104).
+   */
+  private reachesVia(
+    corner: number,
+    last: number,
+    by: number,
+    used: number,
+    victim: number,
+    target: number,
+    passed: boolean,
+    segs: number,
+  ): boolean {
+    const board = this.board;
+    const pside = this.pside;
+    const ptype = this.ptype;
+    const pass = this.rules.passThrough;
+    const anyPass = this.rules.anyPass[by] === true;
+    const rays = RAYS[corner] as number[][];
+    for (let d = 0; d < 8; d++) {
+      if (d === last || d === REVERSE[last]) continue;
+      const ray = rays[d] as number[];
+      const geometry = segs | (d < 4 ? 1 : 2);
+      let crossed = passed;
+      for (let i = 0; i < ray.length; i++) {
+        const sq = ray[i] as number;
+        const id = board[sq] as number;
+        if (id < 0) continue;
+        if (pside[id] !== by) break;
+        const t = ptype[id];
+        const typeOk =
+          t === QUEEN || (t === ROOK ? geometry === 1 : t === BISHOP && geometry === 2);
+        if (
+          typeOk &&
+          (this.rules.redirect[id] as number) >= used &&
+          (!crossed || pass[id] === 1) &&
+          !this.blk(id, target) &&
+          (victim < 0 || this.capOk(id, corner, victim, target))
+        )
+          return true;
+        // Another ally: one more turn, if any piece has the budget (the queen's second redirect).
+        if (used < 2 && this.reachesVia(sq, d, by, used + 1, victim, target, crossed, geometry))
+          return true;
+        if (!anyPass) break;
+        crossed = true;
       }
     }
     return false;
@@ -368,12 +445,21 @@ export class Pos {
         if (ahead < 0) {
           if (!this.blk(id, to)) this.pushPawn(out, from, to, 0, promoRank);
         }
+        let doubled = false;
         if (from >> 3 === startRank) {
           const canPass = ahead < 0 || (pass[id] === 1 && pside[ahead] === side);
           const to2 = to + dir;
           if (canPass && (board[to2] as number) < 0 && !this.blk(id, to2)) {
             out.push(encodeMove(from, to2, 0, F_DOUBLE));
+            doubled = true;
           }
+        }
+        // Electric Slide base (DD-104): leap straight over one adjacent ally to the empty square
+        // beyond (a plain move: the jumped square is occupied, so it never grants en passant).
+        if (ahead >= 0 && pside[ahead] === side && this.rules.leap[id] === 1 && !doubled) {
+          const to2 = to + dir;
+          if (to2 >= 0 && to2 < 64 && (board[to2] as number) < 0 && !this.blk(id, to2))
+            this.pushPawn(out, from, to2, 0, promoRank);
         }
         const f = from & 7;
         for (const df of [-1, 1]) {
@@ -424,6 +510,11 @@ export class Pos {
       } else {
         const d0 = t === BISHOP ? 4 : 0;
         const d1 = t === ROOK ? 4 : 8;
+        const budget = this.rules.redirect[id] as number;
+        if (budget > 0) {
+          this.slideWithTurns(id, side, from, d0, d1, budget, out);
+          continue;
+        }
         const rays = RAYS[from] as number[][];
         const canPass = pass[id] === 1;
         for (let d = d0; d < d1; d++) {
@@ -446,6 +537,61 @@ export class Pos {
         }
       }
     }
+  }
+
+  /**
+   * Slider moves with Electric Slide redirects (DD-104): on meeting an ally the piece may continue
+   * from the ally's square along any of its rays but the one it came along and its reverse, up to
+   * `budget` times; it never stops on the ally. Destinations are deduplicated, and a capture's
+   * approach square (for Block Path) is the last corner.
+   */
+  private slideWithTurns(
+    id: number,
+    side: number,
+    from: number,
+    d0: number,
+    d1: number,
+    budget: number,
+    out: number[],
+  ): void {
+    const board = this.board;
+    const pside = this.pside;
+    const seen = new Uint8Array(64);
+    const canPass = this.rules.passThrough[id] === 1;
+    const walk = (start: number, exclude: number, left: number) => {
+      const rays = RAYS[start] as number[][];
+      for (let d = d0; d < d1; d++) {
+        if (exclude >= 0 && (d === exclude || d === REVERSE[exclude])) continue;
+        const ray = rays[d] as number[];
+        for (let i = 0; i < ray.length; i++) {
+          const to = ray[i] as number;
+          const v = board[to] as number;
+          if (v < 0) {
+            if (!seen[to] && !this.blk(id, to)) {
+              seen[to] = 1;
+              out.push(encodeMove(from, to));
+            }
+            continue;
+          }
+          if (pside[v] === side) {
+            if (left > 0) walk(to, d, left - 1);
+            if (canPass) continue;
+            break;
+          }
+          if (
+            !seen[to] &&
+            this.capturable(v) &&
+            !this.blk(id, to) &&
+            this.capOk(id, start, v, to)
+          ) {
+            seen[to] = 1;
+            out.push(encodeMove(from, to, 0, F_CAPTURE));
+          }
+          break;
+        }
+      }
+    };
+    walk(from, -1, budget);
   }
 
   private castles(kid: number, side: number, from: number, out: number[]): void {
