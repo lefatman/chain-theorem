@@ -178,7 +178,41 @@ excludes are left out of both sides (Stalwart: Capturing and Captures, rule 8).
 
 **First Blood** — `pnpm sim --suite cards --format first_blood --games 36 --nodes 20000`
 
-@@CARDS_FB@@
+| Card | Category | Level | Score with the card | Games | Median plies | Note |
+| --- | --- | --- | --- | --- | --- | --- |
+| Electric Slide | PASSIVE | 3 | 100.0% | 36 | 8 | **above 60%** |
+| Obstinate | PASSIVE | 9 | 88.9% | 36 | 16 | **above 60%** |
+| Squall | CAPTURED | 1 | 69.4% | 36 | 24 | **above 60%** |
+| Stalwart | PASSIVE | 16 | 69.4% | 36 | 8 | **above 60%** |
+| Slipstream | CAPTURES | 12 | 68.1% | 36 | 21 | **above 60%** |
+| Afterimage | CAPTURES | 5 | 66.7% | 36 | 22 | **above 60%** |
+| Pawn Storm | CAPTURES | 7 | 66.7% | 36 | 21 | **above 60%** |
+| Schrödinger's Joker | CAPTURES | 20 | 66.7% | 36 | 27 | **above 60%** |
+| Necromancer | CAPTURES | 11 | 65.3% | 36 | 24 | **above 60%** |
+| Phalanx | CAPTURING | 10 | 62.5% | 36 | 32 | **above 60%** |
+| Redo | CAPTURED | 15 | 61.1% | 36 | 24 | **above 60%** |
+| Riposte | CAPTURED | 12 | 58.3% | 36 | 21 |  |
+| Last Word | CAPTURED | 1 | 56.9% | 36 | 20 |  |
+| Rebuild | CAPTURES | 17 | 56.9% | 36 | 25 |  |
+| Buttress | CAPTURING | 2 | 55.6% | 36 | 25 |  |
+| Reinforce | CAPTURES | 10 | 55.6% | 36 | 21 |  |
+| Snowdrift | CAPTURES | 9 | 55.6% | 36 | 26 |  |
+| Pierce | CAPTURING | 3 | 54.2% | 36 | 37 |  |
+| Momentum | CAPTURES | 8 | 52.8% | 36 | 28 |  |
+| Quantum Kill | CAPTURES | 13 | 52.8% | 36 | 24 |  |
+| Poisoned Meat | CAPTURED | 2 | 51.4% | 36 | 30 |  |
+| Veil | PASSIVE | 18 | 51.4% | 36 | 27 |  |
+| Antidote | CAPTURING | 5 | 50.0% | 36 | 29 |  |
+| Block Path | PASSIVE | 12 | 50.0% | 36 | 19 |  |
+| Cleave | CAPTURES | 3 | 50.0% | 36 | 30 |  |
+| Stonewall | CAPTURED | 3 | 50.0% | 36 | 33 |  |
+| Hit and Run | CAPTURES | 1 | 47.2% | 36 | 26 |  |
+| Scout | CAPTURING | 1 | 45.8% | 36 | 34 |  |
+| Snowbound | CAPTURING | 14 | 45.8% | 36 | 19 |  |
+| Permafrost | CAPTURED | 20 | 44.4% | 36 | 19 |  |
+| Rebirth | CAPTURED | 14 | 44.4% | 36 | 27 |  |
+| Backdraft | CAPTURED | 4 | 41.7% | 36 | 24 |  |
+| Frost Heave | CAPTURED | 3 | 41.7% | 36 | 23 |  |
 
 **Full Battle** — `pnpm sim --suite cards --format full --games 24 --nodes 20000`
 
