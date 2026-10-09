@@ -200,6 +200,11 @@ export interface AbilityDef {
   hooks?: Partial<RuleHooks>;
   /** Loadout rule 8 (7.4): no set may hold this ability with one of these categories (DD-102). */
   excludes?: { categories: Category[] };
+  /**
+   * Loadout rule 9 (7.4, DD-109): item slots this ability adds to the item slot total (rule 1)
+   * when the set that applies to the king holds it (Stalwart: 1). The total is public (8.1).
+   */
+  kingItemSlots?: number;
   text: ModuleText;
   status: Status;
   retired?: boolean;

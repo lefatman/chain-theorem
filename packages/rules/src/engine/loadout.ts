@@ -16,13 +16,35 @@ export interface LoadoutShape {
   capacity: number;
   perTypeSets: boolean;
   secondElement: boolean;
+  /** Item slot cost of the items plus `kingSlots` (rule 1 with rule 9; public, 8.1). */
   consumedSlots: number;
+  /** Item slots added by abilities in the king's set (rule 9, DD-109); 0 without `abilities`. */
+  kingSlots: number;
+}
+
+/** The set that applies to the king: the sixth per-type set, or the army-wide set (7.3). */
+export function kingSet(loadout: Loadout): readonly string[] {
+  return (loadout.sets.length === 6 ? loadout.sets[5] : loadout.sets[0]) ?? [];
+}
+
+/**
+ * Item slots the king's set adds to the loadout's item slot total (7.4 rule 9, DD-109): the sum of
+ * `kingItemSlots` over the abilities it holds (Stalwart on a king costs one item slot).
+ */
+export function kingSlotCost(
+  loadout: Loadout,
+  abilities: ReadonlyMap<string, AbilityDef>,
+): number {
+  let n = 0;
+  for (const id of new Set(kingSet(loadout))) n += abilities.get(id)?.kingItemSlots ?? 0;
+  return n;
 }
 
 export function loadoutShape(
   loadout: Loadout,
   items: ReadonlyMap<string, ItemDef>,
   caps: Caps,
+  abilities?: ReadonlyMap<string, AbilityDef>,
 ): LoadoutShape {
   let capacity = caps.BASE_ABILITY_CAPACITY;
   let perTypeSets = false;
@@ -36,11 +58,13 @@ export function loadoutShape(
     if (def.grants?.perTypeSets) perTypeSets = true;
     if (def.grants?.secondElement) secondElement = true;
   }
+  const kingSlots = abilities ? kingSlotCost(loadout, abilities) : 0;
   return {
     capacity: Math.min(capacity, caps.MAX_ABILITY_CAPACITY),
     perTypeSets,
     secondElement,
-    consumedSlots,
+    consumedSlots: consumedSlots + kingSlots,
+    kingSlots,
   };
 }
 
