@@ -8,7 +8,16 @@ and re-measures the whole catalogue of 33 abilities against the 17.2 targets. It
 that the balance changes queued after it (silence scope, trait numbers, per-card changes, new cards)
 are each measured against. Nothing COMMITTED was touched.
 
-**Status.** @@STATUS@@
+**Status.** The picker fix did what it was meant to: every build carries a Capturing card and a
+passive, the `REACTIONS_ONLY` knob runs, and the two new passives are in the tables. What the tables
+show is bigger than the tooling. The attuned Electric Slide turn gives Storm a forced First Blood
+win from the opening (97–100% against four elements, 100% in its own mirror test with a median of 8
+plies); army-wide Obstinate is the strongest card in both formats after it (89% and 96% on its own)
+and decides Full Battle for whoever carries it, which Storm cannot; and the Stalwart king set decides
+Full Battle between archetypes (Maximum and Flexible beat Focused 79–85%). Advantaged element 48% in
+First Blood and 73% in Full Battle against a 55–60% target, White 47% and 52%, surprise losses 6.5%
+and 0% with the corrected metric (35% in the First Blood archetype suite), medians 23 and 69 plies.
+Section 6 lists the findings and what each later item of the plan takes from them.
 
 ## 1. Method
 
@@ -40,16 +49,16 @@ A fourth addition is a new suite, **`--suite cards`** (section 5): a mirror test
 
 The builds the tables below were played with:
 
-| Build | Set | Cards |
-| --- | --- | --- |
-| Focused (element suite) | all | Ember: Cleave, Last Word, Scout, Obstinate, Squall. Tide: Hit and Run, Last Word, Scout, Obstinate, Squall. Grove: Poisoned Meat, Snowdrift, Scout, Obstinate, Last Word. Storm: Electric Slide, Last Word, Snowdrift, Scout, Squall. Stone: Stonewall, Snowdrift, Scout, Obstinate, Last Word. Frost: Frost Heave, Snowdrift, Scout, Obstinate, Last Word |
-| Starter | all | Signature plus Last Word (Ember, Tide, Storm) or Scout (Grove, Stone, Frost); level 5 pool |
-| Maximum (ember + tide) | pawn | Cleave, Rebirth, Scout, Obstinate, Pawn Storm |
-| | knight, bishop | Cleave, Rebirth, Scout, Obstinate, Afterimage |
-| | rook, queen | Hit and Run, Rebirth, Scout, Obstinate, Afterimage |
-| | king | Stalwart, Block Path, Veil, Electric Slide |
-| Flexible (ember + tide) | pawn to queen | The Maximum set without its fifth card |
-| | king | Stalwart, Block Path, Veil, Electric Slide |
+| Build                   | Set            | Cards                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused (element suite) | all            | Ember: Cleave, Last Word, Scout, Obstinate, Squall. Tide: Hit and Run, Last Word, Scout, Obstinate, Squall. Grove: Poisoned Meat, Snowdrift, Scout, Obstinate, Last Word. Storm: Electric Slide, Last Word, Snowdrift, Scout, Squall. Stone: Stonewall, Snowdrift, Scout, Obstinate, Last Word. Frost: Frost Heave, Snowdrift, Scout, Obstinate, Last Word |
+| Starter                 | all            | Signature plus Last Word (Ember, Tide, Storm) or Scout (Grove, Stone, Frost); level 5 pool                                                                                                                                                                                                                                                                 |
+| Maximum (ember + tide)  | pawn           | Cleave, Rebirth, Scout, Obstinate, Pawn Storm                                                                                                                                                                                                                                                                                                              |
+|                         | knight, bishop | Cleave, Rebirth, Scout, Obstinate, Afterimage                                                                                                                                                                                                                                                                                                              |
+|                         | rook, queen    | Hit and Run, Rebirth, Scout, Obstinate, Afterimage                                                                                                                                                                                                                                                                                                         |
+|                         | king           | Stalwart, Block Path, Veil, Electric Slide                                                                                                                                                                                                                                                                                                                 |
+| Flexible (ember + tide) | pawn to queen  | The Maximum set without its fifth card                                                                                                                                                                                                                                                                                                                     |
+|                         | king           | Stalwart, Block Path, Veil, Electric Slide                                                                                                                                                                                                                                                                                                                 |
 
 The other element pairs of the archetype suite follow the same pattern with their own signatures
 (Storm's signature is a passive, so its rook and queen sets take Rebirth, Afterimage, Scout and
@@ -62,27 +71,27 @@ Grove over Tide, Storm over Frost, Frost over Stone, Stone over Storm.
 
 **First Blood** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000`
 
-| Row vs column | ember | tide | grove | storm | stone | frost |
-| --- | --- | --- | --- | --- | --- | --- |
-| ember | mirror, white 51.7% | 29.2% | 47.5% | 3.3% | 59.2% | 57.5% |
-| tide | 70.8% | mirror, white 35.0% | 67.5% | 46.7% | 87.5% | 68.3% |
-| grove | 52.5% | 32.5% | mirror, white 30.8% | 0.0% | 63.3% | 45.8% |
-| storm | 96.7% | 53.3% | 100.0% | mirror, white 0.0% | 100.0% | 99.2% |
-| stone | 40.8% | 12.5% | 36.7% | 0.0% | mirror, white 65.0% | 60.0% |
-| frost | 42.5% | 31.7% | 54.2% | 0.8% | 40.0% | mirror, white 51.7% |
+| Row vs column | ember               | tide                | grove               | storm              | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------ | ------------------- | ------------------- |
+| ember         | mirror, white 51.7% | 29.2%               | 47.5%               | 3.3%               | 59.2%               | 57.5%               |
+| tide          | 70.8%               | mirror, white 35.0% | 67.5%               | 46.7%              | 87.5%               | 68.3%               |
+| grove         | 52.5%               | 32.5%               | mirror, white 30.8% | 0.0%               | 63.3%               | 45.8%               |
+| storm         | 96.7%               | 53.3%               | 100.0%              | mirror, white 0.0% | 100.0%              | 99.2%               |
+| stone         | 40.8%               | 12.5%               | 36.7%               | 0.0%               | mirror, white 65.0% | 60.0%               |
+| frost         | 42.5%               | 31.7%               | 54.2%               | 0.8%               | 40.0%               | mirror, white 51.7% |
 
 Advantaged element: **48.3%**. White 46.9%, surprise losses 6.5%, median 23 plies. Result reasons: repetition 74, objective 1120, checkmate 61, ply_cap 5.
 
 **Full Battle** — `pnpm sim --suite elements --format full --games 40 --nodes 20000`
 
-| Row vs column | ember | tide | grove | storm | stone | frost |
-| --- | --- | --- | --- | --- | --- | --- |
-| ember | mirror, white 40.0% | 18.8% | 76.3% | 87.5% | 65.0% | 47.5% |
-| tide | 81.3% | mirror, white 51.2% | 20.0% | 83.8% | 92.5% | 88.8% |
-| grove | 23.8% | 80.0% | mirror, white 55.0% | 95.0% | 47.5% | 81.3% |
-| storm | 12.5% | 16.3% | 5.0% | mirror, white 61.3% | 27.5% | 70.0% |
-| stone | 35.0% | 7.5% | 52.5% | 72.5% | mirror, white 53.8% | 43.8% |
-| frost | 52.5% | 11.3% | 18.8% | 30.0% | 56.3% | mirror, white 53.8% |
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 40.0% | 18.8%               | 76.3%               | 87.5%               | 65.0%               | 47.5%               |
+| tide          | 81.3%               | mirror, white 51.2% | 20.0%               | 83.8%               | 92.5%               | 88.8%               |
+| grove         | 23.8%               | 80.0%               | mirror, white 55.0% | 95.0%               | 47.5%               | 81.3%               |
+| storm         | 12.5%               | 16.3%               | 5.0%                | mirror, white 61.3% | 27.5%               | 70.0%               |
+| stone         | 35.0%               | 7.5%                | 52.5%               | 72.5%               | mirror, white 53.8% | 43.8%               |
+| frost         | 52.5%               | 11.3%               | 18.8%               | 30.0%               | 56.3%               | mirror, white 53.8% |
 
 Advantaged element: **72.7%**. White 52.0%, surprise losses 0.0%, median 69 plies. Result reasons: checkmate 612, repetition 194, ply_cap 29, stalemate 2, fifty_move 3.
 
@@ -94,27 +103,27 @@ cell is a paired comparison with the table above.
 
 **First Blood** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000 --silence REACTIONS_ONLY`
 
-| Row vs column | ember | tide | grove | storm | stone | frost |
-| --- | --- | --- | --- | --- | --- | --- |
-| ember | mirror, white 51.7% | 29.2% | 47.5% | 3.3% | 59.2% | 57.5% |
-| tide | 70.8% | mirror, white 35.0% | 67.5% | 46.7% | 87.5% | 68.3% |
-| grove | 52.5% | 32.5% | mirror, white 30.8% | 0.0% | 63.3% | 45.8% |
-| storm | 96.7% | 53.3% | 100.0% | mirror, white 0.0% | 100.0% | 99.2% |
-| stone | 40.8% | 12.5% | 36.7% | 0.0% | mirror, white 65.0% | 63.3% |
-| frost | 42.5% | 31.7% | 54.2% | 0.8% | 36.7% | mirror, white 51.7% |
+| Row vs column | ember               | tide                | grove               | storm              | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------ | ------------------- | ------------------- |
+| ember         | mirror, white 51.7% | 29.2%               | 47.5%               | 3.3%               | 59.2%               | 57.5%               |
+| tide          | 70.8%               | mirror, white 35.0% | 67.5%               | 46.7%              | 87.5%               | 68.3%               |
+| grove         | 52.5%               | 32.5%               | mirror, white 30.8% | 0.0%               | 63.3%               | 45.8%               |
+| storm         | 96.7%               | 53.3%               | 100.0%              | mirror, white 0.0% | 100.0%              | 99.2%               |
+| stone         | 40.8%               | 12.5%               | 36.7%               | 0.0%               | mirror, white 65.0% | 63.3%               |
+| frost         | 42.5%               | 31.7%               | 54.2%               | 0.8%               | 36.7%               | mirror, white 51.7% |
 
 Advantaged element: **47.8%**. White 46.7%, surprise losses 6.5%, median 23 plies. Result reasons: repetition 74, objective 1119, checkmate 62, ply_cap 5.
 
 **Full Battle** — `pnpm sim --suite elements --format full --games 40 --nodes 20000 --silence REACTIONS_ONLY`
 
-| Row vs column | ember | tide | grove | storm | stone | frost |
-| --- | --- | --- | --- | --- | --- | --- |
-| ember | mirror, white 40.0% | 17.5% | 78.8% | 87.5% | 65.0% | 47.5% |
-| tide | 82.5% | mirror, white 51.2% | 25.0% | 83.8% | 92.5% | 88.8% |
-| grove | 21.3% | 75.0% | mirror, white 55.0% | 95.0% | 47.5% | 81.3% |
-| storm | 12.5% | 16.3% | 5.0% | mirror, white 61.3% | 27.5% | 70.0% |
-| stone | 35.0% | 7.5% | 52.5% | 72.5% | mirror, white 53.8% | 46.3% |
-| frost | 52.5% | 11.3% | 18.8% | 30.0% | 53.8% | mirror, white 53.8% |
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 40.0% | 17.5%               | 78.8%               | 87.5%               | 65.0%               | 47.5%               |
+| tide          | 82.5%               | mirror, white 51.2% | 25.0%               | 83.8%               | 92.5%               | 88.8%               |
+| grove         | 21.3%               | 75.0%               | mirror, white 55.0% | 95.0%               | 47.5%               | 81.3%               |
+| storm         | 12.5%               | 16.3%               | 5.0%                | mirror, white 61.3% | 27.5%               | 70.0%               |
+| stone         | 35.0%               | 7.5%                | 52.5%               | 72.5%               | mirror, white 53.8% | 46.3%               |
+| frost         | 52.5%               | 11.3%               | 18.8%               | 30.0%               | 53.8%               | mirror, white 53.8% |
 
 Advantaged element: **72.1%**. White 51.8%, surprise losses 0.0%, median 69 plies. Result reasons: checkmate 611, repetition 194, ply_cap 30, fifty_move 4, stalemate 1.
 
@@ -123,22 +132,22 @@ Advantaged element: **72.1%**. White 51.8%, surprise losses 0.0%, median 69 plie
 **First Blood** — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000`
 
 | Row vs column | maximum | flexible | focused | starter |
-| --- | --- | --- | --- | --- |
-| maximum | — | 60.0% | 57.5% | 63.3% |
-| flexible | 40.0% | — | 47.5% | 70.0% |
-| focused | 42.5% | 52.5% | — | 70.0% |
-| starter | 36.7% | 30.0% | 30.0% | — |
+| ------------- | ------- | -------- | ------- | ------- |
+| maximum       | —       | 60.0%    | 57.5%   | 63.3%   |
+| flexible      | 40.0%   | —        | 47.5%   | 70.0%   |
+| focused       | 42.5%   | 52.5%    | —       | 70.0%   |
+| starter       | 36.7%   | 30.0%    | 30.0%   | —       |
 
 White 46.4%, surprise losses 34.9%, median 13 plies. Result reasons: objective 348, checkmate 8, stalwart_captured 2, repetition 2.
 
 **Full Battle** — `pnpm sim --suite archetypes --format full --games 24 --nodes 20000`
 
 | Row vs column | maximum | flexible | focused | starter |
-| --- | --- | --- | --- | --- |
-| maximum | — | 43.8% | 79.2% | 100.0% |
-| flexible | 56.3% | — | 85.4% | 95.8% |
-| focused | 20.8% | 14.6% | — | 89.6% |
-| starter | 0.0% | 4.2% | 10.4% | — |
+| ------------- | ------- | -------- | ------- | ------- |
+| maximum       | —       | 43.8%    | 79.2%   | 100.0%  |
+| flexible      | 56.3%   | —        | 85.4%   | 95.8%   |
+| focused       | 20.8%   | 14.6%    | —       | 89.6%   |
+| starter       | 0.0%    | 4.2%     | 10.4%   | —       |
 
 White 50.3%, surprise losses 6.4%, median 66 plies. Result reasons: repetition 26, stalwart_captured 12, ply_cap 7, checkmate 97, fifty_move 2.
 
@@ -147,22 +156,22 @@ Under `REACTIONS_ONLY` (same commands with `--silence REACTIONS_ONLY`):
 **First Blood**
 
 | Row vs column | maximum | flexible | focused | starter |
-| --- | --- | --- | --- | --- |
-| maximum | — | 60.0% | 57.5% | 63.3% |
-| flexible | 40.0% | — | 47.5% | 70.0% |
-| focused | 42.5% | 52.5% | — | 70.0% |
-| starter | 36.7% | 30.0% | 30.0% | — |
+| ------------- | ------- | -------- | ------- | ------- |
+| maximum       | —       | 60.0%    | 57.5%   | 63.3%   |
+| flexible      | 40.0%   | —        | 47.5%   | 70.0%   |
+| focused       | 42.5%   | 52.5%    | —       | 70.0%   |
+| starter       | 36.7%   | 30.0%    | 30.0%   | —       |
 
 White 46.4%, surprise losses 34.9%, median 13 plies. Result reasons: objective 348, checkmate 8, stalwart_captured 2, repetition 2.
 
 **Full Battle**
 
 | Row vs column | maximum | flexible | focused | starter |
-| --- | --- | --- | --- | --- |
-| maximum | — | 43.8% | 79.2% | 100.0% |
-| flexible | 56.3% | — | 85.4% | 95.8% |
-| focused | 20.8% | 14.6% | — | 89.6% |
-| starter | 0.0% | 4.2% | 10.4% | — |
+| ------------- | ------- | -------- | ------- | ------- |
+| maximum       | —       | 43.8%    | 79.2%   | 100.0%  |
+| flexible      | 56.3%   | —        | 85.4%   | 95.8%   |
+| focused       | 20.8%   | 14.6%    | —       | 89.6%   |
+| starter       | 0.0%    | 4.2%     | 10.4%   | —       |
 
 White 50.3%, surprise losses 7.3%, median 66 plies. Result reasons: repetition 25, stalwart_captured 12, ply_cap 8, checkmate 97, fifty_move 2.
 
@@ -178,46 +187,171 @@ excludes are left out of both sides (Stalwart: Capturing and Captures, rule 8).
 
 **First Blood** — `pnpm sim --suite cards --format first_blood --games 36 --nodes 20000`
 
-| Card | Category | Level | Score with the card | Games | Median plies | Note |
-| --- | --- | --- | --- | --- | --- | --- |
-| Electric Slide | PASSIVE | 3 | 100.0% | 36 | 8 | **above 60%** |
-| Obstinate | PASSIVE | 9 | 88.9% | 36 | 16 | **above 60%** |
-| Squall | CAPTURED | 1 | 69.4% | 36 | 24 | **above 60%** |
-| Stalwart | PASSIVE | 16 | 69.4% | 36 | 8 | **above 60%** |
-| Slipstream | CAPTURES | 12 | 68.1% | 36 | 21 | **above 60%** |
-| Afterimage | CAPTURES | 5 | 66.7% | 36 | 22 | **above 60%** |
-| Pawn Storm | CAPTURES | 7 | 66.7% | 36 | 21 | **above 60%** |
-| Schrödinger's Joker | CAPTURES | 20 | 66.7% | 36 | 27 | **above 60%** |
-| Necromancer | CAPTURES | 11 | 65.3% | 36 | 24 | **above 60%** |
-| Phalanx | CAPTURING | 10 | 62.5% | 36 | 32 | **above 60%** |
-| Redo | CAPTURED | 15 | 61.1% | 36 | 24 | **above 60%** |
-| Riposte | CAPTURED | 12 | 58.3% | 36 | 21 |  |
-| Last Word | CAPTURED | 1 | 56.9% | 36 | 20 |  |
-| Rebuild | CAPTURES | 17 | 56.9% | 36 | 25 |  |
-| Buttress | CAPTURING | 2 | 55.6% | 36 | 25 |  |
-| Reinforce | CAPTURES | 10 | 55.6% | 36 | 21 |  |
-| Snowdrift | CAPTURES | 9 | 55.6% | 36 | 26 |  |
-| Pierce | CAPTURING | 3 | 54.2% | 36 | 37 |  |
-| Momentum | CAPTURES | 8 | 52.8% | 36 | 28 |  |
-| Quantum Kill | CAPTURES | 13 | 52.8% | 36 | 24 |  |
-| Poisoned Meat | CAPTURED | 2 | 51.4% | 36 | 30 |  |
-| Veil | PASSIVE | 18 | 51.4% | 36 | 27 |  |
-| Antidote | CAPTURING | 5 | 50.0% | 36 | 29 |  |
-| Block Path | PASSIVE | 12 | 50.0% | 36 | 19 |  |
-| Cleave | CAPTURES | 3 | 50.0% | 36 | 30 |  |
-| Stonewall | CAPTURED | 3 | 50.0% | 36 | 33 |  |
-| Hit and Run | CAPTURES | 1 | 47.2% | 36 | 26 |  |
-| Scout | CAPTURING | 1 | 45.8% | 36 | 34 |  |
-| Snowbound | CAPTURING | 14 | 45.8% | 36 | 19 |  |
-| Permafrost | CAPTURED | 20 | 44.4% | 36 | 19 |  |
-| Rebirth | CAPTURED | 14 | 44.4% | 36 | 27 |  |
-| Backdraft | CAPTURED | 4 | 41.7% | 36 | 24 |  |
-| Frost Heave | CAPTURED | 3 | 41.7% | 36 | 23 |  |
+| Card                | Category  | Level | Score with the card | Games | Median plies | Note          |
+| ------------------- | --------- | ----- | ------------------- | ----- | ------------ | ------------- |
+| Electric Slide      | PASSIVE   | 3     | 100.0%              | 36    | 8            | **above 60%** |
+| Obstinate           | PASSIVE   | 9     | 88.9%               | 36    | 16           | **above 60%** |
+| Squall              | CAPTURED  | 1     | 69.4%               | 36    | 24           | **above 60%** |
+| Stalwart            | PASSIVE   | 16    | 69.4%               | 36    | 8            | **above 60%** |
+| Slipstream          | CAPTURES  | 12    | 68.1%               | 36    | 21           | **above 60%** |
+| Afterimage          | CAPTURES  | 5     | 66.7%               | 36    | 22           | **above 60%** |
+| Pawn Storm          | CAPTURES  | 7     | 66.7%               | 36    | 21           | **above 60%** |
+| Schrödinger's Joker | CAPTURES  | 20    | 66.7%               | 36    | 27           | **above 60%** |
+| Necromancer         | CAPTURES  | 11    | 65.3%               | 36    | 24           | **above 60%** |
+| Phalanx             | CAPTURING | 10    | 62.5%               | 36    | 32           | **above 60%** |
+| Redo                | CAPTURED  | 15    | 61.1%               | 36    | 24           | **above 60%** |
+| Riposte             | CAPTURED  | 12    | 58.3%               | 36    | 21           |               |
+| Last Word           | CAPTURED  | 1     | 56.9%               | 36    | 20           |               |
+| Rebuild             | CAPTURES  | 17    | 56.9%               | 36    | 25           |               |
+| Buttress            | CAPTURING | 2     | 55.6%               | 36    | 25           |               |
+| Reinforce           | CAPTURES  | 10    | 55.6%               | 36    | 21           |               |
+| Snowdrift           | CAPTURES  | 9     | 55.6%               | 36    | 26           |               |
+| Pierce              | CAPTURING | 3     | 54.2%               | 36    | 37           |               |
+| Momentum            | CAPTURES  | 8     | 52.8%               | 36    | 28           |               |
+| Quantum Kill        | CAPTURES  | 13    | 52.8%               | 36    | 24           |               |
+| Poisoned Meat       | CAPTURED  | 2     | 51.4%               | 36    | 30           |               |
+| Veil                | PASSIVE   | 18    | 51.4%               | 36    | 27           |               |
+| Antidote            | CAPTURING | 5     | 50.0%               | 36    | 29           |               |
+| Block Path          | PASSIVE   | 12    | 50.0%               | 36    | 19           |               |
+| Cleave              | CAPTURES  | 3     | 50.0%               | 36    | 30           |               |
+| Stonewall           | CAPTURED  | 3     | 50.0%               | 36    | 33           |               |
+| Hit and Run         | CAPTURES  | 1     | 47.2%               | 36    | 26           |               |
+| Scout               | CAPTURING | 1     | 45.8%               | 36    | 34           |               |
+| Snowbound           | CAPTURING | 14    | 45.8%               | 36    | 19           |               |
+| Permafrost          | CAPTURED  | 20    | 44.4%               | 36    | 19           |               |
+| Rebirth             | CAPTURED  | 14    | 44.4%               | 36    | 27           |               |
+| Backdraft           | CAPTURED  | 4     | 41.7%               | 36    | 24           |               |
+| Frost Heave         | CAPTURED  | 3     | 41.7%               | 36    | 23           |               |
 
 **Full Battle** — `pnpm sim --suite cards --format full --games 24 --nodes 20000`
 
-@@CARDS_FULL@@
+| Card                | Category  | Level | Score with the card | Games | Median plies | Note                    |
+| ------------------- | --------- | ----- | ------------------- | ----- | ------------ | ----------------------- |
+| Electric Slide      | PASSIVE   | 3     | 100.0%              | 24    | 37           | **above 60%**           |
+| Obstinate           | PASSIVE   | 9     | 95.8%               | 24    | 57           | **above 60%**           |
+| Stalwart            | PASSIVE   | 16    | 81.3%               | 24    | 45           | **above 60%**           |
+| Poisoned Meat       | CAPTURED  | 2     | 77.1%               | 24    | 80           | **above 60%**           |
+| Block Path          | PASSIVE   | 12    | 72.9%               | 24    | 88           | **above 60%**           |
+| Rebirth             | CAPTURED  | 14    | 72.9%               | 24    | 83           | **above 60%**           |
+| Riposte             | CAPTURED  | 12    | 70.8%               | 24    | 81           | **above 60%**           |
+| Snowdrift           | CAPTURES  | 9     | 66.7%               | 24    | 85           | **above 60%**           |
+| Squall              | CAPTURED  | 1     | 66.7%               | 24    | 80           | **above 60%**           |
+| Buttress            | CAPTURING | 2     | 64.6%               | 24    | 65           | **above 60%**           |
+| Afterimage          | CAPTURES  | 5     | 62.5%               | 24    | 83           | **above 60%**           |
+| Antidote            | CAPTURING | 5     | 62.5%               | 24    | 93           | **above 60%**           |
+| Necromancer         | CAPTURES  | 11    | 62.5%               | 24    | 107          | **above 60%**           |
+| Cleave              | CAPTURES  | 3     | 58.3%               | 24    | 50           |                         |
+| Hit and Run         | CAPTURES  | 1     | 58.3%               | 24    | 61           |                         |
+| Backdraft           | CAPTURED  | 4     | 56.3%               | 24    | 78           |                         |
+| Scout               | CAPTURING | 1     | 56.3%               | 24    | 72           |                         |
+| Slipstream          | CAPTURES  | 12    | 56.3%               | 24    | 98           |                         |
+| Stonewall           | CAPTURED  | 3     | 56.3%               | 24    | 89           |                         |
+| Phalanx             | CAPTURING | 10    | 54.2%               | 24    | 58           |                         |
+| Frost Heave         | CAPTURED  | 3     | 52.1%               | 24    | 107          |                         |
+| Permafrost          | CAPTURED  | 20    | 50.0%               | 24    | 96           |                         |
+| Quantum Kill        | CAPTURES  | 13    | 50.0%               | 24    | 79           |                         |
+| Rebuild             | CAPTURES  | 17    | 50.0%               | 24    | 81           |                         |
+| Pierce              | CAPTURING | 3     | 47.9%               | 24    | 67           |                         |
+| Last Word           | CAPTURED  | 1     | 41.7%               | 24    | 62           |                         |
+| Pawn Storm          | CAPTURES  | 7     | 41.7%               | 24    | 83           |                         |
+| Veil                | PASSIVE   | 18    | 41.7%               | 24    | 76           |                         |
+| Schrödinger's Joker | CAPTURES  | 20    | 39.6%               | 24    | 97           | below 40% (a liability) |
+| Momentum            | CAPTURES  | 8     | 37.5%               | 24    | 84           | below 40% (a liability) |
+| Redo                | CAPTURED  | 15    | 37.5%               | 24    | 103          | below 40% (a liability) |
+| Snowbound           | CAPTURING | 14    | 35.4%               | 24    | 77           | below 40% (a liability) |
+| Reinforce           | CAPTURES  | 10    | 29.2%               | 24    | 74           | below 40% (a liability) |
 
 ## 6. What the data says
 
-@@FINDINGS@@
+1. **Electric Slide decides First Blood from the opening.** The attuned turn (DD-104) lets a slider
+   continue from an ally's square in a new direction, and at the start every ally a bishop or queen
+   meets is a pawn on the second rank: the c1 bishop turns at b2 and takes g7 on move 1, the queen
+   reaches e7, c7, f7, h7, a7, b7 and d7 through the king and its own pawns, and after any knight
+   development (…Nf6, …Nc6) a bishop takes the knight on move 2 (`Bc1-b2-f6`, `Bf1-g2-c6`), which is
+   the First Blood objective. Checked against a plain army with the engine: of Black's 40 legal
+   replies to 1.a3, only the 12 pawn moves on the a, c, d, e, f and h files do not lose a piece at
+   once. Snowdrift completes the opening trap by shoving the one recapturing bishop away. The Storm
+   row reads 97–100% against every element but Tide (whose Flow keeps its knights behind the pawn
+   wall and still 53%), and the Storm mirror is 0% for White: the first mover plays the forcing line,
+   and the second mover answers with a hidden turn of its own. Electric Slide is PLAYTEST (designer
+   brief 2026-10-06). Two fixes keep the card's identity: **(a) a slider turns only at an allied
+   piece, never at a pawn** (recommended: the bishops' only diagonal neighbours at the start are
+   pawns and the queen's rank neighbours lead into blocked files, so there is no opening shot, while
+   mid-game turns at knights, bishops, rooks and the king stay), or (b) a slider turns only at an
+   ally that has left its starting square (weaker: one pawn push restores the trap a move later).
+   Queued as part of B5 for a decision record; the designer defined the card, so the choice is
+   flagged for them too.
+2. **Obstinate is the backbone of every Full Battle build, and Storm has none.** The picker gives
+   every Focused build its top passive, Obstinate, on all pieces, except Storm, whose signature is
+   itself a passive and takes the slot. In Full Battle a queen may then capture nothing but queens
+   and rooks nothing below a rook, and Storm, without that shield, loses 136 of its 200 non-mirror
+   games by checkmate (score 26%, 5–28% against four elements) while it won 97–100% of the same
+   pairings in First Blood. The same card reads the other way in the two formats: the format, not
+   the element, decides whether Storm is broken or hopeless. The cards table (section 5) prices
+   Obstinate on its own.
+3. **The Stalwart king decides Full Battle between archetypes.** Maximum and Flexible carry a king
+   set of Stalwart, Block Path and Veil (plus Electric Slide): a king that cannot be checkmated, is
+   not in check from one direction and whose abilities act unnamed. They beat Focused 79% and 85%
+   and Starter 96–100%, and the only way they lose is a move capture of the king
+   (`stalwart_captured` 12 of 144). Focused's extra slot and army-wide cards cannot answer a king
+   that has to be caught rather than mated. Between Maximum and Flexible (both Stalwart) the Full
+   Battle score is 44–56%, inside the target, and in First Blood the three are at 58–63% / 40–53%:
+   the archetype target is missed only through the king set. Rule 9 (B5, at most two Passives per
+   set) would cut this king set to two cards; whether Stalwart should still cost one slot is a
+   designer question.
+4. **Element advantage.** First Blood 48% (DD-98: 46%), Full Battle 73% (DD-98: 90%). The Full Battle
+   figure fell because the matchup is now decided more by who carries Obstinate and by Storm's
+   collapse than by the silence rule. In Full Battle all six foil pairs point the right way; in
+   First Blood only two do (Tide over Ember, Storm over Frost): the traits and the Electric Slide
+   opening override the wheel there (Stone over Storm reads 0%). The 55–60% target is missed in
+   both directions. Short games remain trait and opening games (median 23 plies), long games
+   silence and shield games (median 69).
+5. **`REACTIONS_ONLY` changes nothing with these builds.** The Capturing card the picker deals every
+   Focused build is Scout, which only reveals a set, so sparing Capturing abilities from silence
+   moves one pairing by two games in First Blood (Stone–Frost) and the advantaged score by 0.6 points
+   in Full Battle (72.1% against 72.7%, five cells moving by one or two games). The
+   knob can only be judged with Pierce, Phalanx, Buttress or Antidote in the builds; B3 (the silence
+   scope item) should add a `--prefer` list to the simulator and run the pair again with Pierce.
+6. **Surprise losses.** The old metric counted any unseen ability that triggered in the final action,
+   and with Scout in every build it read 61% in First Blood. Counting only abilities that acted (an
+   effect capture, a moved, revived or spawned piece, a rewind, an observed passive) it reads 6.5%
+   in First Blood and 0% in Full Battle for the element suite, and 35% / 6% for the archetype suite,
+   where the per-type builds carry Rebirth, Pawn Storm, Afterimage and Momentum and First Blood is
+   decided in 13 plies. The target (< 15%) is met in Full Battle and by mono-element builds, missed
+   by varied builds in the short format. Grove (Poisoned Meat), Stone (Stonewall) and Frost (Frost
+   Heave) account for 72 of the 77 surprise wins in the element suite: the signatures that react.
+7. **Cards on their own (section 5).** Two passives win First Blood by themselves: Electric Slide
+   (100%, median 8 plies: the opening trap of finding 1, here on Storm pieces only) and Obstinate
+   (89%: with every piece immune to higher-rank captures, the side without it may attack only with
+   pawns, knights and bishops and loses the first exchange). Behind them a band at 61–69% (Squall,
+   Stalwart, Slipstream, Afterimage, Pawn Storm, Schrödinger's Joker, Necromancer, Phalanx, Redo)
+   where the ±8 points of noise of 36 games keeps any one card from being called broken; the
+   reaction cards that need a particular capture to happen first (Backdraft, Frost Heave, Rebirth,
+   Permafrost) read 42–44% in the short format because the first capture usually ends it before
+   they fire, and the slot is lost. In Full Battle the same two lead (100%, 96%) with Stalwart third (81%: an
+   army that effect captures cannot touch and that ignores Obstinate), then a band at 63–77%
+   (Poisoned Meat, Block Path, Rebirth, Riposte, Snowdrift, Squall, Buttress, Afterimage, Antidote,
+   Necromancer) inside the ±10 points of noise of 24 games. Five cards read below 40% (Reinforce
+   29%, Snowbound 35%, Redo and Momentum 38%, Schrödinger's Joker 40%): the Trainer plays worse with
+   them than without, which says as much about the NPC's model of them (its capture biases for
+   revives, bonus moves and spawns, `packages/ai/src/fast.ts`) as about the cards, and is worth a
+   look there before any of them is retuned. The 17.2 pick-rate proxy cannot be
+   measured in a simulator; the mirror score stands in for it, and at the 60% bar it flags the two
+   passives and no reaction card.
+
+**What the plan's later items take from this.**
+
+- A2 (alpha mode) is independent of these numbers.
+- B2b (new, from this baseline): Electric Slide turns only at an allied piece, never at a pawn
+  (finding 1), with a decision record; the two element tables are re-run, since every later First
+  Blood measurement is otherwise a measurement of the opening trap.
+- B3 (silence scope): add a `--prefer` list to the simulator so the Focused builds carry Pierce or
+  Phalanx, re-run the `REACTIONS_ONLY` pair, then measure `ONCE_PER_ABILITY` (finding 5).
+- B4 (trait numbers): measure after B2b; the First Blood trait picture of DD-98 (Flow and Bulwark
+  ahead) is not visible under the trap.
+- B5 (per-card changes): the data backs Obstinate at 2 slots and rule 9 (at most two Passives per
+  set), which also cuts the Stalwart king set to two cards (findings 2 and 3); whether Stalwart on a
+  king should cost one slot is for the designer.
+- C6, C7: every new card gets a `--suite cards` row in both formats before its matchup run.
+- The NPC's capture biases for Reinforce, Snowbound, Redo, Momentum and the Joker (finding 7) are a
+  `packages/ai` follow-up, not a balance change.

@@ -9,6 +9,12 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
 
 - Status: the build is complete. M0–M7 are done and the final report has been posted. What remains
   of the release checklist (17.3) is human-only: balance sign-off and the review of section 18.
+- Balance and alpha plan (designer request 2026-10-09, list below): one item per session run with
+  singular focus. B1 (simulator build picker, per-card mirror suite, corrected surprise metric,
+  baseline tables) is done: `docs/BALANCE_BASELINE.md`. Its headline findings: Electric Slide's
+  attuned turn is a forced First Blood win from the opening, army-wide Obstinate decides Full
+  Battle, the Stalwart king set decides Full Battle between archetypes. Next run: A2 (the alpha
+  one-time-code mode), then B2b (the Electric Slide opening fix, added from the baseline), B3–B8.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
   know), Storm, Stone and Frost with 12 abilities, 2 items and Highcairn Pass.
@@ -128,25 +134,32 @@ One item per session run, with singular focus; sub-items may go to agents. Each 
 The proposal behind the list is in the chat record of 2026-10-09 and summarised per item here.
 
 - [x] B1 Simulator build picker deals all four categories and includes passives (Stalwart on the
-      king set only); new `--suite cards` mirror test per ability; baseline tables for both formats
-      and both silence scopes in `docs/BALANCE_BASELINE.md`. Tooling only, no design decision.
+      king set only); new `--suite cards` mirror test per ability; surprise losses count only
+      abilities that acted; baseline tables for both formats and both silence scopes in
+      `docs/BALANCE_BASELINE.md`. Tooling only, no design decision. Done 2026-10-09 (evidence log).
 - [ ] A2 Alpha one-time-code match mode for non-logged-in players: guest tokens behind a Worker var
       (off in production), creator picks level 1-30, format and a loadout from everything at or
       below that level, `c-<code>` lobby that expires in 30 minutes, single-use code, random colours,
       no XP, rewards, rating, drops, telemetry, chat or spectating; client `#/alpha` screen; server
       unit tests and one two-browser e2e; DD row.
+- [ ] B2b Electric Slide turns only at an allied piece, never at a pawn (from B1's baseline: the
+      attuned turn through the opening pawn wall is a forced First Blood win; the alternative, a
+      turn only at an ally that has left its starting square, restores the trap after one pawn
+      push). PLAYTEST card from the designer brief, so a DD row and a note for the designer; module,
+      tests, E15 if affected, spec 5.8 text; re-run the two element tables.
 - [ ] B3 Silence scope `ONCE_PER_ABILITY` as a PLAYTEST knob (the foil silences each ability on each
       piece type once per battle); Resonance Crystal "not even once" under it; sim run; DD row.
+      First add a `--prefer` list to the simulator so the Focused builds carry Pierce or Phalanx and
+      re-run the `REACTIONS_ONLY` pair (B1 found the knob inert with Scout as the only Capturing
+      card).
 - [ ] B4 Trait numbers as config knobs (Flow: at most one allied piece passed per move; Bulwark:
       non-pawns only; Overabundance: +1 charge, not x2; Hot Foot: 4 turns); re-measure Storm vs Stone
       first; one sim run per change; DD row. Identities (6.1) stay COMMITTED.
 - [ ] B5 Per-card changes and loadout rule 9: Redo non-pawn; Obstinate ignored by kings, 2 slots;
       Block Path 2 slots and a king's facing resets to forward after it moves; rule 9 at most two
       Passive abilities per set; Pierce 2 charges; Scout's Lens reveals the whole pawn set; sim run;
-      DD rows. Added by B1's baseline: Electric Slide's attuned turn from the opening (a bishop turns
-      at its own b2 pawn and takes g7 on move 1; Snowdrift then shoves the recapturing bishop away,
-      a forced First Blood win), proposed fix: a slider turns only at an ally that has left its
-      starting square (`docs/BALANCE_BASELINE.md` section 6).
+      DD rows. B1's baseline backs Obstinate at 2 slots and rule 9 (which also cuts the Stalwart
+      king set to two cards); whether Stalwart on a king should cost one slot is a designer question.
 - [ ] C6 Three neutral abilities: Cornered (Captured, L4, 1 charge, rim squares), Ricochet (Captures,
       sliders, L8, 2 charges, continue past the capture), Overwhelm (Capturing, L9, 2 charges, negate
       a lower-ranked victim's Captured abilities); primitives logged; golden examples; fuzz; sim.
@@ -181,6 +194,19 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 - Arcane Chess codebase path for step 2.8 (optional).
 
 ## Evidence log
+
+- 2026-10-09 B1 Simulator build picker and baseline (R-TEST-002): `pickAbilities` deals the emptiest
+  category first after the signature and includes passives (Stalwart on the king set only under
+  rule 8; Captured cards and Obstinate are not dealt to a king), per-type sets prefer type-bound
+  cards; `pnpm sim --suite cards` plays a mirror test per ability; surprise losses count only
+  abilities that acted. `pnpm check` 1,580 unit tests (sim 9), `content:validate` ok, `req:coverage`
+  83/83, `format:check` clean. `pnpm sim` at 20,000 nodes, Trainer, level 25 (elements 60 games per
+  pairing in First Blood and 40 in Full Battle, archetypes 60 and 24, both silence scopes, cards 36
+  and 24): advantaged element 48.3% / 72.7% (`REACTIONS_ONLY` 47.8% / 72.1%), white 46.9% / 52.0%,
+  surprise losses 6.5% / 0.0% (archetype suite 34.9% / 6.4%), medians 23 / 69 plies; Maximum 58–63%
+  in First Blood, Maximum and Flexible 79–100% against Focused and Starter in Full Battle; cards
+  above 60% on their own: Electric Slide 100% / 100%, Obstinate 89% / 96%, Stalwart 69% / 81%.
+  Findings and the follow-ups per plan item: `docs/BALANCE_BASELINE.md` section 6.
 
 (Newest first: date, step, commands run, pass counts.)
 

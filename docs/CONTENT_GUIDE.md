@@ -77,7 +77,7 @@ The agent checklist from spec 13.5, with the real commands:
 | `pnpm check`                                 | Typecheck, lint, unit tests (content scenario tests included), `content:validate`, dependency rules                                                                             |
 | `pnpm test`                                  | Unit, golden (E1–E9), content scenario and property tests                                                                                                                       |
 | `pnpm test:fuzz`                             | 500 random battles with random valid loadouts drawn from the registry: no crash, bounded chains, identical replay (INV-04) and the R-SEC-001 payload scan. Your module is in it |
-| `pnpm sim`                                   | Balance simulator; builds pick abilities from module data, so new abilities are included; `--suite cards` screens one card at a time (§3.4)                                           |
+| `pnpm sim`                                   | Balance simulator; builds pick abilities from module data, so new abilities are included; `--suite cards` screens one card at a time (§3.4)                                     |
 
 ## 2. How content plugs into the engine
 
