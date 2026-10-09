@@ -31,6 +31,15 @@ let PREFER: ReadonlySet<string> = new Set();
 export function setPrefer(ids: readonly string[]): void {
   PREFER = new Set(ids);
 }
+/**
+ * Items left out of every build (`--without resonance_crystal`): the slot stays empty. For runs that
+ * must isolate a rule from an item that interacts with it (the Crystal under ONCE_PER_ABILITY).
+ */
+let WITHOUT: ReadonlySet<string> = new Set();
+export function setWithout(ids: readonly string[]): void {
+  WITHOUT = new Set(ids);
+}
+const items = (ids: string[]): string[] => ids.filter((id) => !WITHOUT.has(id));
 export const ARCHETYPES: Archetype[] = ['maximum', 'flexible', 'focused', 'starter'];
 /** Deal order when categories are equally filled and their best cards score alike (M3 3.4). */
 const CATEGORIES: readonly Category[] = ['CAPTURED', 'CAPTURES', 'CAPTURING', 'PASSIVE'];
@@ -125,7 +134,7 @@ export function buildLoadout(arch: Archetype, a: ElementId, b: ElementId, level 
     case 'maximum':
       return {
         elements: [a, b],
-        items: ['headmaster_ring', 'multitaskers_schedule', 'blended_family'],
+        items: items(['headmaster_ring', 'multitaskers_schedule', 'blended_family']),
         sets: PIECE_TYPES.map((t) =>
           pickAbilities(t === 'rook' || t === 'queen' || t === 'king' ? b : a, 5, level, t),
         ),
@@ -133,12 +142,12 @@ export function buildLoadout(arch: Archetype, a: ElementId, b: ElementId, level 
     case 'flexible':
       return {
         elements: [a, b],
-        items: [
+        items: items([
           'journeymans_medallion',
           'multitaskers_schedule',
           'blended_family',
           'resonance_crystal',
-        ],
+        ]),
         sets: PIECE_TYPES.map((t) =>
           pickAbilities(t === 'rook' || t === 'queen' || t === 'king' ? b : a, 4, level, t),
         ),
@@ -146,13 +155,13 @@ export function buildLoadout(arch: Archetype, a: ElementId, b: ElementId, level 
     case 'focused':
       return {
         elements: [a],
-        items: ['headmaster_ring', 'resonance_crystal', 'scouts_lens'],
+        items: items(['headmaster_ring', 'resonance_crystal', 'scouts_lens']),
         sets: [pickAbilities(a, 5, level)],
       };
     case 'starter':
       return {
         elements: [a],
-        items: ['dual_adepts_glove'],
+        items: items(['dual_adepts_glove']),
         sets: [pickAbilities(a, 2, Math.min(level, 5))],
       };
   }

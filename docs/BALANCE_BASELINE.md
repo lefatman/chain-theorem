@@ -471,10 +471,97 @@ Pierce, Obstinate, Last Word; Frost Frost Heave, Snowdrift, Pierce, Obstinate, L
 
 **First Blood** — `pnpm sim --suite elements --format first_blood --games 40 --nodes 20000 --prefer pierce` with `--silence ALL_TRIGGERS`, `REACTIONS_ONLY` and `ONCE_PER_ABILITY`
 
-@@B3_FB@@
+_ALL_TRIGGERS_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 57.5% | 23.8%               | 50.0%               | 85.0%               | 38.8%               | 66.3%               |
+| tide          | 76.3%               | mirror, white 27.5% | 70.0%               | 67.5%               | 76.3%               | 78.8%               |
+| grove         | 50.0%               | 30.0%               | mirror, white 65.0% | 55.0%               | 55.0%               | 61.3%               |
+| storm         | 15.0%               | 32.5%               | 45.0%               | mirror, white 32.5% | 43.8%               | 52.5%               |
+| stone         | 61.3%               | 23.8%               | 45.0%               | 56.3%               | mirror, white 40.0% | 61.3%               |
+| frost         | 33.8%               | 21.3%               | 38.8%               | 47.5%               | 38.8%               | mirror, white 58.8% |
+
+Advantaged element: **50.6%**. White 51.6%, surprise losses 12.4%, median 23 plies. Result reasons: repetition 43, objective 730, checkmate 63, fifty_move 1, ply_cap 3.
+
+_REACTIONS_ONLY_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 57.5% | 23.8%               | 47.5%               | 85.0%               | 38.8%               | 66.3%               |
+| tide          | 76.3%               | mirror, white 27.5% | 81.3%               | 67.5%               | 76.3%               | 78.8%               |
+| grove         | 52.5%               | 18.8%               | mirror, white 65.0% | 55.0%               | 55.0%               | 61.3%               |
+| storm         | 15.0%               | 32.5%               | 45.0%               | mirror, white 32.5% | 43.8%               | 50.0%               |
+| stone         | 61.3%               | 23.8%               | 45.0%               | 56.3%               | mirror, white 40.0% | 63.7%               |
+| frost         | 33.8%               | 21.3%               | 38.8%               | 50.0%               | 36.3%               | mirror, white 58.8% |
+
+Advantaged element: **47.5%**. White 51.2%, surprise losses 12.1%, median 23 plies. Result reasons: repetition 41, objective 735, checkmate 61, ply_cap 3.
+
+_ONCE_PER_ABILITY_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 57.5% | 23.8%               | 47.5%               | 85.0%               | 38.8%               | 66.3%               |
+| tide          | 76.3%               | mirror, white 27.5% | 72.5%               | 67.5%               | 76.3%               | 78.8%               |
+| grove         | 52.5%               | 27.5%               | mirror, white 65.0% | 55.0%               | 55.0%               | 61.3%               |
+| storm         | 15.0%               | 32.5%               | 45.0%               | mirror, white 32.5% | 43.8%               | 45.0%               |
+| stone         | 61.3%               | 23.8%               | 45.0%               | 56.3%               | mirror, white 40.0% | 65.0%               |
+| frost         | 33.8%               | 21.3%               | 38.8%               | 55.0%               | 35.0%               | mirror, white 58.8% |
+
+Advantaged element: **47.9%**. White 50.8%, surprise losses 12.2%, median 24 plies. Result reasons: repetition 43, objective 731, checkmate 63, ply_cap 3.
 
 **Full Battle** — `pnpm sim --suite elements --format full --games 30 --nodes 20000 --prefer pierce` with the same three scopes
 
-@@B3_FULL@@
+_ALL_TRIGGERS_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 40.0% | 28.3%               | 68.3%               | 90.0%               | 36.7%               | 56.7%               |
+| tide          | 71.7%               | mirror, white 46.7% | 35.0%               | 100.0%              | 88.3%               | 90.0%               |
+| grove         | 31.7%               | 65.0%               | mirror, white 58.3% | 86.7%               | 41.7%               | 43.3%               |
+| storm         | 10.0%               | 0.0%                | 13.3%               | mirror, white 33.3% | 3.3%                | 43.3%               |
+| stone         | 63.3%               | 11.7%               | 58.3%               | 96.7%               | mirror, white 50.0% | 45.0%               |
+| frost         | 43.3%               | 10.0%               | 56.7%               | 56.7%               | 55.0%               | mirror, white 45.0% |
+
+Advantaged element: **66.7%**. White 47.9%, surprise losses 2.6%, median 74 plies. Result reasons: checkmate 460, repetition 153, ply_cap 15, fifty_move 2.
+
+_REACTIONS_ONLY_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 40.0% | 16.7%               | 61.7%               | 90.0%               | 36.7%               | 56.7%               |
+| tide          | 83.3%               | mirror, white 46.7% | 91.7%               | 100.0%              | 88.3%               | 90.0%               |
+| grove         | 38.3%               | 8.3%                | mirror, white 58.3% | 86.7%               | 41.7%               | 43.3%               |
+| storm         | 10.0%               | 0.0%                | 13.3%               | mirror, white 33.3% | 11.7%               | 35.0%               |
+| stone         | 63.3%               | 11.7%               | 58.3%               | 88.3%               | mirror, white 50.0% | 53.3%               |
+| frost         | 43.3%               | 10.0%               | 56.7%               | 65.0%               | 46.7%               | mirror, white 45.0% |
+
+Advantaged element: **53.9%**. White 48.4%, surprise losses 2.8%, median 71 plies. Result reasons: checkmate 472, repetition 141, ply_cap 15, fifty_move 2.
+
+_ONCE_PER_ABILITY_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 40.0% | 40.0%               | 60.0%               | 90.0%               | 36.7%               | 56.7%               |
+| tide          | 60.0%               | mirror, white 46.7% | 91.7%               | 100.0%              | 88.3%               | 90.0%               |
+| grove         | 40.0%               | 8.3%                | mirror, white 58.3% | 86.7%               | 41.7%               | 43.3%               |
+| storm         | 10.0%               | 0.0%                | 13.3%               | mirror, white 33.3% | 10.0%               | 5.0%                |
+| stone         | 63.3%               | 11.7%               | 58.3%               | 90.0%               | mirror, white 50.0% | 56.7%               |
+| frost         | 43.3%               | 10.0%               | 56.7%               | 95.0%               | 43.3%               | mirror, white 45.0% |
+
+Advantaged element: **44.4%**. White 49.0%, surprise losses 2.5%, median 70 plies. Result reasons: checkmate 478, repetition 136, fifty_move 4, ply_cap 12.
+
+**Without the Crystal.** Every Focused build carries Resonance Crystal, which under
+`ONCE_PER_ABILITY` means never silenced, so the runs above measure the scope and the item together.
+The same two formats with the Crystal left out of every build (`--without resonance_crystal`, new in
+this item; the slot stays empty) isolate the scope:
+
+**First Blood** — `pnpm sim --suite elements --format first_blood --games 40 --nodes 20000 --prefer pierce --without resonance_crystal` with `--silence ALL_TRIGGERS` and `ONCE_PER_ABILITY`
+
+@@B3_NC_FB@@
+
+**Full Battle** — the same with `--format full --games 30`
+
+@@B3_NC_FULL@@
 
 @@B3_FINDINGS@@

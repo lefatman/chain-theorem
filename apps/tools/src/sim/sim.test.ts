@@ -16,6 +16,7 @@ import {
   pickAbilities,
   setPool,
   setPrefer,
+  setWithout,
 } from './builds.ts';
 import { decisiveAbilities, playSim } from './play.ts';
 
@@ -27,6 +28,7 @@ const eligibleFor = new Map(abilities.map((a) => [a.id, a.eligible]));
 afterEach(() => {
   setPool('any');
   setPrefer([]);
+  setWithout([]);
 });
 
 describe('balance simulator (R-TEST-002)', () => {
@@ -235,6 +237,21 @@ describe('balance simulator (R-TEST-002)', () => {
     }
     setPrefer([]);
     expect(elementLoadout('ember').sets[0]).toContain('scout');
+  });
+
+  it('R-TEST-002 --without leaves the listed items out of every build and the builds stay legal', () => {
+    setWithout(['resonance_crystal']);
+    for (const arch of ARCHETYPES) {
+      const l = buildLoadout(arch, 'ember', 'tide');
+      expect(l.items, arch).not.toContain('resonance_crystal');
+      expect(() => assertValid(l, 25), arch).not.toThrow();
+    }
+    expect(buildLoadout('focused', 'ember', 'ember').items).toEqual([
+      'headmaster_ring',
+      'scouts_lens',
+    ]);
+    setWithout([]);
+    expect(buildLoadout('focused', 'ember', 'ember').items).toContain('resonance_crystal');
   });
 
   it('R-TEST-002 a simulated battle between new elements is deterministic', () => {
