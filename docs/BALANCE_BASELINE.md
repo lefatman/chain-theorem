@@ -107,7 +107,16 @@ Advantaged element: **47.8%**. White 46.7%, surprise losses 6.5%, median 23 plie
 
 **Full Battle** — `pnpm sim --suite elements --format full --games 40 --nodes 20000 --silence REACTIONS_ONLY`
 
-@@EL_FULL_RO@@
+| Row vs column | ember | tide | grove | storm | stone | frost |
+| --- | --- | --- | --- | --- | --- | --- |
+| ember | mirror, white 40.0% | 17.5% | 78.8% | 87.5% | 65.0% | 47.5% |
+| tide | 82.5% | mirror, white 51.2% | 25.0% | 83.8% | 92.5% | 88.8% |
+| grove | 21.3% | 75.0% | mirror, white 55.0% | 95.0% | 47.5% | 81.3% |
+| storm | 12.5% | 16.3% | 5.0% | mirror, white 61.3% | 27.5% | 70.0% |
+| stone | 35.0% | 7.5% | 52.5% | 72.5% | mirror, white 53.8% | 46.3% |
+| frost | 52.5% | 11.3% | 18.8% | 30.0% | 53.8% | mirror, white 53.8% |
+
+Advantaged element: **72.1%**. White 51.8%, surprise losses 0.0%, median 69 plies. Result reasons: checkmate 611, repetition 194, ply_cap 30, fifty_move 4, stalemate 1.
 
 ## 4. Build archetypes
 
