@@ -17,7 +17,10 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   opening fix, moved ahead by the designer) is done as DD-106: turns only at allied pieces other than
   pawns, rooks and bishops once, the queen never; the trap is gone (Storm's First Blood row 22–56%
   from 97–100%) and Storm is now the weakest Full Battle element for want of Obstinate
-  (`docs/BALANCE_BASELINE.md` section 7). Next run: A2 (the alpha one-time-code mode), then B3–B8.
+  (`docs/BALANCE_BASELINE.md` section 7). A2 (alpha guest play, spec 9.6, DD-107) is done: with
+  `ALPHA_GUEST_PLAY=on` (the `.dev.vars` example sets it; production leaves it unset) anyone opens
+  `#/alpha`, plays as a guest and shares a one-time code for a battle at a chosen level with the whole
+  catalogue at or below it; nothing is recorded. Next run: B3 (the silence scope), then B4–B8.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
   know), Storm, Stone and Frost with 12 abilities, 2 items and Highcairn Pass.
@@ -146,11 +149,11 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
       push). PLAYTEST card from the designer brief, so a DD row and a note for the designer; module,
       tests, E15 if affected, spec 5.8 text; re-run the two element tables. Done 2026-10-09 (DD-106): pieces only as corners, rooks and bishops turn once, the
       queen never; `docs/BALANCE_BASELINE.md` section 7 (evidence log).
-- [ ] A2 Alpha one-time-code match mode for non-logged-in players: guest tokens behind a Worker var
+- [x] A2 Alpha one-time-code match mode for non-logged-in players: guest tokens behind a Worker var
       (off in production), creator picks level 1-30, format and a loadout from everything at or
-      below that level, `c-<code>` lobby that expires in 30 minutes, single-use code, random colours,
+      below that level, `a-<code>` lobby that expires in 30 minutes, single-use code, random colours,
       no XP, rewards, rating, drops, telemetry, chat or spectating; client `#/alpha` screen; server
-      unit tests and one two-browser e2e; DD row.
+      unit and Worker tests and one two-browser e2e; DD-107, spec 9.6. Done 2026-10-09 (evidence log).
 - [ ] B3 Silence scope `ONCE_PER_ABILITY` as a PLAYTEST knob (the foil silences each ability on each
       piece type once per battle); Resonance Crystal "not even once" under it; sim run; DD row.
       First add a `--prefer` list to the simulator so the Focused builds carry Pierce or Phalanx and
@@ -198,6 +201,20 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 - Arcane Chess codebase path for step 2.8 (optional).
 
 ## Evidence log
+
+- 2026-10-09 A2 Alpha guest play (spec 9.6, R-FMT-007, DD-107): server `api/alpha.ts` (guest cookie,
+  create, info, accept, rejoin ticket), `alpha/guest.ts` (ids, 24-hour tickets, per-address limiter),
+  BattleRoom alpha lobbies (fixed level, alarm expiry, origin `alpha` writes no row, settles nothing,
+  tells no zone, never listed), guest sockets into `a-` battles only; protocol `AlphaCreate` /
+  `AlphaAccept` and the answer types; client `#/alpha` screen (play as a guest, create a code with the
+  loadout editor at a chosen level, accept at the lobby's level), `LoadoutEditor` `fixedLevel` /
+  `saveLabel` / `intro` props, title button, alpha ticket route for `a-` ids. `pnpm check` 1,593 unit
+  tests (guest 6, client alpha 4), `req:coverage` 84/84 (R-FMT-007 new), `format:check` clean;
+  `pnpm test:workers` 68/68 (alpha 5: cookie identity and refusal elsewhere, per-address limit, level
+  12 lobby with ownership-free cards and the joiner bound to the level, single-use code, both guests
+  playing to a resignation with no `battles` row and no spectate ticket, a signed-in player at a
+  chosen level, bad codes); online e2e `alpha.spec.ts` 1 passed (two guests, First Blood at level 12,
+  Grove against Tide, a move each, R-SEC-001 frame scan); `pnpm test:e2e:online` 10 passed (2.4 min).
 
 - 2026-10-09 B2b Electric Slide corners (DD-106; R-ELEM-003, R-RULES-001, R-ELEM-006): new SDK hook
   `moveFilter.redirectCorner` and `MoveRules.conducts` (move generation, attack detection and the
