@@ -62,7 +62,7 @@ See [`TESTING.md`](TESTING.md) for every test command and a manual play-test scr
 | `pnpm test`                                                                               | Unit, golden (E1–E9), content scenario and property tests                            |
 | `pnpm test:perft`                                                                         | Perft suites (start position depth 5 = 4,865,609; Kiwipete depth 4 = 4,085,603)      |
 | `pnpm test:fuzz` / `pnpm test:fuzz:full`                                                  | Fuzzed battles with replay and projection checks (quick / 100,000 games)             |
-| `pnpm sim`                                                                                | Balance simulator; writes matchup tables to `reports/sim/`                           |
+| `pnpm sim`                                                                                | Balance simulator; writes matchup and per-card tables to `reports/sim/`                           |
 | `pnpm content:new ability <id>`                                                           | Scaffold a new ability module and its scenario test                                  |
 | `pnpm test:db`, `pnpm test:db:pg`, `pnpm test:workers`, `pnpm test:e2e`, `pnpm test:load` | Database, Durable Object, browser and load tests                                     |
 | `pnpm test:e2e:online`, `pnpm test:firstwin`                                              | Browser tests against the real Worker; a new player's first win (M5)                 |
