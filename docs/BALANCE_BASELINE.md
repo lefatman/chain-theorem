@@ -363,7 +363,10 @@ seeds as sections 2, 4 and 5, so every cell pairs with the one above it.
 
 **Electric Slide alone** — `pnpm sim --suite cards --format first_blood --games 36 --nodes 20000 --cards electric_slide` and the same with `--format full --games 24`
 
-@@B2B_CARDS@@
+| Format | Card | Category | Level | Score with the card | Games | Median plies | Note |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| First Blood | Electric Slide | PASSIVE | 3 | 97.2% | 36 | 8 | **above 60%** |
+| Full Battle | Electric Slide | PASSIVE | 3 | 66.7% | 24 | 64 | **above 60%** |
 
 **Element matchups, First Blood** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000`
 
