@@ -6,7 +6,7 @@
  * the move is spent even if a hidden ability changes the outcome (INV-06).
  */
 import { useMemo } from 'preact/hooks';
-import { engine, itemById } from '@chain-theorem/content';
+import { abilityById, engine, itemById } from '@chain-theorem/content';
 import {
   PIECE_TYPES,
   squareName,
@@ -31,7 +31,12 @@ function unknownText(u: Unknown, pub: PublicState): string {
     case 'opponentItems': {
       const army = pub.armies[opp];
       const known = army.revealed.items.reduce((n, id) => n + (itemById.get(id)?.slotCost ?? 0), 0);
-      const left = Math.max(0, army.consumedSlots - known);
+      // Rule 9 (DD-109): item slots an ability seen on the king uses (Stalwart) are explained too.
+      const knownKing = [...new Set(army.revealed.abilities.king ?? [])].reduce(
+        (n, id) => n + (abilityById.get(id)?.kingItemSlots ?? 0),
+        0,
+      );
+      const left = Math.max(0, army.consumedSlots - known - knownKing);
       return `${sideName(opp)} has ${left} unexplained item slot${left === 1 ? '' : 's'}; hidden items may change this.`;
     }
   }

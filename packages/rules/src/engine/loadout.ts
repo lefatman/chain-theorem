@@ -1,6 +1,8 @@
 /**
  * Loadout model and validation (R-LOAD-003, R-LOAD-004 INVARIANT at battle start, R-ELEM-004).
- * Every limit comes from CAPS and module data (13.5); no item or ability id appears here.
+ * Every limit comes from CAPS and module data (13.5); no item or ability id appears here. Rule 9
+ * (7.4, DD-109): an ability with `kingItemSlots` in the set that applies to the king adds them to
+ * rule 1's item slot total, which stays public (8.1).
  */
 import type { AbilityDef, Caps, ItemDef } from '../sdk/types.ts';
 import {
@@ -31,13 +33,20 @@ export function kingSet(loadout: Loadout): readonly string[] {
  * Item slots the king's set adds to the loadout's item slot total (7.4 rule 9, DD-109): the sum of
  * `kingItemSlots` over the abilities it holds (Stalwart on a king costs one item slot).
  */
-export function kingSlotCost(
-  loadout: Loadout,
-  abilities: ReadonlyMap<string, AbilityDef>,
-): number {
+export function kingSlotCost(loadout: Loadout, abilities: ReadonlyMap<string, AbilityDef>): number {
   let n = 0;
   for (const id of new Set(kingSet(loadout))) n += abilities.get(id)?.kingItemSlots ?? 0;
   return n;
+}
+
+/** Names of the abilities in the king's set that add item slots (rule 9), in set order. */
+function kingSlotPayers(loadout: Loadout, abilities: ReadonlyMap<string, AbilityDef>): string {
+  const names: string[] = [];
+  for (const id of new Set(kingSet(loadout))) {
+    const def = abilities.get(id);
+    if (def?.kingItemSlots) names.push(def.name);
+  }
+  return names.join(' and ');
 }
 
 export function loadoutShape(
@@ -143,12 +152,18 @@ export function validateLoadout(
         err(7, 'item_param', `${def.name} needs an element choice`, id);
     }
   }
-  const shape = loadoutShape(loadout, items, caps);
+  // Rule 1 counts the king's set too (rule 9, DD-109): kingSlots is public, like the item total.
+  const shape = loadoutShape(loadout, items, caps, abilities);
   if (shape.consumedSlots > unlockedSlots) {
+    const itemSlots = shape.consumedSlots - shape.kingSlots;
+    const royal =
+      shape.kingSlots > 0
+        ? ` and ${kingSlotPayers(loadout, abilities)} on the king ${shape.kingSlots} more (rule 9)`
+        : '';
     err(
       1,
       'slots_exceeded',
-      `items use ${shape.consumedSlots} slots but level ${level} unlocks ${unlockedSlots}`,
+      `items use ${itemSlots} slot${itemSlots === 1 ? '' : 's'}${royal} but level ${level} unlocks ${unlockedSlots}`,
     );
   }
 

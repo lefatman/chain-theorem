@@ -48,6 +48,6 @@ const existing = readdirSync(`${root}docs/decisions`);
 if (existing.some((f) => f.startsWith(`${id}-`))) throw new Error(`${id} record exists`);
 writeFileSync(
   `${root}docs/decisions/${id}-${slug}.md`,
-  `# ${id}: ${decision.split('.')[0]}\n\nStatus: binding under D-37 (designer may overrule).${refs ? `\nSpec: ${refs}` : ''}\n\n## Decision\n\n${decision}\n\n## Why it is the best case\n\n${why}\n`,
+  `# ${id}: ${decision.split(/\.(?=\s|$)/)[0]}\n\nStatus: binding under D-37 (designer may overrule).${refs ? `\nSpec: ${refs}` : ''}\n\n## Decision\n\n${decision}\n\n## Why it is the best case\n\n${why}\n`,
 );
 console.log(`${id} logged`);

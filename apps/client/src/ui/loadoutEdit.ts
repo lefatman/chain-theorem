@@ -1,10 +1,18 @@
 /**
  * Loadout editing helpers for the builder (R-LOAD-003, R-LOAD-004, R-ELEM-004). These only shape the
- * draft (item swaps, set count, element count); the engine's validateLoadout stays the single judge
- * of legality, and the builder shows its errors verbatim.
+ * draft (item swaps, set count, element count, the king's item slots of rule 9); the engine's
+ * validateLoadout stays the single judge of legality, and the builder shows its errors verbatim.
  */
 import { CAPS, abilityById, itemById } from '@chain-theorem/content';
-import { PIECE_TYPES, type ElementId, type Loadout, type PieceType } from '@chain-theorem/rules';
+import {
+  PIECE_TYPES,
+  kingSet,
+  kingSlotCost,
+  type AbilityDef,
+  type ElementId,
+  type Loadout,
+  type PieceType,
+} from '@chain-theorem/rules';
 
 export function shapeOf(items: readonly string[]): {
   capacity: number;
@@ -30,6 +38,30 @@ export function shapeOf(items: readonly string[]): {
     secondElement,
     consumed,
   };
+}
+
+/**
+ * Item slots the king's set adds to the item slot total (7.4 rule 9, DD-109): Stalwart on the king
+ * uses one. Item-only `shapeOf(items).consumed` plus this is what rule 1 counts.
+ */
+export function kingSlotsOf(l: Loadout): number {
+  return kingSlotCost(l, abilityById);
+}
+
+/** Abilities in the king's set that use item slots (rule 9), with the slots each one adds. */
+export function kingSlotAbilities(l: Loadout): { def: AbilityDef; slots: number }[] {
+  const out: { def: AbilityDef; slots: number }[] = [];
+  for (const id of new Set(kingSet(l))) {
+    const def = abilityById.get(id);
+    const slots = def?.kingItemSlots ?? 0;
+    if (def && slots > 0) out.push({ def, slots });
+  }
+  return out;
+}
+
+/** Whether set `index` applies to the king: the sixth per-type set, or the army-wide set (7.3). */
+export function isKingSet(l: Loadout, index: number): boolean {
+  return l.sets.length === 6 ? index === 5 : index === 0;
 }
 
 /** Lowest level at which `slots` item slots are unlocked (7.1), or null past the cap. */
@@ -98,7 +130,8 @@ export function itemBlock(l: Loadout, level: number, id: string): string | null 
   if (def.minLevel > level) return `Needs level ${def.minLevel}`;
   const swapped = replacedBy(l, id);
   const freed = swapped ? (itemById.get(swapped)?.slotCost ?? 0) : 0;
-  const free = CAPS.itemSlots(level) - shapeOf(l.items).consumed + freed;
+  // Rule 9 (DD-109): the king's set may already use item slots (Stalwart on the king).
+  const free = CAPS.itemSlots(level) - shapeOf(l.items).consumed - kingSlotsOf(l) + freed;
   if (def.slotCost > free)
     return `Needs ${def.slotCost} free slot${def.slotCost > 1 ? 's' : ''} (${Math.max(0, free)} free)`;
   return null;
@@ -116,12 +149,20 @@ export function setCost(set: readonly string[]): number {
   return set.reduce((n, id) => n + (abilityById.get(id)?.slotCost ?? 1), 0);
 }
 
-/** Why an ability cannot be added to a set right now, or null. */
+const COUNT_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six'];
+export const countWord = (n: number): string => COUNT_WORDS[n] ?? String(n);
+
+/**
+ * Why an ability cannot be added to a set right now, or null. With `target` (the loadout the set
+ * belongs to and whether that set applies to the king, see `isKingSet`), an ability with a king
+ * item cost also needs that many free item slots (7.4 rule 9, DD-109).
+ */
 export function abilityBlock(
   set: readonly string[],
   capacity: number,
   level: number,
   id: string,
+  target?: { loadout: Loadout; appliesToKing: boolean },
 ): string | null {
   const def = abilityById.get(id);
   if (!def) return 'Unknown ability';
@@ -131,6 +172,13 @@ export function abilityBlock(
   const left = capacity - setCost(set);
   if (def.slotCost > left)
     return left <= 0 ? `Set is full (${capacity})` : `Needs ${def.slotCost} free`;
+  const kingCost = def.kingItemSlots ?? 0;
+  if (target?.appliesToKing && kingCost > 0) {
+    const l = target.loadout;
+    const used = shapeOf(l.items).consumed + kingSlotsOf(l);
+    if (CAPS.itemSlots(level) < used + kingCost)
+      return `Needs ${kingCost === 1 ? 'a' : kingCost} free item slot${kingCost === 1 ? '' : 's'}: ${def.name} on the king uses ${countWord(kingCost)}`;
+  }
   return null;
 }
 

@@ -64,7 +64,8 @@ describe('headmaster ring (R-LOAD-002)', () => {
       FIVE,
       FIVE,
       FIVE,
-      ['last_word', 'poisoned_meat', 'riposte', 'veil', 'stalwart'],
+      // Block Path, not Stalwart: on the king Stalwart would need a seventh item slot (rule 9, DD-109).
+      ['last_word', 'poisoned_meat', 'riposte', 'veil', 'block_path'],
     ];
     const l = loadout([ID, 'multitaskers_schedule', 'blended_family'], sets, ['tide', 'ember']);
     const v = engine.validateLoadout(l, { level: 25 });

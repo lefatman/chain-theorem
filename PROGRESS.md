@@ -174,13 +174,19 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 - [ ] B4 Trait numbers as config knobs (Flow: at most one allied piece passed per move; Bulwark:
       non-pawns only; Overabundance: +1 charge, not x2; Hot Foot: 4 turns); re-measure Storm vs Stone
       first; one sim run per change; DD row. Identities (6.1) stay COMMITTED.
-- [ ] B5 Per-card changes and loadout rule 9: Redo non-pawn; Obstinate ignored by kings, 2 slots;
-      Block Path 2 slots and a king's facing resets to forward after it moves; rule 9 at most two
-      Passive abilities per set; Pierce 2 charges; Scout's Lens reveals the whole pawn set; sim run;
-      DD rows. B1's baseline backs Obstinate at 2 slots and rule 9 (which also cuts the Stalwart
-      king set to two cards); whether Stalwart on a king should cost one slot is a designer question.
-      From B3: Resonance Crystal's reading under `ONCE_PER_ABILITY` (one spared silence per battle
-      as DD-30 had it, or a higher slot cost for "never") and Storm's passive slot.
+- [x] B3b Designer answers of 2026-10-09 (DD-109, DD-110): Stalwart on a king costs an item slot
+      (loadout rule 9: `kingItemSlots` module data, public total, sound deductions, editor meter,
+      simulator `--king plain|stalwart`); Storm's signature ships in its most balanced measured
+      version (bishops turn once at a bishop, rook, queen or king; rooks and the queen never; a
+      `CAPS.ELECTRIC_SLIDE` knob with simulator and fuzzer `--caps`). Done 2026-10-09 (evidence
+      log): `docs/BALANCE_BASELINE.md` section 9.
+- [ ] B5 Per-card changes and loadout rule 10: Redo non-pawn; Obstinate ignored by kings, 2 slots;
+      Block Path 2 slots and a king's facing resets to forward after it moves; rule 10 at most two
+      Passive abilities per set (rule 9 is now the Stalwart king's item slot, DD-109); Pierce 2
+      charges; Scout's Lens reveals the whole pawn set; sim run; DD rows. B1's baseline backs
+      Obstinate at 2 slots and the two-passive rule (which also cuts the Stalwart king set to two
+      cards). From B3: Resonance Crystal's reading under `ONCE_PER_ABILITY` (one spared silence per
+      battle as DD-30 had it, or a higher slot cost for "never") and Storm's passive slot.
 - [ ] C6 Three neutral abilities: Cornered (Captured, L4, 1 charge, rim squares), Ricochet (Captures,
       sliders, L8, 2 charges, continue past the capture), Overwhelm (Capturing, L9, 2 charges, negate
       a lower-ranked victim's Captured abilities); primitives logged; golden examples; fuzz; sim.

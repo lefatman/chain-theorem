@@ -117,7 +117,8 @@ function armyFor(rt: Runtime, entry: BattleSetup['white']): ArmyState {
     level: entry.level,
     loadout,
     sets: expandSets(loadout.sets),
-    consumedSlots: loadoutShape(loadout, rt.items, rt.caps).consumedSlots,
+    // Item cost plus the king's set's slots (rule 9, DD-109): projected publicly (8.1, D-11).
+    consumedSlots: loadoutShape(loadout, rt.items, rt.caps, rt.abilities).consumedSlots,
   };
 }
 

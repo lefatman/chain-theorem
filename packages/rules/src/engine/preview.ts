@@ -65,7 +65,7 @@ export function beliefState(rt: Runtime, pub: PublicState, own: Loadout): GameSt
       level: pub.armies[me].level,
       loadout: own,
       sets: expandSets(own.sets),
-      consumedSlots: loadoutShape(own, rt.items, rt.caps).consumedSlots,
+      consumedSlots: loadoutShape(own, rt.items, rt.caps, rt.abilities).consumedSlots,
     },
     [opp]: {
       level: oppPub.level,
@@ -175,7 +175,14 @@ export function preview(
   }
   if (!known.allItems && pub.armies[opp].consumedSlots > 0) {
     const knownCost = known.items.reduce((sum, id) => sum + (rt.items.get(id)?.slotCost ?? 0), 0);
-    if (knownCost < pub.armies[opp].consumedSlots) unknowns.push({ kind: 'opponentItems' });
+    // Slots the viewer can already attribute to the opponent's king (rule 9, DD-109): abilities
+    // revealed on the king that carry a king item cost, such as Stalwart.
+    const knownKing = (known.abilities.king ?? []).reduce(
+      (sum, id) => sum + (rt.abilities.get(id)?.kingItemSlots ?? 0),
+      0,
+    );
+    if (knownCost + knownKing < pub.armies[opp].consumedSlots)
+      unknowns.push({ kind: 'opponentItems' });
   }
   try {
     const out = applyWithDefaults(engine, state, { kind: 'move', side: me, move });

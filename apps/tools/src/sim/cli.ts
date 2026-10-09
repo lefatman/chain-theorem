@@ -12,6 +12,8 @@
  *            [--without id,id,...] (leave these items out of every build)
  *            [--caps '{"ELECTRIC_SLIDE":{"turners":["rook"]}}'] (CAPS overrides for a variant run;
  *            object-valued caps merge one level deep) [--tag name] (report file suffix for it)
+ *            [--king plain|stalwart] (stalwart: Stalwart on the Maximum and Flexible king sets,
+ *            paying its item slot with Blended Family or the Crystal, rule 9, DD-109)
  *
  * Suites: `elements` plays mono-element Focused builds against each other, `archetypes` the four
  * 7.3 builds, and `cards` a mirror test per ability (the card with the four best other cards of
@@ -33,9 +35,11 @@ import {
   buildLoadout,
   cardLoadouts,
   elementLoadout,
+  setKing,
   setPool,
   setPrefer,
   setWithout,
+  type King,
   type Pool,
 } from './builds.ts';
 import { playSim, type SimGame, type SimOutcome } from './play.ts';
@@ -47,6 +51,8 @@ interface Options {
   without: string[];
   /** CAPS overrides (`--caps`), object-valued caps merged one level deep onto the defaults. */
   caps: Partial<Caps>;
+  /** The king's set (`--king`): 'stalwart' carries Stalwart and pays its item slot (DD-109). */
+  king: King;
 }
 
 interface Job {
@@ -72,6 +78,7 @@ if (!isMainThread) {
   setPool(options.pool);
   setPrefer(options.prefer);
   setWithout(options.without);
+  setKing(options.king);
   const engine = makeEngine({ ...options.caps, SILENCE_SCOPE: options.silence });
   const done: Done[] = [];
   for (const j of jobs) {
@@ -105,11 +112,13 @@ if (!isMainThread) {
       .split(',')
       .filter((x) => x !== ''),
     caps: capsOverrides(arg('caps', '')),
+    king: arg('king', 'plain') as King,
   };
   const runTag = arg('tag', '').replace(/[^A-Za-z0-9_.-]+/g, '_');
   setPool(options.pool);
   setPrefer(options.prefer);
   setWithout(options.without);
+  setKing(options.king);
   const jobs: Job[] = [];
   let seed = seed0;
   const only = arg('elements', '');
@@ -251,7 +260,7 @@ if (!isMainThread) {
   const lines: string[] = [];
   lines.push(`# Balance simulator report`, '');
   lines.push(
-    `Format ${format}, tier ${tier}, ${nodes} nodes per move, ${games} games per pairing, seeds from ${seed0}, silenceScope ${options.silence}, ability pool ${options.pool}${options.prefer.length ? `, preferred cards ${options.prefer.join(' ')}` : ''}${options.without.length ? `, without ${options.without.join(' ')}` : ''}${Object.keys(options.caps).length ? `, caps ${JSON.stringify(options.caps)}` : ''}. Draws count as half a win.`,
+    `Format ${format}, tier ${tier}, ${nodes} nodes per move, ${games} games per pairing, seeds from ${seed0}, silenceScope ${options.silence}, ability pool ${options.pool}${options.prefer.length ? `, preferred cards ${options.prefer.join(' ')}` : ''}${options.without.length ? `, without ${options.without.join(' ')}` : ''}${Object.keys(options.caps).length ? `, caps ${JSON.stringify(options.caps)}` : ''}${options.king === 'stalwart' ? ', king set stalwart' : ''}. Draws count as half a win.`,
     '',
   );
   const el = results.filter((r) => r.job.suite === 'elements');
@@ -385,7 +394,7 @@ if (!isMainThread) {
   const md = lines.join('\n');
   mkdirSync('reports/sim', { recursive: true });
   const onlyCardsTag = arg('cards', '');
-  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}${only ? `-${els.join('_')}` : ''}${onlyCardsTag ? `-${onlyCardsTag.replace(/,/g, '_')}` : ''}${options.prefer.length ? `-prefer_${options.prefer.join('_')}` : ''}${options.without.length ? `-without_${options.without.join('_')}` : ''}${runTag ? `-${runTag}` : ''}`;
+  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}${only ? `-${els.join('_')}` : ''}${onlyCardsTag ? `-${onlyCardsTag.replace(/,/g, '_')}` : ''}${options.prefer.length ? `-prefer_${options.prefer.join('_')}` : ''}${options.without.length ? `-without_${options.without.join('_')}` : ''}${options.king === 'stalwart' ? '-king_stalwart' : ''}${runTag ? `-${runTag}` : ''}`;
   writeFileSync(`reports/sim/${tag}.md`, md + '\n');
   writeFileSync(
     `reports/sim/${tag}.json`,

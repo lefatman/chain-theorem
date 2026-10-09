@@ -644,3 +644,45 @@ Advantaged element: **61.7%**. White 47.0%, surprise losses 2.8%, median 71 plie
    argues against: it makes Pierce the best card in the game. The knob is now measurable in an
    afternoon (`--prefer pierce`, `--without resonance_crystal`), so B4 and B5 can re-run it after
    each change.
+
+## 9. Two designer answers (B3b, DD-109, DD-110)
+
+The designer answered two of the questions this report raised (2026-10-09): Stalwart on a king
+should cost a slot, and Storm's signature should ship in its most balanced version. Both are measured
+here with the method of sections 2–8; the mirror tests use 120 games in First Blood (about ±4.5
+points) and 80 in Full Battle (±5.5), the finalists 300 and 200 (±2.9 and ±3.5), and the element and
+archetype suites the counts of section 7, so every cell pairs with the one there.
+
+### 9.1 Storm's signature: which pieces turn, and where
+
+Electric Slide's attuned turn is now a config knob (`CAPS.ELECTRIC_SLIDE`: the slider types that turn
+once per move, and whether any allied piece other than a pawn, any such piece other than a knight, or
+only a piece that has left its starting square serves as the corner), so the variants run from
+`pnpm sim --suite cards --cards electric_slide --caps '{"ELECTRIC_SLIDE":{...}}'` without a content
+change. The base leap (a pawn over one adjacent ally) is the same in every row. Section 7's shipped
+rule (DD-106) is the first row.
+
+**The matrix** — `--format first_blood --games 120` and `--format full --games 80`, `--nodes 20000`
+
+| Turning sliders       | Corners                       | First Blood (120) | Median plies | Full Battle (80) |
+| --------------------- | ----------------------------- | ----------------- | ------------ | ---------------- |
+| Rooks and bishops     | any piece but a pawn (DD-106) | 77.9%             | 14           | 71.9%            |
+| Rooks                 | any piece but a pawn          | 55.0%             | 20           | 68.1%            |
+| Bishops               | any piece but a pawn          | 87.9%             | 15           | 53.1%            |
+| Rooks and bishops     | not a pawn or a knight        | 54.6%             | 22           | 66.9%            |
+| Rooks and bishops     | a piece that has moved        | 88.3%             | 15           | 73.8%            |
+| none (the leap alone) | —                             | 57.5%             | 21           | 57.5%            |
+| Rooks                 | not a pawn or a knight        | 51.7%             | 22           | 66.9%            |
+| Bishops               | not a pawn or a knight        | 61.3%             | 21           | 62.5%            |
+| Rooks                 | a piece that has moved        | 60.4%             | 21           | 65.6%            |
+| Bishops               | a piece that has moved        | 87.9%             | 15           | 53.8%            |
+
+@@CONFIRM@@
+
+@@SHIPPED@@
+
+### 9.2 Stalwart on a king costs an item slot (rule 9)
+
+@@STALWART@@
+
+@@FINDINGS@@

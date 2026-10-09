@@ -24,8 +24,9 @@ const TIER_NAMES: readonly Tier[] = ['wild', 'trainer', 'elite'];
 /**
  * Opponent loadouts that look the same from outside: Grove, level 20, 1 consumed slot. None of
  * their abilities or items can fire or become observable in the positions under test (no rook
- * carries a Capturing ability, and the king's Stalwart only shows when it moves into check), so
- * nothing is revealed and the differences stay hidden.
+ * carries a Capturing ability, and a king is never captured, so its Last Word never fires), so
+ * nothing is revealed and the differences stay hidden. Stalwart on the king would show in the
+ * public slot total (rule 9, DD-109), so no variant carries it.
  */
 const HIDDEN: readonly Loadout[] = [
   { elements: ['grove'], items: ['dual_adepts_glove'], sets: [['poisoned_meat', 'rebirth']] },
@@ -34,7 +35,7 @@ const HIDDEN: readonly Loadout[] = [
   {
     elements: ['grove'],
     items: ['multitaskers_schedule'],
-    sets: [['backdraft'], ['last_word'], ['veil'], [], ['antidote'], ['stalwart']],
+    sets: [['backdraft'], ['last_word'], ['veil'], [], ['antidote'], ['last_word']],
   },
 ];
 

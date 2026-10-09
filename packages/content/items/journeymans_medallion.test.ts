@@ -74,7 +74,8 @@ describe("journeyman's medallion (R-LOAD-002)", () => {
       FOUR,
       ['scout', 'pierce', 'antidote', 'last_word'],
       ['poisoned_meat', 'pierce', 'cleave', 'hit_and_run'],
-      ['last_word', 'poisoned_meat', 'veil', 'stalwart'],
+      // Block Path, not Stalwart: on the king Stalwart would need a seventh item slot (rule 9, DD-109).
+      ['last_word', 'poisoned_meat', 'veil', 'block_path'],
     ];
     const l = loadout([ID, 'multitaskers_schedule', 'blended_family', 'scouts_lens'], sets, [
       'tide',

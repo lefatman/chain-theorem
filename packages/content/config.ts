@@ -44,10 +44,12 @@ export const CAPS = {
   MAX_EVENTS_PER_ACTION: 512,
   // 5.8 Schrödinger's Joker (DD-101, PLAYTEST): a twin group holds at most this many pieces.
   TWIN_GROUP_MAX: 3,
-  // 5.8 Electric Slide's attuned turn (DD-106, PLAYTEST): which sliders turn once per move and at
-  // which allies ('pieces': any allied piece other than a pawn; 'no_knights'; 'moved': one that
-  // has left its starting square). `pnpm sim --caps` and the fuzzer's `--caps` override it.
-  ELECTRIC_SLIDE: { turners: ['rook', 'bishop'], corners: 'pieces' },
+  // 5.8 Electric Slide's attuned turn (DD-106, DD-110, PLAYTEST): which sliders turn once per move
+  // and at which allies ('pieces': any allied piece other than a pawn; 'no_knights'; 'moved': one
+  // that has left its starting square). Bishops at a bishop, rook, queen or king measured as the
+  // most balanced version (docs/BALANCE_BASELINE.md section 9); `pnpm sim --caps` and the fuzzer's
+  // `--caps` override it.
+  ELECTRIC_SLIDE: { turners: ['bishop'], corners: 'no_knights' },
 } as const satisfies Caps;
 
 /**
