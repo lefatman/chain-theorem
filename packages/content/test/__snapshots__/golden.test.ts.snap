@@ -1112,7 +1112,7 @@ exports[`E8 Flow: a Tide rook behind its own pawn > E8 R-ELEM-006 the rook check
 ]
 `;
 
-exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times > E9 R-ELEM-007 R-ABIL-004 DD-17 DD-22 Rebirth has 2 charges on a Grove piece: the bishop returns twice, the third capture is final 1`] = `
+exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times > E9 R-ELEM-007 R-ABIL-004 DD-17 DD-22 DD-98 Rebirth has 2 charges on a Grove piece: the bishop returns twice, the third capture is final 1`] = `
 [
   {
     "depth": 0,
@@ -1180,7 +1180,7 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
   },
   {
     "ability": "rebirth",
-    "attuned": true,
+    "attuned": false,
     "category": "CAPTURED",
     "depth": 0,
     "i": 7,
@@ -1204,17 +1204,6 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
   {
     "depth": 0,
     "i": 9,
-    "k": "ChoiceMade",
-    "option": {
-      "kind": "square",
-      "square": 2,
-    },
-    "promptId": "1.0",
-    "side": "white",
-  },
-  {
-    "depth": 0,
-    "i": 10,
     "k": "PieceRevived",
     "piece": 0,
     "side": "white",
@@ -1229,7 +1218,7 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
   {
     "ability": "rebirth",
     "depth": 0,
-    "i": 11,
+    "i": 10,
     "k": "ChargeSpent",
     "piece": 0,
     "pieceType": "bishop",
@@ -1238,14 +1227,14 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
   },
   {
     "depth": 0,
-    "i": 12,
+    "i": 11,
     "k": "TurnPassed",
     "ply": 2,
     "side": "white",
   },
   {
     "depth": 0,
-    "i": 13,
+    "i": 12,
     "k": "ActionStarted",
     "move": {
       "from": 2,
@@ -1259,7 +1248,7 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
     "capture": false,
     "depth": 0,
     "from": 2,
-    "i": 14,
+    "i": 13,
     "k": "MoveMade",
     "piece": 0,
     "pieceType": "bishop",
@@ -1268,14 +1257,14 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
   },
   {
     "depth": 0,
-    "i": 15,
+    "i": 14,
     "k": "TurnPassed",
     "ply": 3,
     "side": "black",
   },
   {
     "depth": 0,
-    "i": 16,
+    "i": 15,
     "k": "ActionStarted",
     "move": {
       "from": 11,
@@ -1288,7 +1277,7 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
     "by": "move",
     "captor": 2,
     "depth": 0,
-    "i": 17,
+    "i": 16,
     "k": "Captured",
     "square": 9,
     "victim": 0,
@@ -1300,7 +1289,7 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
     "capture": true,
     "depth": 0,
     "from": 11,
-    "i": 18,
+    "i": 17,
     "k": "MoveMade",
     "piece": 2,
     "pieceType": "rook",
@@ -1309,10 +1298,10 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
   },
   {
     "ability": "rebirth",
-    "attuned": true,
+    "attuned": false,
     "category": "CAPTURED",
     "depth": 0,
-    "i": 19,
+    "i": 18,
     "k": "AbilityTriggered",
     "piece": 0,
     "pieceType": "bishop",
@@ -1320,18 +1309,7 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
   },
   {
     "depth": 0,
-    "i": 20,
-    "k": "ChoiceMade",
-    "option": {
-      "kind": "square",
-      "square": 2,
-    },
-    "promptId": "3.0",
-    "side": "white",
-  },
-  {
-    "depth": 0,
-    "i": 21,
+    "i": 19,
     "k": "PieceRevived",
     "piece": 0,
     "side": "white",
@@ -1346,7 +1324,7 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
   {
     "ability": "rebirth",
     "depth": 0,
-    "i": 22,
+    "i": 20,
     "k": "ChargeSpent",
     "piece": 0,
     "pieceType": "bishop",
@@ -1355,14 +1333,14 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
   },
   {
     "depth": 0,
-    "i": 23,
+    "i": 21,
     "k": "TurnPassed",
     "ply": 4,
     "side": "white",
   },
   {
     "depth": 0,
-    "i": 24,
+    "i": 22,
     "k": "ActionStarted",
     "move": {
       "from": 2,
@@ -1376,7 +1354,7 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
     "capture": false,
     "depth": 0,
     "from": 2,
-    "i": 25,
+    "i": 23,
     "k": "MoveMade",
     "piece": 0,
     "pieceType": "bishop",
@@ -1385,14 +1363,14 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
   },
   {
     "depth": 0,
-    "i": 26,
+    "i": 24,
     "k": "TurnPassed",
     "ply": 5,
     "side": "black",
   },
   {
     "depth": 0,
-    "i": 27,
+    "i": 25,
     "k": "ActionStarted",
     "move": {
       "from": 9,
@@ -1405,7 +1383,7 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
     "by": "move",
     "captor": 2,
     "depth": 0,
-    "i": 28,
+    "i": 26,
     "k": "Captured",
     "square": 11,
     "victim": 0,
@@ -1417,7 +1395,7 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
     "capture": true,
     "depth": 0,
     "from": 9,
-    "i": 29,
+    "i": 27,
     "k": "MoveMade",
     "piece": 2,
     "pieceType": "rook",
@@ -1426,7 +1404,7 @@ exports[`E9 Overabundance: a Grove bishop with Rebirth is captured three times >
   },
   {
     "depth": 0,
-    "i": 30,
+    "i": 28,
     "k": "TurnPassed",
     "ply": 6,
     "side": "white",

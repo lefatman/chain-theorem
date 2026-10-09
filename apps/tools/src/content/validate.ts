@@ -16,7 +16,7 @@ import { generate, moduleIds } from './index-gen.ts';
 const ROOT = new URL('../../../../', import.meta.url).pathname;
 const CONTENT = join(ROOT, 'packages/content');
 const STATUSES = ['COMMITTED', 'PROVISIONAL', 'PLAYTEST'];
-const TAGS = ['replay', 'revive'];
+const TAGS = ['replay', 'revive', 'venom'];
 const CATEGORIES = ['CAPTURING', 'CAPTURES', 'CAPTURED', 'PASSIVE'];
 const AFFINITIES = [...ELEMENTS, 'neutral'];
 
@@ -45,14 +45,21 @@ export function effectProblems(a: AbilityDef): string[] {
   if (count(base, 'bonusAction') > 1 || count(attuned, 'bonusAction') > 1)
     out.push('at most one bonusAction per activation (INV-01)');
   const all = [...base, ...attuned];
-  const bonus = all.includes('bonusAction');
+  // `replay` marks time manipulation: a bonus action or a rewind (Redo, DD-100).
+  const bonus = all.includes('bonusAction') || all.includes('rewind');
   const revive = all.includes('revive');
   if (bonus !== a.tags.includes('replay'))
-    out.push(bonus ? "a bonusAction needs the 'replay' tag" : "'replay' tag without a bonusAction");
+    out.push(
+      bonus
+        ? "a bonusAction or rewind needs the 'replay' tag"
+        : "'replay' tag without a bonusAction or rewind",
+    );
   if (revive !== a.tags.includes('revive'))
     out.push(
       revive ? "a revive effect needs the 'revive' tag" : "'revive' tag without a revive effect",
     );
+  if (a.tags.includes('venom') && !all.includes('effectCapture'))
+    out.push("'venom' tag without an effect capture (DD-102)");
   return out;
 }
 
@@ -116,6 +123,18 @@ export function validateContent(): string[] {
     for (const problem of effectProblems(a)) err(w, problem);
     text(w, a.text);
     if (!hasTest('abilities', a.id)) err(w, 'needs a scenario test abilities/<id>.test.ts');
+  }
+  // DD-98: exactly one signature ability per element; every other ability is neutral.
+  for (const el of AFFINITIES) {
+    if (el === 'neutral') continue;
+    const own = abilities.filter((a) => a.affinity === el && !a.retired);
+    if (own.length !== 1)
+      err(
+        `element ${el}`,
+        `has ${own.length} affinity abilities (${own.map((a) => a.id).join(', ') || 'none'}); exactly one signature is allowed (6.5, DD-98)`,
+      );
+    for (const a of own)
+      if (!a.attuned) err(`ability ${a.id}`, 'a signature needs an attuned version (6.3)');
   }
   for (const i of items) {
     const w = `item ${i.id}`;

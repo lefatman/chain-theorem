@@ -41,8 +41,15 @@ describe('content:validate', () => {
 
   it('R-DATA-005 tags must match the effects', () => {
     expect(effectProblems(defineAbility({ ...base, tags: [], effects: [bonus] }))).toEqual([
-      "a bonusAction needs the 'replay' tag",
+      "a bonusAction or rewind needs the 'replay' tag",
     ]);
+    // A rewind is time manipulation too (Redo, DD-100): same tag, same rule.
+    expect(effectProblems(defineAbility({ ...base, tags: [], effects: [fx.rewind()] }))).toEqual([
+      "a bonusAction or rewind needs the 'replay' tag",
+    ]);
+    expect(
+      effectProblems(defineAbility({ ...base, tags: ['replay'], effects: [fx.rewind()] })),
+    ).toEqual([]);
     const revive = fx.atChainEnd([fx.revive(target.self(), square.start())]);
     expect(effectProblems(defineAbility({ ...base, tags: [], effects: [revive] }))).toEqual([
       "a revive effect needs the 'revive' tag",

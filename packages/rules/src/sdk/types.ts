@@ -5,6 +5,9 @@
 import type {
   BattleEvent,
   Category,
+  ChoiceOption,
+  ChoiceRequest,
+  Compass,
   ElementId,
   EventInput,
   FizzleReason,
@@ -12,6 +15,7 @@ import type {
   GameState,
   PieceId,
   PieceType,
+  RankCmp,
   RevealCause,
   RevealInfo,
   Side,
@@ -19,7 +23,8 @@ import type {
   Square,
 } from '../types.ts';
 
-export type AbilityTag = 'replay' | 'revive';
+/** `venom`: an effect capture that even Stalwart's protection does not stop (DD-102). */
+export type AbilityTag = 'replay' | 'revive' | 'venom';
 export type Status = 'COMMITTED' | 'PROVISIONAL' | 'PLAYTEST';
 export type SilenceScope = 'ALL_TRIGGERS' | 'REACTIONS_ONLY' | 'OFF';
 
@@ -46,6 +51,8 @@ export interface Caps {
   FORMATS: Readonly<Record<FormatId, FormatDef>>;
   /** Termination guard: an action emitting more events than this is an engine bug. */
   MAX_EVENTS_PER_ACTION: number;
+  /** Most pieces in one twin group, the original included (Schrödinger's Joker, DD-101). */
+  TWIN_GROUP_MAX: number;
 }
 
 // ---- effect data (5.2) ----------------------------------------------------------------------------
@@ -63,6 +70,8 @@ export interface PieceFilter {
   types?: PieceType[];
   near?: { of: Anchor; pattern: Pattern };
   exclude?: ('captor' | 'victim' | 'self')[];
+  /** Piece rank (5.1, DD-97) compared with a reference piece's rank. */
+  rank?: { cmp: RankCmp; to: 'captor' | 'victim' | 'self' };
 }
 
 export interface SquareFilter {
@@ -79,9 +88,19 @@ export type TargetSpec =
   | { t: 'captor' }
   | { t: 'victim' }
   | { t: 'chosen'; filter: PieceFilter }
-  | { t: 'mostRecentCaptured'; side: 'friendly' | 'enemy'; type: PieceType };
+  | { t: 'mostRecentCaptured'; side: 'friendly' | 'enemy'; type: PieceType }
+  /**
+   * The owner chooses among captured pieces matching the filter (never a king), in the square
+   * order of their starting squares; each option names that square (Necromancer, DD-103).
+   */
+  | { t: 'chosenCaptured'; filter: PieceFilter };
 
-export type SquareSpec = { s: 'origin' } | { s: 'start' } | { s: 'chosen'; filter: SquareFilter };
+export type SquareSpec =
+  | { s: 'origin' }
+  | { s: 'start' }
+  | { s: 'chosen'; filter: SquareFilter }
+  /** The piece's starting square when empty, otherwise the owner chooses from the filter. */
+  | { s: 'startElse'; filter: SquareFilter };
 
 export interface BonusSpec {
   /** Who may make the bonus move. */
@@ -101,6 +120,8 @@ export type EffectCondition =
   | { survives: 'captor' | 'victim' | 'self' }
   | { noLegalCapturerOf: 'captor' }
   | { typeIs: { of: 'captor' | 'victim' | 'self'; types: PieceType[] } }
+  /** No piece on the board matches the filter as an effect-capture target (Quantum Kill). */
+  | { noneMatch: PieceFilter }
   | { not: EffectCondition }
   | { all: EffectCondition[] };
 
@@ -113,6 +134,18 @@ export type EffectSpec =
   | { op: 'bonusAction'; bonus: BonusSpec }
   | { op: 'reveal'; reveal: RevealSpec }
   | { op: 'modifyRule'; rule: string; params?: Record<string, string | number | boolean> }
+  /**
+   * REWIND (5.2, DD-100): the position returns to the start of the previous action (two plies back,
+   * or one when this is the battle's first action); charges, reveals and clocks survive. Ends the
+   * action: nothing queued after it resolves.
+   */
+  | { op: 'rewind' }
+  /**
+   * SPAWN (5.2, DD-101): the bearer gets a twin of its type, element and abilities that waits on the
+   * bearer's square until its owner's next turn, then makes its own move after the owner's normal
+   * move each turn. Capturing any member of the group removes them all. Fizzles `group_full`.
+   */
+  | { op: 'spawn' }
   | { op: 'when'; cond: EffectCondition; then: EffectSpec[] }
   | { op: 'atChainEnd'; effects: EffectSpec[] };
 
@@ -121,7 +154,9 @@ export type Condition =
   | { victimTypeNot: PieceType }
   | { victimTypeIs: PieceType[] }
   | { captorTypeIs: PieceType[] }
-  | { captorTypeNot: PieceType };
+  | { captorTypeNot: PieceType }
+  /** Compare the victim's and the captor's ranks (5.1, DD-97): `of cmp to`. */
+  | { rank: { of: 'victim' | 'captor'; cmp: RankCmp; to: 'victim' | 'captor' } };
 
 // ---- module definitions ---------------------------------------------------------------------------
 
@@ -146,6 +181,8 @@ export interface AbilityDef {
   attuned?: { effects: EffectSpec[]; mode: 'replace' | 'append'; conditions?: Condition[] };
   /** PASSIVE abilities change rules through hooks (MODIFY_RULE, DD-14). */
   hooks?: Partial<RuleHooks>;
+  /** Loadout rule 8 (7.4): no set may hold this ability with one of these categories (DD-102). */
+  excludes?: { categories: Category[] };
   text: ModuleText;
   status: Status;
   retired?: boolean;
@@ -213,6 +250,11 @@ export interface ReadCtx {
   /** Ability ids in the piece's current set, in order (ineligible ones included). */
   abilitiesOf(piece: PieceView): readonly string[];
   hasAbility(piece: PieceView, abilityId: string): boolean;
+  /**
+   * Is the ability attuned on this piece (6.3): the piece's element matches the ability's affinity,
+   * or an `attunement` hook (Attunement Charm) says so? For passives whose hooks differ when attuned.
+   */
+  attuned(piece: PieceView, abilityId: string): boolean;
   hasItem(side: Side, itemId: string): boolean;
   itemParam(side: Side, itemId: string): { element?: ElementId } | undefined;
 }
@@ -226,6 +268,44 @@ export interface MutCtx extends ReadCtx {
 }
 
 export type SetupCtx = MutCtx;
+
+/** A mid-action question a hook asks its owner (5.4; Block Path's facing, DD-99). */
+export interface HookChoice {
+  /** The piece the question is about; the prompt names it as its source and subject. */
+  piece: PieceId;
+  kind: ChoiceRequest['kind'];
+  purpose?: ChoiceRequest['purpose'];
+  options: ChoiceOption[];
+  /** A declinable prompt gets a leading `decline` option, which is also its default (DD-18). */
+  optional: boolean;
+}
+
+export interface ChoiceCtx extends MutCtx {
+  /**
+   * Ask the module's owner. Returns the chosen option, or null when declined or when there is
+   * nothing to choose. Suspends the action until the answer arrives (replayed deterministically).
+   */
+  choose(req: HookChoice): ChoiceOption | null;
+  /**
+   * Would `side`'s king be safe once `change` (slice writes on a draft) has been applied? Options
+   * that would leave a king in check are never offered (INV-03): a Block Path king may not turn
+   * its guard away from an attacker.
+   */
+  kingSafeAfter(side: Side, change: (draft: MutCtx) => void): boolean;
+}
+
+/** Restrictions on move captures of one piece (captureFilter, 5.6 and 13.5). */
+export interface CaptureRestriction {
+  /** Enemy pieces that may not move-capture this piece (Obstinate). */
+  attackers?: readonly PieceId[];
+  /**
+   * Compass directions, as seen from this piece, it cannot be move-captured from: sliders, kings
+   * and pawns along the shared line, knights along their long leg (Block Path, DD-99).
+   */
+  from?: readonly Compass[];
+  /** A hard restriction also binds attackers that bypass passive restrictions (DD-102). */
+  hard?: true;
+}
 
 export interface CaptureInfo {
   /** Capture id (captureSeq value of the victim's capture). */
@@ -278,6 +358,13 @@ export interface PieceMovedInfo {
   depth: number;
 }
 
+export interface ActionEndInfo {
+  /** The acting player. */
+  actor: Side;
+  /** Every piece movement of the action, in order (including bonus and effect moves). */
+  moved: readonly PieceMovedInfo[];
+}
+
 export interface RevealRequest {
   side: Side;
   info: RevealInfo;
@@ -309,12 +396,32 @@ export interface RuleHooks {
     passThrough?(ctx: ReadCtx, piece: PieceView): boolean;
     blockedSquares?(ctx: ReadCtx, piece: PieceView): readonly Square[] | null;
     kingMode?(ctx: ReadCtx, king: PieceView): 'stalwart' | undefined;
+    /**
+     * Restrictions on move captures of `victim` (Obstinate, Block Path); effect captures never
+     * consult them. The engine reveals the ability the first time a restriction changes which
+     * moves are legal or whether a king is in check (DD-32, DD-99).
+     */
+    captureFilter?(ctx: ReadCtx, victim: PieceView): CaptureRestriction | null;
+    /** `true`: the piece ignores blocked squares and soft capture restrictions (Stalwart, DD-102). */
+    bypass?(ctx: ReadCtx, piece: PieceView): boolean;
+    /** `true`: this pawn may leap straight over one adjacent ally to the empty square beyond. */
+    pawnLeap?(ctx: ReadCtx, pawn: PieceView): boolean;
+    /** Redirects per move this slider may make at allied squares (0, 1 or 2; Electric Slide). */
+    redirects?(ctx: ReadCtx, slider: PieceView): number;
+    /**
+     * May this allied piece serve as a corner for its side's turning sliders? Every ally does unless
+     * a hook of its own side answers `false`; a non-corner blocks the slider like any ally (Electric
+     * Slide: never a pawn, DD-106).
+     */
+    redirectCorner?(ctx: ReadCtx, ally: PieceView): boolean;
   };
   queueOrder(ctx: ReadCtx, queue: QueuedTrigger[]): QueuedTrigger[];
   triggerFilter(ctx: MutCtx, trigger: TriggerInfo): 'allow' | 'silence' | 'negate';
   silenceOverride(ctx: MutCtx, trigger: TriggerInfo): boolean;
   effectIntercept(ctx: MutCtx, effect: EffectInfo): InterceptVerdict;
   onPieceMoved(ctx: MutCtx, info: PieceMovedInfo): void;
+  /** After the chain has resolved and before Settle; the only hook that may ask a question. */
+  onActionEnd(ctx: ChoiceCtx, info: ActionEndInfo): void;
   onTurnEnd(ctx: MutCtx, info: { side: Side }): void;
   revealFilter: {
     reveal?(ctx: ReadCtx, request: RevealRequest): 'allow' | 'hide';

@@ -4,24 +4,25 @@
  * (R-ART-003). Pixel art is drawn at native size and shown at an integer nearest-neighbour scale
  * (ART_SCALE with `pixelArt: true`).
  *
- * Textures are lazy and cached: a creature sheet (6 frames) is painted the first time its piece
- * type and element appear, and the painted canvases live at module level, so a second battle only
- * uploads them again. `artStats` records how long painting takes (reported for 12.3 budgets).
+ * Textures are lazy and cached: a unit sheet (6 frames) is painted the first time its army style,
+ * piece type, owner and element appear, and the painted canvases live at module level, so a second
+ * battle only uploads them again. `artStats` records how long painting takes (12.3 budgets).
  *
- * Drop-in pipeline for human art (4.5): `registerCreatureSheet()` replaces a procedural sheet with
+ * Drop-in pipeline for human art (4.5): `registerUnitSheet()` replaces a procedural sheet with
  * any image or canvas that follows `SHEET_FRAMES` (six square frames in one row).
  *
  * This module has no runtime Phaser import, so the Scenario Lab or an exporter can use
- * `drawCreature` without pulling Phaser into the first load.
+ * `drawUnit` without pulling Phaser into the first load.
  */
 import type Phaser from 'phaser';
 import type { ElementId, PieceType, Side } from '@chain-theorem/rules';
+import type { ArmyStyle } from './army.ts';
 import {
-  creatureSheetPixels,
+  unitSheetPixels,
   SHEET_FRAMES,
   SPRITE,
-  type CreatureFacing,
-  type CreatureFrame,
+  type UnitFacing,
+  type UnitFrame,
 } from './sprites.ts';
 import {
   BADGE,
@@ -48,17 +49,18 @@ import { writeRgba, type PixelGrid, type Palette } from './pixel.ts';
 import { BOARD } from './palette.ts';
 
 export {
-  drawCreature,
-  drawCreatureSheet,
-  creatureGrid,
+  drawUnit,
+  drawUnitSheet,
+  unitGrid,
   SPRITE,
   SHEET_FRAMES,
-  CREATURE_FRAMES,
+  UNIT_FRAMES,
   PIECE_TYPES,
   ELEMENTS,
-  type CreatureFacing,
-  type CreatureFrame,
+  type UnitFacing,
+  type UnitFrame,
 } from './sprites.ts';
+export { ARMY_STYLES, ARMY_STYLE_LABEL, armyStylesFor, unitName, type ArmyStyle } from './army.ts';
 export { ELEMENT_COLORS, ELEMENT_ICON_SHAPE } from './palette.ts';
 
 /** Board square size in game pixels. */
@@ -82,12 +84,12 @@ const TYPES: readonly PieceType[] = ['pawn', 'knight', 'bishop', 'rook', 'queen'
 const SIDES: readonly Side[] = ['white', 'black'];
 
 export interface ArtStats {
-  /** Creature sheets painted this page load (each has 6 frames). */
-  creatureSheets: number;
-  /** Total ms spent painting creature sheets. */
-  creatureMs: number;
+  /** Unit sheets painted this page load (each has 6 frames). */
+  unitSheets: number;
+  /** Total ms spent painting unit sheets. */
+  unitMs: number;
   /** Slowest single sheet (ms). */
-  creatureMaxMs: number;
+  unitMaxMs: number;
   /** ms spent painting the UI atlas and board (once per page load). */
   uiMs: number;
   /** ms spent drawing Classic View glyphs. */
@@ -98,9 +100,9 @@ export interface ArtStats {
 }
 
 export const artStats: ArtStats = {
-  creatureSheets: 0,
-  creatureMs: 0,
-  creatureMaxMs: 0,
+  unitSheets: 0,
+  unitMs: 0,
+  unitMaxMs: 0,
   uiMs: 0,
   classicMs: 0,
   uploads: 0,
@@ -125,65 +127,96 @@ function ctx2d(c: HTMLCanvasElement): CanvasRenderingContext2D {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Creatures.
+// Army units.
 // ---------------------------------------------------------------------------------------------
 
 interface Sheet {
   canvas: HTMLCanvasElement;
-  /** Frame edge in source pixels (24 for procedural sheets). */
+  /** Frame edge in source pixels (32 for procedural sheets). */
   size: number;
 }
 
 const sheets = new Map<string, Sheet>();
 
-export function creatureKey(type: PieceType, element: ElementId): string {
-  return `ct-cr-${type}-${element}`;
+export function unitKey(
+  style: ArmyStyle,
+  type: PieceType,
+  side: Side,
+  element: ElementId | '*',
+): string {
+  return `ct-unit-${style}-${type}-${side}-${element}`;
 }
 
-export function creatureFrameName(facing: CreatureFacing, frame: CreatureFrame): string {
+export function unitFrameName(facing: UnitFacing, frame: UnitFrame): string {
   return `${facing}-${frame}`;
 }
 
-/** Painted (or registered) sheet for one creature, cached for the page lifetime. */
-export function creatureSheet(type: PieceType, element: ElementId): Sheet {
-  const key = creatureKey(type, element);
-  const hit = sheets.get(key);
+/** A registered drop-in sheet for the unit, or for the unit in every element, if any. */
+function dropIn(style: ArmyStyle, type: PieceType, side: Side, element: ElementId): Sheet | null {
+  return (
+    sheets.get(unitKey(style, type, side, element)) ??
+    sheets.get(unitKey(style, type, side, '*')) ??
+    null
+  );
+}
+
+/** Painted (or registered) sheet for one unit, cached for the page lifetime. */
+export function unitSheet(
+  style: ArmyStyle,
+  type: PieceType,
+  side: Side,
+  element: ElementId,
+): Sheet {
+  const key = unitKey(style, type, side, element);
+  const hit = dropIn(style, type, side, element);
   if (hit) return hit;
   const t0 = now();
   const canvas = makeCanvas(SPRITE * SHEET_FRAMES.length, SPRITE);
-  const img = new ImageData(creatureSheetPixels(type, element), canvas.width, canvas.height);
+  const img = new ImageData(
+    unitSheetPixels(style, type, side, element),
+    canvas.width,
+    canvas.height,
+  );
   ctx2d(canvas).putImageData(img, 0, 0);
   const ms = now() - t0;
-  artStats.creatureSheets++;
-  artStats.creatureMs += ms;
-  artStats.creatureMaxMs = Math.max(artStats.creatureMaxMs, ms);
+  artStats.unitSheets++;
+  artStats.unitMs += ms;
+  artStats.unitMaxMs = Math.max(artStats.unitMaxMs, ms);
   const sheet = { canvas, size: SPRITE };
   sheets.set(key, sheet);
   return sheet;
 }
 
 /**
- * Drop-in human art (M4 step 4.5): replace one creature's procedural sheet with an image or canvas
- * holding six square frames in `SHEET_FRAMES` order. Record its source in assets/LICENSES.md.
- * Call before a battle opens (textures already uploaded to a running game are not swapped).
+ * Drop-in human art (M4 step 4.5): replace one unit's procedural sheet with an image or canvas
+ * holding six square frames in `SHEET_FRAMES` order, for one element or (`'*'`) for every element.
+ * Record its source in assets/LICENSES.md. Call before a battle opens (textures already uploaded
+ * to a running game are not swapped).
  */
-export function registerCreatureSheet(
+export function registerUnitSheet(
+  style: ArmyStyle,
   type: PieceType,
-  element: ElementId,
+  side: Side,
+  element: ElementId | '*',
   source: HTMLImageElement | HTMLCanvasElement,
 ): void {
   const size = source.height;
   const canvas = makeCanvas(size * SHEET_FRAMES.length, size);
   ctx2d(canvas).drawImage(source, 0, 0);
-  sheets.set(creatureKey(type, element), { canvas, size });
+  sheets.set(unitKey(style, type, side, element), { canvas, size });
 }
 
 /**
- * Board display scale for a creature texture: the largest integer scale that fits the 48 px
- * creature box (2 for the 24 px procedural sprites; 1 for 48 px drop-in art).
+ * Board display scale for a unit texture: the largest integer scale that fits the 64 px square
+ * (2 for the 32 px procedural sprites; 1 for 64 px drop-in art).
  */
-export function creatureScale(type: PieceType, element: ElementId): number {
-  const size = sheets.get(creatureKey(type, element))?.size ?? SPRITE;
+export function unitScale(
+  style: ArmyStyle,
+  type: PieceType,
+  side: Side,
+  element: ElementId,
+): number {
+  const size = dropIn(style, type, side, element)?.size ?? SPRITE;
   return Math.max(1, Math.floor((SPRITE * ART_SCALE) / size));
 }
 
@@ -204,18 +237,20 @@ function upload(
   return tex;
 }
 
-/** Ensure the creature sheet for (type, element) exists in this game; returns its texture key. */
-export function ensureCreatureTexture(
+/** Ensure the unit sheet exists in this game; returns its texture key. */
+export function ensureUnitTexture(
   scene: Phaser.Scene,
+  style: ArmyStyle,
   type: PieceType,
+  side: Side,
   element: ElementId,
 ): string {
-  const key = creatureKey(type, element);
+  const key = unitKey(style, type, side, element);
   if (scene.textures.exists(key)) return key;
-  const sheet = creatureSheet(type, element);
+  const sheet = unitSheet(style, type, side, element);
   const tex = upload(scene, key, sheet.canvas);
   SHEET_FRAMES.forEach((f, i) => {
-    tex?.add(creatureFrameName(f.facing, f.frame), 0, i * sheet.size, 0, sheet.size, sheet.size);
+    tex?.add(unitFrameName(f.facing, f.frame), 0, i * sheet.size, 0, sheet.size, sheet.size);
   });
   return key;
 }
@@ -349,7 +384,7 @@ export function uiFrameSize(name: string): { w: number; h: number } {
 export const BADGE_PX = BADGE * ART_SCALE;
 
 // ---------------------------------------------------------------------------------------------
-// Classic View: standard chess glyphs, no creatures (11.2).
+// Classic View: standard chess glyphs, no unit sprites (11.2).
 // ---------------------------------------------------------------------------------------------
 
 const CLASSIC_GLYPHS: Record<PieceType, string> = {

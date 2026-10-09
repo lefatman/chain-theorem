@@ -1,9 +1,17 @@
 /**
  * Representative loadouts for the balance simulator (3.4, 7.3, 17.2). Built from module data only:
- * abilities are ranked by affinity match and category spread, so new content is picked up without
- * changes here.
+ * abilities are ranked by affinity match, then dealt across the four categories, so new content is
+ * picked up without changes here (DD-98 section 4: the earlier picker capped each category at half
+ * the set, left passives out and so played no Capturing card, which made the `REACTIONS_ONLY`
+ * silence scope unmeasurable).
  */
-import { PIECE_TYPES, type ElementId, type Loadout, type PieceType } from '@chain-theorem/rules';
+import {
+  PIECE_TYPES,
+  type Category,
+  type ElementId,
+  type Loadout,
+  type PieceType,
+} from '@chain-theorem/rules';
 import type { AbilityDef } from '@chain-theorem/rules/sdk';
 import { abilities, engine } from '@chain-theorem/content';
 
@@ -15,13 +23,41 @@ export function setPool(p: Pool): void {
   POOL = p;
 }
 export const ARCHETYPES: Archetype[] = ['maximum', 'flexible', 'focused', 'starter'];
+/** Deal order when categories are equally filled and their best cards score alike (M3 3.4). */
+const CATEGORIES: readonly Category[] = ['CAPTURED', 'CAPTURES', 'CAPTURING', 'PASSIVE'];
 
 function eligible(a: AbilityDef, t: PieceType | 'all'): boolean {
   if (t === 'all') return true;
   return a.eligible === 'all' || a.eligible.includes(t);
 }
 
-/** Fill up to `n` slots with abilities for an element and piece type, preferring its own affinity. */
+/**
+ * A card that can never act on the piece type is not dealt to that type's set: a Captured card on
+ * the king (a king is never captured; a Stalwart king's capture ends the battle, R-RULES-004) and
+ * Obstinate on the king (it guards against higher ranks, and nothing outranks a king, DD-97).
+ */
+function inert(a: AbilityDef, t: PieceType | 'all'): boolean {
+  return t === 'king' && (a.category === 'CAPTURED' || a.id === 'obstinate');
+}
+
+function score(a: AbilityDef, element: ElementId, type: PieceType | 'all'): number {
+  const affinity = a.affinity === element ? 10 : a.affinity === 'neutral' ? 2 : 0;
+  const category = a.category === 'CAPTURED' ? 1.5 : a.category === 'CAPTURES' ? 1 : 0.5;
+  // A card built for a few piece types is the natural pick for one of those types' sets (Pawn Storm
+  // on pawns, Afterimage on knights) and a poor one for an army-wide set, where it idles on the
+  // other types but still uses the slot (7.3); there it ranks below every army-wide card.
+  const fit = a.eligible === 'all' ? 0 : type === 'all' ? -1 : 0.75;
+  return affinity + category + fit - a.minLevel / 100;
+}
+
+/**
+ * Fill up to `n` slots with abilities for an element and piece type. The best card comes first (the
+ * element's own signature when the level allows), then the emptiest category is dealt its best
+ * remaining card each time, ties going to the category whose best card scores highest; so a set of
+ * four or more spreads over all four categories and carries a Capturing card and a passive. The
+ * king's set from level 16 is Stalwart plus passives: a Stalwart set holds no Capturing or Captures
+ * card (loadout rule 8, DD-102), and Captured cards are inert on a king.
+ */
 export function pickAbilities(
   element: ElementId,
   /** Capacity in slots. */
@@ -29,34 +65,46 @@ export function pickAbilities(
   level: number,
   type: PieceType | 'all' = 'all',
 ): string[] {
+  const stalwartKing = type === 'king' && n >= 2 && level >= 16;
   const pool = abilities
-    .filter(
-      (a) => !a.retired && a.minLevel <= level && a.category !== 'PASSIVE' && eligible(a, type),
-    )
+    .filter((a) => !a.retired && a.minLevel <= level && eligible(a, type) && !inert(a, type))
+    // Stalwart goes on the king set only: anywhere else rule 8 would strip the set of its
+    // offensive cards.
+    .filter((a) => a.id !== 'stalwart' && (!stalwartKing || a.category === 'PASSIVE'))
     .filter((a) => POOL === 'any' || a.affinity === element || a.affinity === 'neutral')
-    .map((a) => ({
-      a,
-      score:
-        (a.affinity === element ? 10 : a.affinity === 'neutral' ? 2 : 0) +
-        (a.category === 'CAPTURED' ? 1.5 : a.category === 'CAPTURES' ? 1 : 0.5) -
-        a.minLevel / 100,
-    }))
-    .sort((x, y) => y.score - x.score || (x.a.id < y.a.id ? -1 : 1));
-  // `n` is the set's capacity in slots (7.3): abilities fill it by slotCost, not by count.
+    .map((a) => ({ a, s: score(a, element, type) }))
+    .sort((x, y) => y.s - x.s || (x.a.id < y.a.id ? -1 : 1));
   const out: string[] = [];
-  const cats = new Map<string, number>();
+  const filled = new Map<Category, number>();
   let used = 0;
-  for (const { a } of pool) {
-    if (used >= n) break;
-    if (used + a.slotCost > n) continue;
-    if ((cats.get(a.category) ?? 0) + a.slotCost > Math.ceil(n / 2)) continue;
+  const take = (a: AbilityDef) => {
     out.push(a.id);
     used += a.slotCost;
-    cats.set(a.category, (cats.get(a.category) ?? 0) + a.slotCost);
+    filled.set(a.category, (filled.get(a.category) ?? 0) + a.slotCost);
+  };
+  // `n` is the set's capacity in slots (7.3): abilities fill it by slotCost, not by count.
+  const fits = (a: AbilityDef) => !out.includes(a.id) && used + a.slotCost <= n;
+  if (stalwartKing) {
+    const stalwart = abilities.find((a) => a.id === 'stalwart');
+    if (stalwart && fits(stalwart)) take(stalwart);
   }
-  if (type === 'king' && n >= 2 && level >= 16 && out.length > 0) {
-    // Stalwart (1 slot) replaces the last pick, which costs at least 1.
-    out[out.length - 1] = 'stalwart';
+  const first = pool.find((x) => fits(x.a));
+  if (first) take(first.a);
+  for (;;) {
+    if (used >= n) break;
+    let best: { a: AbilityDef; s: number } | undefined;
+    let bestFill = Infinity;
+    for (const cat of CATEGORIES) {
+      const cand = pool.find((x) => x.a.category === cat && fits(x.a));
+      if (!cand) continue;
+      const fill = filled.get(cat) ?? 0;
+      if (fill < bestFill || (fill === bestFill && best !== undefined && cand.s > best.s)) {
+        best = cand;
+        bestFill = fill;
+      }
+    }
+    if (!best) break;
+    take(best.a);
   }
   return out;
 }
@@ -113,6 +161,31 @@ export function archetypeElements(els: readonly ElementId[], i: number): [Elemen
 /** Mono-element build used for element matchups (isolates the element relationship). */
 export function elementLoadout(element: ElementId): Loadout {
   return buildLoadout('focused', element, element);
+}
+
+/**
+ * The two builds of a card's mirror test (`--suite cards`, 17.2 "any single ability"): the element's
+ * Focused build with the card under test in front of its four best other cards, against those four
+ * cards alone. Same element on both sides, so no silence and the same trait: the score measures the
+ * card by itself. Cards the tested one excludes (Stalwart: Capturing and Captures, rule 8) are left
+ * out of both sides.
+ */
+export function cardLoadouts(
+  id: string,
+  element: ElementId,
+): { withCard: Loadout; without: Loadout } {
+  const card = abilities.find((a) => a.id === id);
+  if (!card) throw new Error(`unknown ability ${id}`);
+  const excluded = new Set<Category>(card.excludes?.categories ?? []);
+  const base = elementLoadout(element);
+  const rest = (base.sets[0] ?? [])
+    .filter((x) => x !== id)
+    .filter((x) => !excluded.has(abilities.find((a) => a.id === x)?.category as Category))
+    .slice(0, 4);
+  return {
+    withCard: { ...base, sets: [[id, ...rest]] },
+    without: { ...base, sets: [rest] },
+  };
 }
 
 export function assertValid(l: Loadout, level: number): Loadout {

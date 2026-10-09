@@ -5,9 +5,10 @@
  */
 import { castlingMaskFor, elementFor, typeOf } from '../board.ts';
 import { F_CAPTURE, F_CASTLE, F_EP, type MoveRules, Pos, mFrom, mPromo, mTo } from '../movegen.ts';
+import type { MutCtx } from '../sdk/types.ts';
 import type { GameState, PieceId, Side, Square } from '../types.ts';
 import { EventHost } from './host.ts';
-import type { HookEntry, Runtime } from './runtime.ts';
+import type { CapSource, HookEntry, Runtime, SkipRestriction } from './runtime.ts';
 
 export interface Change {
   remove?: PieceId;
@@ -71,15 +72,43 @@ export interface Simulated {
   pos: Pos;
   rules: MoveRules;
   kingSources: Map<Side, HookEntry>;
+  capSources: CapSource[];
 }
 
-/** Apply `change` to a draft and build a scratch position with rules recomputed from the draft. */
-export function simulate(rt: Runtime, s: GameState, change: Change): Simulated {
+/**
+ * Apply `change` to a draft and build a scratch position with rules recomputed from the draft;
+ * `skip` leaves chosen capture restrictions out (public-knowledge judgements, DD-46).
+ */
+export function simulate(
+  rt: Runtime,
+  s: GameState,
+  change: Change,
+  skip?: SkipRestriction,
+): Simulated {
   const draft = draftOf(s);
   applyChange(draft, change);
   const kingSources = new Map<Side, HookEntry>();
-  const rules = rt.moveRules(new EventHost(rt, draft), kingSources);
-  return { draft, pos: Pos.fromState(draft, rules), rules, kingSources };
+  const capSources: CapSource[] = [];
+  const rules = rt.moveRules(new EventHost(rt, draft), kingSources, capSources, skip);
+  return { draft, pos: Pos.fromState(draft, rules), rules, kingSources, capSources };
+}
+
+/**
+ * Is `side`'s king safe once `change` has been applied to a draft (slice writes by a hook; INV-03
+ * for hook prompts such as Block Path's king facing)?
+ */
+export function kingSafeAfter(
+  rt: Runtime,
+  s: GameState,
+  entry: HookEntry | null,
+  side: Side,
+  change: (draft: MutCtx) => void,
+): boolean {
+  const draft = draftOf(s);
+  const host = new EventHost(rt, draft);
+  change(rt.ctx(host, entry));
+  const pos = Pos.fromState(draft, rt.moveRules(host));
+  return !pos.inCheck(side === 'white' ? 0 : 1);
 }
 
 /**
@@ -87,7 +116,12 @@ export function simulate(rt: Runtime, s: GameState, change: Change): Simulated {
  * draft), or null when the turn end changes nothing. A side's own king safety is judged against
  * these, so an expiring burn cannot leave its king in check (INV-03, R-ELEM-005, DD-47).
  */
-export function rulesAfterTurnEnd(rt: Runtime, s: GameState, endingSide: Side): MoveRules | null {
+export function rulesAfterTurnEnd(
+  rt: Runtime,
+  s: GameState,
+  endingSide: Side,
+  skip?: SkipRestriction,
+): MoveRules | null {
   const hooks = rt.hook(s, 'onTurnEnd');
   if (hooks.length === 0) return null;
   const draft: GameState = { ...s, slices: { ...s.slices } };
@@ -96,5 +130,5 @@ export function rulesAfterTurnEnd(rt: Runtime, s: GameState, endingSide: Side): 
   let changed = false;
   for (const k of Object.keys(draft.slices)) if (draft.slices[k] !== s.slices[k]) changed = true;
   if (!changed) return null;
-  return rt.moveRules(new EventHost(rt, draft));
+  return rt.moveRules(new EventHost(rt, draft), undefined, undefined, skip);
 }

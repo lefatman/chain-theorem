@@ -9,13 +9,17 @@
  */
 import {
   type ChoiceRequest,
+  type Compass,
   type GameState,
   type Loadout,
   type Move,
+  type PieceType,
+  type Pos,
   type PublicState,
   type Side,
   PIECE_TYPES,
   applyWithDefaults,
+  compassFrom,
   decodeMove,
   uciToMove,
 } from '@chain-theorem/rules';
@@ -340,8 +344,36 @@ export function chooseOption(
   };
   let best = req.defaultOption;
   let bestScore = -Infinity;
+  /** Block Path facing (DD-99): face the most valuable enemy piece that can capture the subject. */
+  const facingScore = (opt: (typeof req.options)[number]): number => {
+    const id = req.subject ?? req.source.piece;
+    const at = pos.psq[id] as number;
+    if (at < 0) return 0;
+    let dir: Compass | null = null;
+    if (opt.kind === 'square') dir = compassFrom(at, opt.square);
+    else if (opt.kind === 'decline') {
+      const slice = pub.slices.facings as { facing?: Record<string, Compass> } | undefined;
+      dir = slice?.facing?.[String(id)] ?? (me === 'white' ? 'N' : 'S');
+    }
+    if (!dir) return 0;
+    let threat = 0;
+    for (const p of belief.pieces) {
+      if (p.square < 0 || p.side === me || compassFrom(at, p.square) !== dir) continue;
+      if (attacksFrom(pos, p.type, p.side, p.square, at))
+        threat = Math.max(threat, VALUE[PIECE_TYPES.indexOf(p.type)] ?? 0);
+    }
+    return threat;
+  };
   req.options.forEach((opt, i) => {
     let score: number;
+    if (req.purpose === 'facing') {
+      score = facingScore(opt);
+      if (score > bestScore) {
+        bestScore = score;
+        best = i;
+      }
+      return;
+    }
     switch (opt.kind) {
       case 'decline':
         score = settle(actor ^ 1);
@@ -371,7 +403,8 @@ export function chooseOption(
           pos.board[home] = -1;
           pos.board[from] = opt.piece;
           pos.psq[opt.piece] = from;
-        } else if (req.purpose === 'move' || req.purpose === 'revive') score = 0;
+        } else if (req.purpose === 'revive') score = mine ? v : -v;
+        else if (req.purpose === 'move') score = 0;
         else score = mine ? -v : v;
         break;
       }
@@ -412,6 +445,32 @@ export function chooseOption(
     }
   });
   return best;
+}
+
+/** Could a piece of `type` on `from` capture a piece on `target` by a move, path permitting? */
+function attacksFrom(pos: Pos, type: PieceType, side: Side, from: number, target: number): boolean {
+  const df = (target & 7) - (from & 7);
+  const dr = (target >> 3) - (from >> 3);
+  const adf = Math.abs(df);
+  const adr = Math.abs(dr);
+  if (type === 'knight') return adf + adr === 3 && adf > 0 && adr > 0;
+  if (type === 'king') return Math.max(adf, adr) === 1;
+  if (type === 'pawn') return adf === 1 && dr === (side === 'white' ? 1 : -1);
+  const straight = df === 0 || dr === 0;
+  const diagonal = adf === adr;
+  if (!straight && !diagonal) return false;
+  if (type === 'rook' && !straight) return false;
+  if (type === 'bishop' && !diagonal) return false;
+  const stepF = Math.sign(df);
+  const stepR = Math.sign(dr);
+  let f = (from & 7) + stepF;
+  let r = (from >> 3) + stepR;
+  while (f !== (target & 7) || r !== target >> 3) {
+    if ((pos.board[r * 8 + f] as number) >= 0) return false;
+    f += stepF;
+    r += stepR;
+  }
+  return true;
 }
 
 export { WIN, play, unplay };

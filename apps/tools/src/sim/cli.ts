@@ -4,13 +4,20 @@
  * surprise losses and battle lengths, compared with the 17.2 targets.
  *
  *   pnpm sim [--games N] [--format first_blood|vanguard|full] [--tier wild|trainer|elite]
- *            [--nodes K] [--workers W] [--suite elements|archetypes|all] [--seed S]
+ *            [--nodes K] [--workers W] [--suite elements|archetypes|cards|all] [--seed S]
  *            [--elements ember,tide,...] (default: every enabled element, CAPS.ENABLED_ELEMENTS)
+ *            [--silence ALL_TRIGGERS|REACTIONS_ONLY|OFF] [--pool any|affinity]
+ *            [--cards id,id,...] (the cards suite only: test these abilities instead of all)
+ *
+ * Suites: `elements` plays mono-element Focused builds against each other, `archetypes` the four
+ * 7.3 builds, and `cards` a mirror test per ability (the card with the four best other cards of
+ * its element's Focused build, against those four alone; `--games` per card, the element cycling
+ * for neutral cards), which screens for a single card that wins on its own (17.2).
  */
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { CAPS, makeEngine } from '@chain-theorem/content';
+import { CAPS, abilities, makeEngine } from '@chain-theorem/content';
 import type { SilenceScope } from '@chain-theorem/rules/sdk';
 import { beats, type ElementId, type FormatId, type Side } from '@chain-theorem/rules';
 import type { Tier } from '@chain-theorem/ai';
@@ -19,6 +26,7 @@ import {
   archetypeElements,
   assertValid,
   buildLoadout,
+  cardLoadouts,
   elementLoadout,
   setPool,
   type Pool,
@@ -31,7 +39,7 @@ interface Options {
 }
 
 interface Job {
-  suite: 'elements' | 'archetypes';
+  suite: 'elements' | 'archetypes' | 'cards';
   a: string;
   b: string;
   /** Which of a/b plays white. */
@@ -137,6 +145,45 @@ if (!isMainThread) {
             },
           });
         }
+      }
+    }
+  }
+  if (suite === 'all' || suite === 'cards') {
+    // Mirror tests (17.2 "any single ability"): a card against its absence, same element both sides.
+    // A neutral card cycles through the elements two games at a time (both colours per element); a
+    // signature plays on its own element only.
+    const onlyCards = arg('cards', '');
+    const cards = abilities.filter(
+      (a) =>
+        !a.retired &&
+        a.minLevel <= 25 &&
+        (onlyCards === '' || onlyCards.split(',').includes(a.id)) &&
+        (a.affinity === 'neutral' || els.includes(a.affinity as ElementId)),
+    );
+    for (const card of cards) {
+      for (let i = 0; i < games; i++) {
+        const aWhite = i % 2 === 0;
+        const element =
+          card.affinity === 'neutral'
+            ? (els[Math.floor(i / 2) % els.length] as ElementId)
+            : (card.affinity as ElementId);
+        const { withCard, without } = cardLoadouts(card.id, element);
+        const la = assertValid(withCard, 25);
+        const lb = assertValid(without, 25);
+        jobs.push({
+          suite: 'cards',
+          a: card.id,
+          b: element,
+          aWhite,
+          game: {
+            format,
+            white: { loadout: aWhite ? la : lb, level: 25, tier },
+            black: { loadout: aWhite ? lb : la, level: 25, tier },
+            nodes,
+            maxPlies,
+            seed: seed++,
+          },
+        });
       }
     }
   }
@@ -259,6 +306,33 @@ if (!isMainThread) {
       '',
     );
   }
+  const cd = results.filter((r) => r.job.suite === 'cards');
+  if (cd.length > 0) {
+    lines.push('## Cards (mirror tests, level 25)', '');
+    lines.push(
+      'Score of the Focused build carrying the card against the same build without it (same element on both sides, so no silence and the same trait). A card above 60% wins on its own; the 17.2 proxy is a pick rate under 40% in top loadouts.',
+      '',
+    );
+    lines.push(
+      '| Card | Category | Level | Score with the card | Games | Median plies | Note |',
+      '| --- | --- | --- | --- | --- | --- | --- |',
+    );
+    const rows = [...new Set(cd.map((r) => r.job.a))].map((id) => {
+      const rs = cd.filter((r) => r.job.a === id);
+      const s = rs.reduce((sum, r) => sum + scoreFor(r, 'a'), 0) / rs.length;
+      const ps = rs.map((r) => r.out.plies).sort((x, y) => x - y);
+      const def = abilities.find((a) => a.id === id);
+      return { id, s, n: rs.length, plies: ps[Math.floor(ps.length / 2)] ?? 0, def };
+    });
+    rows.sort((x, y) => y.s - x.s || (x.id < y.id ? -1 : 1));
+    for (const r of rows) {
+      const note = r.s > 0.6 ? '**above 60%**' : r.s < 0.4 ? 'below 40% (a liability)' : '';
+      lines.push(
+        `| ${r.def?.name ?? r.id} | ${r.def?.category ?? ''} | ${r.def?.minLevel ?? ''} | ${pct(r.s)} | ${r.n} | ${r.plies} | ${note} |`,
+      );
+    }
+    lines.push('');
+  }
   const decided = results.filter((r) => r.out.winner !== null);
   const whiteScore =
     results.reduce(
@@ -287,7 +361,8 @@ if (!isMainThread) {
   );
   const md = lines.join('\n');
   mkdirSync('reports/sim', { recursive: true });
-  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}${only ? `-${els.join('_')}` : ''}`;
+  const onlyCardsTag = arg('cards', '');
+  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}${only ? `-${els.join('_')}` : ''}${onlyCardsTag ? `-${onlyCardsTag.replace(/,/g, '_')}` : ''}`;
   writeFileSync(`reports/sim/${tag}.md`, md + '\n');
   writeFileSync(
     `reports/sim/${tag}.json`,

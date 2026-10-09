@@ -5,7 +5,7 @@
  * loadouts, the fast-check counterpart of the M2 "done when" fuzz (spec 16).
  *
  * Expected behaviour is derived from spec 4.1, 5.3, 5.4, 7.1-7.4, 8.2, 8.5, 15 and the delegated
- * decisions (section 18), not from the engine's current output. The loadout rules 1-7 are re-checked
+ * decisions (section 18), not from the engine's current output. The loadout rules 1-8 are re-checked
  * here by an independent checker written from spec 7.1-7.4 (item costs and capacities from the 7.2
  * table, COMMITTED); only the PLAYTEST level requirements come from module data (DD-05).
  */
@@ -180,6 +180,14 @@ function specViolations(loadout: Loadout, player: PlayerFacts, opts: CheckOption
       if (abilityData.get(id)?.retired) broken.add(7);
       if (player.ownedAbilities && !player.ownedAbilities.includes(id)) broken.add(7);
     }
+  // Rule 8 (DD-102): Stalwart shares no set with a Capturing or Captures ability.
+  for (const set of loadout.sets) {
+    if (!set.includes('stalwart')) continue;
+    for (const id of set) {
+      const cat = abilityData.get(id)?.category;
+      if (cat === 'CAPTURING' || cat === 'CAPTURES') broken.add(8);
+    }
+  }
   return [...broken].sort((a, b) => a - b);
 }
 
@@ -197,7 +205,14 @@ const levelArb = fc.integer({ min: 1, max: CAPS.LEVEL_CAP });
 /** Battles lean toward high levels half of the time so large loadouts (Veil, Mask, 5-5 sets) play. */
 const battleLevelArb = fc.oneof(levelArb, fc.integer({ min: 18, max: CAPS.LEVEL_CAP }));
 /** Abilities that can prompt their owner (DD-18): bonus moves and target or square selections. */
-const PROMPTING = new Set(['riposte', 'momentum', 'backdraft', 'cleave', 'hit_and_run', 'rebirth']);
+const PROMPTING = new Set([
+  'riposte',
+  'momentum',
+  'backdraft',
+  'cleave',
+  'hit_and_run',
+  'schrodingers_joker',
+]);
 
 /** Raw random material for one army; `buildArmy` turns it into a loadout that respects the rules. */
 const armyDrawArb = (level: fc.Arbitrary<number>) =>
@@ -583,8 +598,11 @@ describe('property: random battles with random valid loadouts (M2 step 2.9)', ()
               depth: 0,
             });
             if (!post.result) {
-              expect(post.turn).toBe(other(side));
-              expect(post.ply).toBe(move.pre.ply + 1);
+              // The turn passes and one ply is played, unless a REWIND returned to an earlier
+              // position (Redo, DD-100): then the restored side is to move at the restored ply.
+              const rewound = events.find((e) => e.k === 'Rewound');
+              expect(post.turn).toBe(rewound ? rewound.toTurn : other(side));
+              expect(post.ply).toBe(rewound ? rewound.toPly : move.pre.ply + 1);
             }
           }
         }),
@@ -655,19 +673,31 @@ describe('property: random battles with random valid loadouts (M2 step 2.9)', ()
               expect(pend?.emitted).toBe(emitted);
               expect(json(r.state)).toEqual(r.state);
               expect(engine.stateHash(json(r.state))).toBe(engine.stateHash(r.state));
-              // Only the chooser receives the open prompt (8.5, R-INFO-005).
+              // Only the chooser receives the open prompt (8.5, R-INFO-005); the other player
+              // learns that a choice is pending only when the prompting ability is already known to
+              // them, so an unrevealed passive's prompt shows nothing (DD-105).
               const mine = engine.project(r.state, req.chooser).pending;
               const theirs = engine.project(r.state, other(req.chooser)).pending;
               expect(mine?.chooser).toBe(req.chooser);
               expect(mine?.request).toEqual(req);
-              expect(theirs?.chooser).toBe(req.chooser);
-              expect(theirs?.request ?? null).toBeNull();
+              const srcType = r.state.pieces[req.source.piece]?.type;
+              const log = r.state.reveals[req.source.side].abilities;
+              const known = (srcType ? (log[srcType] ?? []) : Object.values(log).flat()).includes(
+                req.source.ability,
+              );
+              if (known) {
+                expect(theirs?.chooser).toBe(req.chooser);
+                expect(theirs?.request ?? null).toBeNull();
+              } else {
+                expect(theirs).toBeNull();
+              }
               // The owner of the ability chooses (5.2); prompt shape per DD-18.
               expect(req.chooser).toBe(req.source.side);
               expect(req.options.length).toBeGreaterThanOrEqual(2);
               expect(req.defaultOption).toBeGreaterThanOrEqual(0);
               expect(req.defaultOption).toBeLessThan(req.options.length);
-              if (req.kind === 'bonusMove') {
+              if (req.kind === 'bonusMove' || req.purpose === 'facing') {
+                // Bonus moves (DD-18) and Block Path's facing (DD-99) may be declined.
                 expect(req.options[0]).toEqual({ kind: 'decline' });
                 expect(req.defaultOption).toBe(0);
               } else {
@@ -760,7 +790,7 @@ describe('property: loadout validation (R-LOAD-004)', () => {
     }
   });
 
-  it('R-LOAD-004 R-LOAD-001 random loadouts that pass validateLoadout satisfy rules 1-7 when checked independently', () => {
+  it('R-LOAD-004 R-LOAD-001 random loadouts that pass validateLoadout satisfy rules 1-8 when checked independently', () => {
     fc.assert(
       fc.property(validArmyArb, ({ level, loadout }) => {
         const v = engine.validateLoadout(loadout, { level });
@@ -780,7 +810,7 @@ describe('property: loadout validation (R-LOAD-004)', () => {
     );
   });
 
-  it('R-LOAD-004 validateLoadout agrees with an independent rules 1-7 checker on arbitrary loadouts (same verdict, same rule numbers)', () => {
+  it('R-LOAD-004 validateLoadout agrees with an independent rules 1-8 checker on arbitrary loadouts (same verdict, same rule numbers)', () => {
     let invalid = 0;
     let valid = 0;
     const candidateArb = fc.oneof(
@@ -804,7 +834,14 @@ describe('property: loadout validation (R-LOAD-004)', () => {
 
   it('R-LOAD-004 DD-23 mutating a valid loadout to break exactly one rule makes validation fail with that rule number', () => {
     const applied: Record<string, number> = {};
-    const kinds = ['1', '2', '3', '4', '5', '6', '7', '7r', 'dd23'] as const;
+    const kinds = ['1', '2', '3', '4', '5', '6', '7', '7r', '8', 'dd23'] as const;
+    const offensive = (id: string) => {
+      const c = abilityOf(id).category;
+      return c === 'CAPTURING' || c === 'CAPTURES';
+    };
+    /** Would adding `id` to `set` keep rule 8 (DD-102)? Mutations for other rules must not break it. */
+    const rule8Ok = (set: readonly string[], id: string) =>
+      id === 'stalwart' ? !set.some(offensive) : !(offensive(id) && set.includes('stalwart'));
     fc.assert(
       fc.property(
         validArmyArb,
@@ -862,14 +899,21 @@ describe('property: loadout validation (R-LOAD-004)', () => {
               const k = r.int(loadout.sets.length);
               const set = loadout.sets[k] ?? [];
               const locked = ABILITY_IDS.filter(
-                (id) => abilityOf(id).minLevel > level && !set.includes(id),
+                (id) => abilityOf(id).minLevel > level && !set.includes(id) && rule8Ok(set, id),
               );
               if (locked.length === 0) return;
               const id = r.pick(locked);
               const cost = set.reduce((n, a) => n + abilityOf(a).slotCost, 0);
               if (cost + abilityOf(id).slotCost <= capacity) set.push(id);
               else {
-                const out = set.findIndex((a) => abilityOf(a).slotCost >= abilityOf(id).slotCost);
+                const out = set.findIndex(
+                  (a, i) =>
+                    abilityOf(a).slotCost >= abilityOf(id).slotCost &&
+                    rule8Ok(
+                      set.filter((_, j) => j !== i),
+                      id,
+                    ),
+                );
                 if (out < 0) return;
                 set[out] = id;
               }
@@ -902,7 +946,10 @@ describe('property: loadout validation (R-LOAD-004)', () => {
               const set = loadout.sets[k] ?? [];
               if (set.length > 0) set.push(r.pick(set));
               else {
-                const open = ABILITY_IDS.filter((id) => abilityOf(id).minLevel <= level);
+                // Stalwart stays out of the fill so the overflow breaks rule 4 alone (DD-102).
+                const open = ABILITY_IDS.filter(
+                  (id) => abilityOf(id).minLevel <= level && !abilityOf(id).excludes,
+                );
                 let cost = 0;
                 for (const id of open) {
                   if (cost > capacity) break;
@@ -963,6 +1010,43 @@ describe('property: loadout validation (R-LOAD-004)', () => {
                 abilityData: new Map(reg.abilities.map((a) => [a.id, a])),
               };
               expectedRule = 7;
+              break;
+            }
+            case '8': {
+              // Rule 8 (DD-102): Stalwart next to a Capturing or Captures ability, within capacity
+              // and the player's level.
+              if (abilityOf('stalwart').minLevel > level) return;
+              const k = r.int(loadout.sets.length);
+              const set = loadout.sets[k] ?? [];
+              const cost = set.reduce((n, a) => n + abilityOf(a).slotCost, 0);
+              const pool = ABILITY_IDS.filter(
+                (id) => offensive(id) && abilityOf(id).minLevel <= level && !set.includes(id),
+              );
+              // Replacing a member keeps every other rule intact when there is no spare capacity.
+              const replace = (i: number, id: string) => set.splice(i, 1, id);
+              if (set.includes('stalwart')) {
+                if (pool.length === 0) return;
+                if (cost + 1 <= capacity) set.push(r.pick(pool));
+                else if (set.length >= 2)
+                  replace(set.indexOf('stalwart') === 0 ? 1 : 0, r.pick(pool));
+                else return;
+              } else if (set.some(offensive)) {
+                const quiet = set.findIndex((id) => !offensive(id));
+                if (cost + 1 <= capacity) set.push('stalwart');
+                else if (quiet >= 0) replace(quiet, 'stalwart');
+                else return;
+              } else {
+                if (pool.length === 0) return;
+                if (cost + 2 <= capacity) set.push('stalwart', r.pick(pool));
+                else if (set.length >= 2) {
+                  replace(0, 'stalwart');
+                  replace(1, r.pick(pool));
+                } else if (set.length === 1 && capacity >= 2) {
+                  replace(0, 'stalwart');
+                  set.push(r.pick(pool));
+                } else return;
+              }
+              expectedRule = 8;
               break;
             }
             case 'dd23': {

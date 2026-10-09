@@ -57,6 +57,9 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       // M6 6.4: the moderation console's admin (moderation.spec.ts signs up with this email).
       '--var',
       'ADMIN_EMAILS:moderator@example.com',
+      // Alpha guest play (9.6): alpha.spec.ts plays two guests against each other by code.
+      '--var',
+      'ALPHA_GUEST_PLAY:on',
     ],
     {
       cwd: ROOT,

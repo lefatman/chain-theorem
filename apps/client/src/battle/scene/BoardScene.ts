@@ -22,18 +22,25 @@
  * mode resolves any chain in under 1 s and 0 ms (reduced motion) skips animation entirely.
  */
 import Phaser from 'phaser';
-import type { PublicPiece, PublicState, Side } from '@chain-theorem/rules';
+import {
+  type Compass,
+  type PublicPiece,
+  type PublicState,
+  type Side,
+  stepTowards,
+} from '@chain-theorem/rules';
 import type { BattleSnapshot, BattleUpdate } from '../controller.ts';
+import type { ArmyStyle } from './army.ts';
 import {
   ART_SCALE,
   artStats,
   badgeFrame,
   BOARD_KEY,
-  creatureFrameName,
-  creatureScale,
+  unitFrameName,
+  unitScale,
   ELEMENT_COLORS,
   ensureClassicTexture,
-  ensureCreatureTexture,
+  ensureUnitTexture,
   ensureUiTextures,
   fontFrame,
   iconFrame,
@@ -59,6 +66,8 @@ export interface Highlights {
 export interface BoardSceneHost {
   onSquare(square: number): void;
   classicView(): boolean;
+  /** The army style each side wears (army.ts); cosmetic, chosen per client. */
+  armyStyle(side: Side): ArmyStyle;
   /** Base animation duration in ms; 0 = reduced motion (no animation, no idle motion). */
   animationMs(): number;
   /** Pointer moved onto a square (or off the board: null), for hover previews. */
@@ -74,7 +83,7 @@ interface PieceView {
   side: Side;
   root: Phaser.GameObjects.Container;
   body: Phaser.GameObjects.Image;
-  /** Creature facing, or null in Classic View. */
+  /** Unit facing, or null in Classic View. */
   facing: 'front' | 'back' | null;
   fainted: boolean;
 }
@@ -109,9 +118,25 @@ interface HotFootView {
   pending?: { piece: number; sq: number }[];
 }
 
+/** Block Path facings the viewer may see (the `facings` slice, DD-99). */
+interface FacingsView {
+  facing?: Record<string, Compass>;
+}
+
+const OPPOSITE: Record<Compass, Compass> = {
+  N: 'S',
+  NE: 'SW',
+  E: 'W',
+  SE: 'NW',
+  S: 'N',
+  SW: 'NE',
+  W: 'E',
+  NW: 'SE',
+};
+
 /** Piece layout inside a square (game pixels relative to the square centre). */
 const RING_Y = 20;
-const BODY_BOTTOM = 24;
+const BODY_BOTTOM = 26;
 const ICON_X = 19;
 const ICON_Y = 20;
 const PIP_X0 = -16;
@@ -145,6 +170,7 @@ export class BoardScene extends Phaser.Scene {
   private coords: Phaser.GameObjects.Container | null = null;
   private under: Phaser.GameObjects.Graphics | null = null;
   private burnLayer: Phaser.GameObjects.Container | null = null;
+  private facingLayer: Phaser.GameObjects.Container | null = null;
   private checkLayer: Phaser.GameObjects.Container | null = null;
   private pieceLayer: Phaser.GameObjects.Container | null = null;
   private over: Phaser.GameObjects.Graphics | null = null;
@@ -185,6 +211,7 @@ export class BoardScene extends Phaser.Scene {
     this.burnLayer = this.add.container(0, 0).setDepth(3);
     this.checkLayer = this.add.container(0, 0).setDepth(4);
     this.pieceLayer = this.add.container(0, 0).setDepth(5);
+    this.facingLayer = this.add.container(0, 0).setDepth(5);
     this.over = this.add.graphics().setDepth(6);
     this.fxLayer = this.add.container(0, 0).setDepth(7);
     this.hoverG = this.add.graphics().setDepth(8);
@@ -371,6 +398,8 @@ export class BoardScene extends Phaser.Scene {
     const onBoard = pub.pieces.filter((p) => p.square >= 0);
     onBoard.sort((a, b) => this.squareXY(a.square).y - this.squareXY(b.square).y);
     for (const p of onBoard) this.addPiece(p, pub, viewer, classic);
+    this.drawFacings(pub);
+    this.drawTwins(pub);
     this.drawCheck(pub);
     this.drawOverlay();
     this.idleTick(true);
@@ -393,11 +422,12 @@ export class BoardScene extends Phaser.Scene {
     } else {
       facing = p.side === viewer ? 'back' : 'front';
       root.add(this.add.image(0, RING_Y, UI, ringFrame(p.side, p.element)).setScale(ART_SCALE));
-      const key = ensureCreatureTexture(this, p.type, p.element);
+      const style = this.host?.armyStyle(p.side) ?? 'medieval';
+      const key = ensureUnitTexture(this, style, p.type, p.side, p.element);
       body = this.add
-        .image(0, BODY_BOTTOM, key, creatureFrameName(facing, 'idle0'))
+        .image(0, BODY_BOTTOM, key, unitFrameName(facing, 'idle0'))
         .setOrigin(0.5, 1)
-        .setScale(creatureScale(p.type, p.element));
+        .setScale(unitScale(style, p.type, p.side, p.element));
       root.add(body);
       root.add(this.add.image(ICON_X, ICON_Y, UI, iconFrame(p.element)).setScale(ART_SCALE));
       root.add(
@@ -501,6 +531,75 @@ export class BoardScene extends Phaser.Scene {
         fsq.y + TILE / 2 - 5 * fs - 2,
         fs,
       );
+    }
+  }
+
+  /**
+   * Block Path facings (DD-99): a small shield wedge on the edge of the square the piece faces, for
+   * every piece whose facing the viewer may know (the `facings` slice is already filtered).
+   */
+  private drawFacings(pub: PublicState): void {
+    const layer = this.facingLayer;
+    if (!layer) return;
+    layer.removeAll(true);
+    const view = pub.slices.facings as FacingsView | undefined;
+    if (!view?.facing) return;
+    for (const [id, dir] of Object.entries(view.facing)) {
+      const piece = pub.pieces[Number(id)];
+      if (!piece || piece.square < 0) continue;
+      const { x, y } = this.squareXY(piece.square);
+      // Direction on screen: towards the neighbouring square, or away from the opposite one at the
+      // board edge, so a flipped board points the right way.
+      const ahead = stepTowards(piece.square, dir);
+      const behind = stepTowards(piece.square, OPPOSITE[dir]);
+      let dx = 0;
+      let dy = 0;
+      if (ahead >= 0) {
+        const n = this.squareXY(ahead);
+        dx = Math.sign(n.x - x);
+        dy = Math.sign(n.y - y);
+      } else if (behind >= 0) {
+        const n = this.squareXY(behind);
+        dx = -Math.sign(n.x - x);
+        dy = -Math.sign(n.y - y);
+      }
+      if (dx === 0 && dy === 0) continue;
+      const len = Math.hypot(dx, dy);
+      const ux = dx / len;
+      const uy = dy / len;
+      const cx = x + ux * (TILE / 2 - 5);
+      const cy = y + uy * (TILE / 2 - 5);
+      const px = -uy;
+      const py = ux;
+      const g = this.add.graphics();
+      const tint = piece.side === 'white' ? 0xf4f0e0 : 0x30304a;
+      g.fillStyle(tint, 0.95);
+      g.lineStyle(2, piece.side === 'white' ? 0x30304a : 0xf4f0e0, 1);
+      g.beginPath();
+      g.moveTo(cx + ux * 4, cy + uy * 4);
+      g.lineTo(cx - ux * 4 + px * 7, cy - uy * 4 + py * 7);
+      g.lineTo(cx - ux * 4 - px * 7, cy - uy * 4 - py * 7);
+      g.closePath();
+      g.fillPath();
+      g.strokePath();
+      layer.add(g);
+    }
+  }
+
+  /** Twins waiting to emerge (DD-101): a ghost ring in the corner of the square they wait on. */
+  private drawTwins(pub: PublicState): void {
+    const layer = this.facingLayer;
+    if (!layer) return;
+    for (const p of pub.pieces) {
+      if (p.square >= 0 || p.spawnSquare === undefined) continue;
+      const { x, y } = this.squareXY(p.spawnSquare);
+      const g = this.add.graphics();
+      const tint = p.side === 'white' ? 0xf4f0e0 : 0x30304a;
+      g.lineStyle(2, tint, 0.95);
+      g.strokeCircle(x + TILE / 2 - 9, y + TILE / 2 - 9, 5);
+      g.lineStyle(2, p.side === 'white' ? 0x30304a : 0xf4f0e0, 0.6);
+      g.strokeCircle(x + TILE / 2 - 9, y + TILE / 2 - 9, 7);
+      layer.add(g);
     }
   }
 
@@ -641,7 +740,7 @@ export class BoardScene extends Phaser.Scene {
     this.host?.onHover?.(sq);
   }
 
-  /** 2-frame idle for creatures and flame flicker; frozen when motion is reduced. */
+  /** 2-frame idle for units and flame flicker; frozen when motion is reduced. */
   private idleTick(redrawOnly = false): void {
     const moving = this.motion();
     if (!redrawOnly) {
@@ -654,7 +753,7 @@ export class BoardScene extends Phaser.Scene {
     for (const v of this.pieces.values()) {
       if (!v.facing || v.fainted) continue;
       const phase = moving ? (v.id % 2) ^ this.idlePhase : 0;
-      v.body.setFrame(creatureFrameName(v.facing, phase ? 'idle1' : 'idle0'), false, false);
+      v.body.setFrame(unitFrameName(v.facing, phase ? 'idle1' : 'idle0'), false, false);
     }
     for (const b of this.burns.values())
       b.flame.setFrame(moving && this.idlePhase ? 'flame-1' : 'flame-0', false, false);
@@ -767,7 +866,7 @@ export class BoardScene extends Phaser.Scene {
             const v = this.pieces.get(st.piece);
             if (!v) return;
             v.fainted = true;
-            if (v.facing) v.body.setFrame(creatureFrameName(v.facing, 'faint'), false, false);
+            if (v.facing) v.body.setFrame(unitFrameName(v.facing, 'faint'), false, false);
             this.pieceLayer?.bringToTop(v.root);
           },
           apply: (t) => {
@@ -825,9 +924,10 @@ export class BoardScene extends Phaser.Scene {
             const v = this.pieces.get(st.piece);
             if (!v) return;
             if (v.facing) {
-              const key = ensureCreatureTexture(this, st.type, st.element);
-              v.body.setTexture(key, creatureFrameName(v.facing, 'idle0'));
-              v.body.setScale(creatureScale(st.type, st.element));
+              const style = this.host?.armyStyle(v.side) ?? 'medieval';
+              const key = ensureUnitTexture(this, style, st.type, v.side, st.element);
+              v.body.setTexture(key, unitFrameName(v.facing, 'idle0'));
+              v.body.setScale(unitScale(style, st.type, v.side, st.element));
             } else {
               v.body.setTexture(ensureClassicTexture(this, st.type, v.side));
             }

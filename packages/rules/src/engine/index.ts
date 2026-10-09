@@ -21,6 +21,7 @@ import {
   type PlayerFacts,
   type Side,
   RulesError,
+  type RewindPoint,
 } from '../types.ts';
 import { ActionRun, NeedChoice } from './action.ts';
 import { type Deductions, deduce } from './deduce.ts';
@@ -79,6 +80,28 @@ export function cloneState(s: GameState): GameState {
     slices: { ...s.slices },
     reveals: { white: s.reveals.white, black: s.reveals.black },
     objective: { ...s.objective },
+    ...(s.history ? { history: s.history } : {}),
+    ...(s.links ? { links: s.links } : {}),
+  };
+}
+
+/** The pre-action snapshot a REWIND restores (DD-100). */
+function rewindPoint(s: GameState): RewindPoint {
+  return {
+    ply: s.ply,
+    turn: s.turn,
+    board: s.board.slice(),
+    pieces: s.pieces.map((p) => ({ ...p })),
+    castling: s.castling,
+    ep: s.ep,
+    halfmove: s.halfmove,
+    fullmove: s.fullmove,
+    slices: { ...s.slices },
+    objective: { ...s.objective },
+    inCheck: s.inCheck,
+    repetition: [...s.repetition],
+    pieceCount: s.pieces.length,
+    ...(s.links ? { links: s.links.map((g) => ({ ...g, members: [...g.members] })) } : {}),
   };
 }
 
@@ -201,6 +224,9 @@ export function createEngine(registry: ContentRegistry, caps: Caps): Engine {
     if (m === undefined)
       throw new RulesError('illegal_move', `illegal move ${moveToUci(input.move)}`);
     const s = cloneState(pre);
+    // Redo needs the positions before the last two actions (DD-100); nothing is kept otherwise.
+    if (rt.entries(pre).rewind) s.history = [...(pre.history ?? []), rewindPoint(pre)].slice(-2);
+    else if (s.history) delete s.history;
     const run = new ActionRun(rt, s, input, answers, preUsed);
     try {
       run.execute(m);

@@ -10,3 +10,9 @@ Spectating: a spectator learns about each army exactly what that army's opponent
 ## Why it is the best case
 
 R-INFO-005 and R-SEC-001 hold for spectators with no timers; nothing either player alone saw leaks; minors are private by default (R-SEC-011 spirit); private arrangements stay private.
+
+## Amendment (Phase 6 build, 2026-10-06)
+
+The spectator delay is measured in committed moves (`SpectateState.moves`), not in ply numbers: a
+Redo rewind (DD-100) sends the live ply back while the moves played only grow, so "two plies behind"
+is "two committed moves behind". Snapshots from before the field start counting from the ply.

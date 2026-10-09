@@ -95,16 +95,6 @@ function pickMove(uci: string) {
   };
 }
 
-/** Answer that picks the square option `name` of a square prompt. */
-function pickSquare(name: string) {
-  const s = sq(name);
-  return (req: ChoiceRequest): number => {
-    const idx = req.options.findIndex((o) => o.kind === 'square' && o.square === s);
-    if (idx < 0) throw new Error(`square ${name} is not offered: ${JSON.stringify(req.options)}`);
-    return idx;
-  };
-}
-
 function legalUci(engine: Engine, state: GameState, side: Side): string[] {
   return engine.legalMoves(state, side).map(moveToUci).sort();
 }
@@ -610,9 +600,8 @@ describe('E9 Overabundance: a Grove bishop with Rebirth is captured three times'
   // c1 B=0, e1 K=1, d8 r=2, e8 k=3
   const fen = '3rk3/8/8/8/8/8/8/2B1K3 w - - 0 1';
   const bishop = 0;
-  const backRankOptions = ['a1', 'b1', 'c1', 'd1', 'f1', 'g1', 'h1'];
 
-  it('E9 R-ELEM-007 R-ABIL-004 DD-17 DD-22 Rebirth has 2 charges on a Grove piece: the bishop returns twice, the third capture is final', () => {
+  it('E9 R-ELEM-007 R-ABIL-004 DD-17 DD-22 DD-98 Rebirth has 2 charges on a Grove piece: the bishop returns twice, the third capture is final', () => {
     const s0 = setup({
       fen,
       white: { elements: ['grove'], abilities: ['rebirth'] },
@@ -629,22 +618,14 @@ describe('E9 Overabundance: a Grove bishop with Rebirth is captured three times'
       prompts.push(...p.step.prompts);
       return p.step;
     };
-    const squaresOf = (req: ChoiceRequest) =>
-      req.options.map((o) => (o.kind === 'square' ? squareName(o.square) : `?${o.kind}`)).sort();
-
     // Overabundance doubles Rebirth's single charge on the Grove bishop.
     expect(engine.remainingCharges(state, bishop, 'rebirth')).toBe(2);
 
-    // Capture 1: Bc1-d2, Rd8xd2. Attuned Rebirth prompts white for a back-rank square.
+    // Capture 1: Bc1-d2, Rd8xd2. Rebirth is neutral (DD-98): no prompt, the bishop returns to
+    // its starting square because it is empty.
     step('c1d2');
-    let st = step('d8d2', [pickSquare('c1')]);
-    expect(st.prompts).toHaveLength(1);
-    expect(st.prompts[0]).toMatchObject({
-      chooser: 'white',
-      kind: 'square',
-      source: { ability: 'rebirth', piece: bishop, side: 'white' },
-    });
-    expect(squaresOf(st.prompts[0] as ChoiceRequest)).toEqual(backRankOptions);
+    let st = step('d8d2');
+    expect(st.prompts).toHaveLength(0);
     expect(trace(st.events)).toEqual([
       'Captured white bishop#0 by move',
       'MoveMade black rook#2 d8-d2',
@@ -652,7 +633,7 @@ describe('E9 Overabundance: a Grove bishop with Rebirth is captured three times'
       'Revived #0 c1',
       'TurnPassed white',
     ]);
-    expect(eventsOf(st.events, 'AbilityTriggered')[0]?.attuned).toBe(true);
+    expect(eventsOf(st.events, 'AbilityTriggered')[0]?.attuned).toBe(false);
     expect(eventsOf(st.events, 'ChargeSpent')).toMatchObject([
       { side: 'white', piece: bishop, ability: 'rebirth', remaining: 1 },
     ]);
@@ -661,9 +642,8 @@ describe('E9 Overabundance: a Grove bishop with Rebirth is captured three times'
 
     // Capture 2: Bc1-b2, Rd2xb2. It returns again (same identity, counters kept).
     step('c1b2');
-    st = step('d2b2', [pickSquare('c1')]);
-    expect(st.prompts).toHaveLength(1);
-    expect(squaresOf(st.prompts[0] as ChoiceRequest)).toEqual(backRankOptions);
+    st = step('d2b2');
+    expect(st.prompts).toHaveLength(0);
     expect(trace(st.events)).toEqual([
       'Captured white bishop#0 by move',
       'MoveMade black rook#2 d2-b2',
@@ -690,7 +670,7 @@ describe('E9 Overabundance: a Grove bishop with Rebirth is captured three times'
     expect(pieceAt(state, 'c1')).toBeUndefined();
     expect(idAt(state, 'd2')).toBe(2);
 
-    expect(prompts).toHaveLength(2);
+    expect(prompts).toHaveLength(0);
     expect(eventsOf(all, 'PieceRevived')).toHaveLength(2);
     expect(eventsOf(all, 'ChargeSpent')).toHaveLength(2);
     expect(state.usage[`${bishop}:rebirth`]).toBe(2);

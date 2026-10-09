@@ -17,7 +17,7 @@ export const NPCS: readonly NpcDef[] = [
     look: { variant: 0, element: 'neutral' },
     lines: [
       'Welcome to the Chess Academy, {name}! I am Headmaster Orla.',
-      'Here every battle is a game of chess, bent by the abilities your creatures carry. Never played chess? No matter: my tutors will teach you, one step at a time.',
+      'Here every battle is a game of chess, bent by the abilities your soldiers carry. Never played chess? No matter: my tutors will teach you, one step at a time.',
       'Start with Tutor Nell, just to my left, for how the pieces move. When you have finished every lesson, come back and see me.',
     ],
     role: { kind: 'quest', quest: 'academy_enrolment' },
@@ -97,7 +97,7 @@ export const NPCS: readonly NpcDef[] = [
     look: { variant: 7, element: 'neutral' },
     lines: [
       'Knight’s Way starts right through this gate, {name}.',
-      'The road itself is safe. Wild creatures only jump out of the tall grass, so you decide when to battle.',
+      'The road itself is safe. Wild challengers only jump out of the tall grass, so you decide when to battle.',
     ],
     role: { kind: 'quest', quest: 'academy_first_road' },
   },
@@ -223,8 +223,8 @@ export const NPCS: readonly NpcDef[] = [
     name: 'Botanist Ilse',
     look: { variant: 5, element: 'grove' },
     lines: [
-      'The meadow grass is thick with wild creatures. Walk the paths if you want peace and quiet.',
-      'Every Academy graduate receives a Hush Candle. Wild creatures keep their distance from its soft light.',
+      'The meadow grass is thick with wild challengers. Walk the paths if you want peace and quiet.',
+      'Every Academy graduate receives a Hush Candle. Wild challengers keep their distance from its soft light.',
     ],
     role: { kind: 'talk' },
   },
@@ -258,7 +258,7 @@ export const NPCS: readonly NpcDef[] = [
       loadout: {
         elements: ['storm'],
         items: ['triple_adepts_gloves'],
-        sets: [['afterimage', 'squall', 'last_word']],
+        sets: [['electric_slide', 'squall', 'last_word']],
       },
       reward: {
         xp: 140,

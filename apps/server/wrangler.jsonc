@@ -74,5 +74,38 @@
       "r2_buckets": [{ "binding": "BATTLE_LOGS", "bucket_name": "chain-theorem-battle-logs" }],
       "d1_databases": [],
     },
+    // Alpha guest play on Cloudflare without a custom domain or Neon (DEPLOY.md section 0): the
+    // workers.dev subdomain, a D1 database and an R2 bucket of their own, ALPHA_GUEST_PLAY on, sign-in
+    // links printed to `wrangler tail` (MAIL_MODE console). Deployed as the Worker `chain-theorem-alpha`.
+    "alpha": {
+      "vars": {
+        "APP_ORIGIN": "https://chain-theorem-alpha.REPLACE_WITH_YOUR_SUBDOMAIN.workers.dev",
+        "MAIL_MODE": "console",
+        "DB_KIND": "d1",
+        "ALPHA_GUEST_PLAY": "on",
+      },
+      "durable_objects": {
+        "bindings": [
+          { "name": "BATTLE_ROOM", "class_name": "BattleRoom" },
+          { "name": "MATCHMAKER", "class_name": "Matchmaker" },
+          { "name": "ZONE_ROOM", "class_name": "ZoneRoom" },
+          { "name": "METRICS", "class_name": "Metrics" },
+          { "name": "TRADE_SESSION", "class_name": "TradeSession" },
+          { "name": "GUILD_ROOM", "class_name": "GuildRoom" },
+          { "name": "TOURNAMENT_ROOM", "class_name": "TournamentRoom" },
+        ],
+      },
+      "r2_buckets": [
+        { "binding": "BATTLE_LOGS", "bucket_name": "chain-theorem-alpha-battle-logs" },
+      ],
+      // `wrangler d1 create chain-theorem-alpha` prints the id to paste here (DEPLOY.md section 0).
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "chain-theorem-alpha",
+          "database_id": "REPLACE_WITH_ALPHA_D1_ID",
+        },
+      ],
+    },
   },
 }

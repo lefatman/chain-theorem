@@ -42,13 +42,13 @@ describe('NPC loadouts (R-FMT-005)', () => {
     expect(seen.get('frost')).toBe('Trainer Frost NPC');
   });
 
-  it('R-FMT-005 an NPC of a new element leads with its own affinity cards (6.3: attuned versions)', () => {
+  it('R-FMT-005 an NPC of a new element leads with its signature card (6.3: the attuned version; DD-98)', () => {
     for (const [element, first] of [
-      ['storm', 'squall'],
-      ['stone', 'buttress'],
+      ['storm', 'electric_slide'],
+      ['stone', 'stonewall'],
       ['frost', 'frost_heave'],
     ] as const) {
-      // Level 3: the element's only card at or below that level comes first.
+      // Level 3: the element's signature is available and comes first.
       const b = npcBuild('wild', 3, 0, element);
       expect(b.loadout.elements).toEqual([element]);
       expect(b.loadout.sets.flat()[0], element).toBe(first);
@@ -56,7 +56,7 @@ describe('NPC loadouts (R-FMT-005)', () => {
     for (const element of ['storm', 'stone', 'frost'] as const) {
       const b = npcBuild('trainer', 20, 0, element);
       const own = b.loadout.sets.flat().filter((id) => abilityById.get(id)?.affinity === element);
-      expect(own.length, element).toBeGreaterThanOrEqual(3);
+      expect(own.length, element).toBe(1);
     }
   });
 

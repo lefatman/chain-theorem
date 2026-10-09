@@ -9,9 +9,43 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
 
 - Status: the build is complete. M0–M7 are done and the final report has been posted. What remains
   of the release checklist (17.3) is human-only: balance sign-off and the review of section 18.
+- Balance and alpha plan (designer request 2026-10-09, list below): one item per session run with
+  singular focus. B1 (simulator build picker, per-card mirror suite, corrected surprise metric,
+  baseline tables) is done: `docs/BALANCE_BASELINE.md`. Its headline findings: Electric Slide's
+  attuned turn is a forced First Blood win from the opening, army-wide Obstinate decides Full
+  Battle, the Stalwart king set decides Full Battle between archetypes. B2b (the Electric Slide
+  opening fix, moved ahead by the designer) is done as DD-106: turns only at allied pieces other than
+  pawns, rooks and bishops once, the queen never; the trap is gone (Storm's First Blood row 22–56%
+  from 97–100%) and Storm is now the weakest Full Battle element for want of Obstinate
+  (`docs/BALANCE_BASELINE.md` section 7). A2 (alpha guest play, spec 9.6, DD-107) is done: with
+  `ALPHA_GUEST_PLAY=on` (the `.dev.vars` example sets it; production leaves it unset) anyone opens
+  `#/alpha`, plays as a guest and shares a one-time code for a battle at a chosen level with the whole
+  catalogue at or below it; nothing is recorded. A2b adds the way to put it on Cloudflare without a
+  domain or PostgreSQL (`DEPLOY.md` section 0: the `alpha` environment on workers.dev with D1 and
+  R2; a custom domain registered elsewhere moves only its nameservers) and the alpha call to action
+  on the title page. Next run: B3 (the silence scope), then B4–B8.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
-  know), Storm, Stone and Frost with 12 abilities, 2 items, 18 creatures and Highcairn Pass.
+  know), Storm, Stone and Frost with 12 abilities, 2 items and Highcairn Pass.
+- Post-release art pass (designer direction, DD-96): the battle pieces are human soldiers in four
+  army styles (Roman, medieval, Arab, samurai) at 32 px; the owner shows in the armour colour, the
+  element in the accents and an emblem. Army style is a setting; the opponent's style always differs.
+  Overworld trainers redrawn at 17x26 in the same handheld-era proportions with a 3-frame walk.
+- Catalogue plan (designer brief 2026-10-06, spec 5.7/5.8, DD-97..DD-104): Phase 0 (spec, decisions)
+  Phase 1 (neutral-first catalogue: one signature per element, 18 cards neutral), Phase 2
+  (Necromancer, Quantum Kill; piece rank, `rank` filters, `target.chosenCaptured`, `square.startElse`,
+  `cond.noneMatch`, golden E10/E11) and Phase 3 (Obstinate, Block Path, Stalwart rework;
+  `moveFilter.captureFilter`/`bypass`, `onActionEnd` with `ctx.choose`, loadout rule 8, the `venom`
+  tag, DD-105 prompt visibility, golden E12-E14) and Phase 4 (Electric Slide: pawn leapfrog and
+  slider redirects in move generation and attack detection, `moveFilter.pawnLeap`/`redirects`,
+  `ctx.attuned`; Squall neutral; golden E15), Phase 5 (Redo: the REWIND primitive with pre-action
+  snapshots, golden E16) and Phase 6 (Schrödinger's Joker: SPAWN, linked fate, twin moves after the
+  normal move, behind `PLAYTEST_FLAGS.schrodingers_joker`; golden E17) are done. The eight abilities
+  of the brief are all in. Open for the designer: the 100,000-game fuzz (`pnpm test:fuzz:full`) for
+  the Joker gate (17.3), and the balance questions in `docs/BALANCE_DD98.md`. Balance after
+  Phase 1: see `docs/BALANCE_DD98.md` (First Blood advantaged element 46%, Full Battle 90%: the
+  silence rule now dominates long games and traits dominate short ones; the designer's levers are
+  `silenceScope` and trait numbers).
 - Open for the designer: balance targets partly missed (`docs/BALANCE_M7.md` section 5, five
   questions), Playtest Gate 1 questions, review of spec section 18 (DD-01..DD-95; DD-10 onwards each
   have a record in `docs/decisions/`).
@@ -102,6 +136,53 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 - [x] 7.3 Storm, Stone, Frost + 18 creatures; another zone with NPC trainers; more abilities and items (balance targets partly missed: designer questions in `docs/BALANCE_M7.md`).
 - Done when: the first public tournament completes (locally, with test accounts).
 
+## Balance and alpha plan (designer request 2026-10-09)
+
+One item per session run, with singular focus; sub-items may go to agents. Each item ends with
+`pnpm check`, its own simulator or fuzz evidence, a commit and a push; design changes get a DD row.
+The proposal behind the list is in the chat record of 2026-10-09 and summarised per item here.
+
+- [x] B1 Simulator build picker deals all four categories and includes passives (Stalwart on the
+      king set only); new `--suite cards` mirror test per ability; surprise losses count only
+      abilities that acted; baseline tables for both formats and both silence scopes in
+      `docs/BALANCE_BASELINE.md`. Tooling only, no design decision. Done 2026-10-09 (evidence log).
+- [x] B2b (moved ahead of A2 at the designer's request, 2026-10-09) Electric Slide turns only at an allied piece, never at a pawn (from B1's baseline: the
+      attuned turn through the opening pawn wall is a forced First Blood win; the alternative, a
+      turn only at an ally that has left its starting square, restores the trap after one pawn
+      push). PLAYTEST card from the designer brief, so a DD row and a note for the designer; module,
+      tests, E15 if affected, spec 5.8 text; re-run the two element tables. Done 2026-10-09 (DD-106): pieces only as corners, rooks and bishops turn once, the
+      queen never; `docs/BALANCE_BASELINE.md` section 7 (evidence log).
+- [x] A2 Alpha one-time-code match mode for non-logged-in players: guest tokens behind a Worker var
+      (off in production), creator picks level 1-30, format and a loadout from everything at or
+      below that level, `a-<code>` lobby that expires in 30 minutes, single-use code, random colours,
+      no XP, rewards, rating, drops, telemetry, chat or spectating; client `#/alpha` screen; server
+      unit and Worker tests and one two-browser e2e; DD-107, spec 9.6. Done 2026-10-09 (evidence log).
+- [x] A2b Cloudflare alpha deployment path and the alpha on the title page (designer request
+      2026-10-09): wrangler environment `alpha` (workers.dev, D1, R2, the flag on, `DEPLOY.md`
+      section 0 with the Namecheap nameserver steps), `deploy:check` rows, a manual **Deploy alpha**
+      workflow; the title page carries the pitch, an alpha call to action when the server offers
+      guest play, the menu and three "how it plays" cards; the alpha screen gains a "have a code?"
+      box; screenshots refreshed. Done 2026-10-09 (evidence log).
+- [ ] B3 Silence scope `ONCE_PER_ABILITY` as a PLAYTEST knob (the foil silences each ability on each
+      piece type once per battle); Resonance Crystal "not even once" under it; sim run; DD row.
+      First add a `--prefer` list to the simulator so the Focused builds carry Pierce or Phalanx and
+      re-run the `REACTIONS_ONLY` pair (B1 found the knob inert with Scout as the only Capturing
+      card).
+- [ ] B4 Trait numbers as config knobs (Flow: at most one allied piece passed per move; Bulwark:
+      non-pawns only; Overabundance: +1 charge, not x2; Hot Foot: 4 turns); re-measure Storm vs Stone
+      first; one sim run per change; DD row. Identities (6.1) stay COMMITTED.
+- [ ] B5 Per-card changes and loadout rule 9: Redo non-pawn; Obstinate ignored by kings, 2 slots;
+      Block Path 2 slots and a king's facing resets to forward after it moves; rule 9 at most two
+      Passive abilities per set; Pierce 2 charges; Scout's Lens reveals the whole pawn set; sim run;
+      DD rows. B1's baseline backs Obstinate at 2 slots and rule 9 (which also cuts the Stalwart
+      king set to two cards); whether Stalwart on a king should cost one slot is a designer question.
+- [ ] C6 Three neutral abilities: Cornered (Captured, L4, 1 charge, rim squares), Ricochet (Captures,
+      sliders, L8, 2 charges, continue past the capture), Overwhelm (Capturing, L9, 2 charges, negate
+      a lower-ranked victim's Captured abilities); primitives logged; golden examples; fuzz; sim.
+- [ ] C7 Three items: Duelist's Gauntlet (L10), Reliquary (L12, revive), Herald's Horn (L7); fuzz; sim.
+- [ ] B8 Final balance report against 17.2 on the finished catalogue, 3,000-game fuzz, PROGRESS
+      handoff.
+
 ## Release checklist (spec 17.3)
 
 - [x] All INVARIANT requirements have passing tests (`pnpm req:coverage`: all 83 requirement IDs,
@@ -130,7 +211,147 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 
 ## Evidence log
 
+- 2026-10-09 A2b Cloudflare alpha path and title page: `apps/server/wrangler.jsonc` env `alpha`
+  (D1 `chain-theorem-alpha`, R2 `chain-theorem-alpha-battle-logs`, workers.dev origin, flag on),
+  `DEPLOY.md` section 0 (fifteen-minute setup, Namecheap nameservers for a custom domain),
+  `scripts/deploy-check.ts` alpha rows, `.github/workflows/deploy-alpha.yml` (manual, needs
+  `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`); client: `state/alpha.ts` probe, the title page
+  with hero, alpha call to action (only when the Worker reports the flag), menu, three cards and a
+  footer, `codeFromInput` and the "have a code?" box on the alpha screen, the big code display; the
+  Vite dev proxy answers `{ error: 'no_server' }` with status 200 when no Worker runs so the title's
+  probe logs no browser error (the local e2e asserts a clean console). `pnpm check` 1,594 unit tests
+  (alpha helpers 5), `format:check` clean; local e2e title, loadouts and settings specs 8/8;
+  `pnpm test:e2e:online` with the screenshot spec 11 passed (2.0 min); `docs/screenshots` 01-title, 08-mobile-title, 20-alpha-create, 21-alpha-code and
+  22-alpha-join-mobile refreshed from the running Worker (`e2e-online/screenshots.spec.ts`, on demand
+  with `CT_SCREENSHOTS=1`).
+
+- 2026-10-09 A2 Alpha guest play (spec 9.6, R-FMT-007, DD-107): server `api/alpha.ts` (guest cookie,
+  create, info, accept, rejoin ticket), `alpha/guest.ts` (ids, 24-hour tickets, per-address limiter),
+  BattleRoom alpha lobbies (fixed level, alarm expiry, origin `alpha` writes no row, settles nothing,
+  tells no zone, never listed), guest sockets into `a-` battles only; protocol `AlphaCreate` /
+  `AlphaAccept` and the answer types; client `#/alpha` screen (play as a guest, create a code with the
+  loadout editor at a chosen level, accept at the lobby's level), `LoadoutEditor` `fixedLevel` /
+  `saveLabel` / `intro` props, title button, alpha ticket route for `a-` ids. `pnpm check` 1,593 unit
+  tests (guest 6, client alpha 4), `req:coverage` 84/84 (R-FMT-007 new), `format:check` clean;
+  `pnpm test:workers` 68/68 (alpha 5: cookie identity and refusal elsewhere, per-address limit, level
+  12 lobby with ownership-free cards and the joiner bound to the level, single-use code, both guests
+  playing to a resignation with no `battles` row and no spectate ticket, a signed-in player at a
+  chosen level, bad codes); online e2e `alpha.spec.ts` 1 passed (two guests, First Blood at level 12,
+  Grove against Tide, a move each, R-SEC-001 frame scan); `pnpm test:e2e:online` 10 passed (2.4 min).
+
+- 2026-10-09 B2b Electric Slide corners (DD-106; R-ELEM-003, R-RULES-001, R-ELEM-006): new SDK hook
+  `moveFilter.redirectCorner` and `MoveRules.conducts` (move generation, attack detection and the
+  turned-attack walk); Electric Slide v3 turns only at allied pieces other than pawns, rooks and
+  bishops once, the queen never. `pnpm check` 1,583 unit tests (electric_slide 16: piece corners,
+  pawn corners, the opening position's twenty moves, checks through a knight but not a pawn),
+  `content:validate` ok, `req:coverage` 83/83; `pnpm test:fuzz` 500 games, replays identical, 0
+  failures. Card mirror for Electric Slide alone: 100% / 100% (pawns as corners, queen twice) →
+  97.2% / 66.7% (pieces only, queen twice) → 86.1% / 66.7% (one turn for all) → 72.2% / 75.0%
+  (shipped). `pnpm sim` re-run (elements 60 / 40, archetypes 60 / 24, 20,000 nodes): Storm's First
+  Blood row 22–56% (was 97–100%), Storm mirror white 36.7% (was 0%), advantaged element 48.3% /
+  70.8%, white 50.8% / 51.3%, surprise losses 9.5% / 0.6%, medians 24 / 69; Storm in Full Battle
+  0–9% against four elements (no Obstinate slot); archetypes unchanged in kind.
+
+- 2026-10-09 B1 Simulator build picker and baseline (R-TEST-002): `pickAbilities` deals the emptiest
+  category first after the signature and includes passives (Stalwart on the king set only under
+  rule 8; Captured cards and Obstinate are not dealt to a king), per-type sets prefer type-bound
+  cards; `pnpm sim --suite cards` plays a mirror test per ability; surprise losses count only
+  abilities that acted. `pnpm check` 1,580 unit tests (sim 9), `content:validate` ok, `req:coverage`
+  83/83, `format:check` clean. `pnpm sim` at 20,000 nodes, Trainer, level 25 (elements 60 games per
+  pairing in First Blood and 40 in Full Battle, archetypes 60 and 24, both silence scopes, cards 36
+  and 24): advantaged element 48.3% / 72.7% (`REACTIONS_ONLY` 47.8% / 72.1%), white 46.9% / 52.0%,
+  surprise losses 6.5% / 0.0% (archetype suite 34.9% / 6.4%), medians 23 / 69 plies; Maximum 58–63%
+  in First Blood, Maximum and Flexible 79–100% against Focused and Starter in Full Battle; cards
+  above 60% on their own: Electric Slide 100% / 100%, Obstinate 89% / 96%, Stalwart 69% / 81%.
+  Findings and the follow-ups per plan item: `docs/BALANCE_BASELINE.md` section 6.
+
 (Newest first: date, step, commands run, pass counts.)
+
+- 2026-10-06 Catalogue Phase 6 (DD-101): Schrödinger's Joker (level 20, Captures, neutral, non-king,
+  1 charge) on the new SPAWN primitive: a twin (new piece id from 32, same type/element/abilities)
+  waits on the captor's square; after the owner's normal move and chain every twin makes its own
+  declinable move (a waiting twin steps onto an empty spawn square first, or its original moves out
+  and it takes the square), each with its own chain; linked fate removes the whole group on any
+  member's capture (`linked_fate` rule source, waiting twins flagged); `TWIN_GROUP_MAX` 3 in CAPS;
+  `Spawned`/`Emerged` events, `MoveMade.twin`; Zobrist keys for ids past 31 appended so old hashes
+  stay; waiting twins and groups hashed; rewinds restore them. Client draws waiting twins, lab and
+  replay rebuild them; AI values a spawning capture. Behind `PLAYTEST_FLAGS.schrodingers_joker`
+  (on); the spectator delay now counts committed moves (DD-92 amended). `pnpm check` 1,575 unit tests (schrodingers_joker 11, examples E17); `pnpm test:fuzz` 500 games 0 failures;
+  `tsx apps/tools/src/fuzz/cli.ts --games 3000 --seed 7`: 3,000 games, 268,707 plies, replays
+  identical, 3,000 projection-scanned, no crash, max 22 events per action. The 100,000-game run
+  (`pnpm test:fuzz:full`, hours on this hardware) stays on the release checklist (17.3).
+
+- 2026-10-06 Catalogue Phase 5 (DD-100): Redo (level 15, Captured, neutral, replay, 1 charge) on
+  the new REWIND primitive: the engine keeps the pre-action snapshots of the last two actions while
+  a rewind ability is in play (`GameState.history`, never projected), a resolved rewind ends the
+  action (`RewindSignal`) and restores board, pieces, turn, ply, slices, objective, check state and
+  the repetition history while charges, reveals and the event sequence survive; `Rewound` event;
+  only capturing moves trigger it (5.4: effect captures do not chain); the `replay` tag now also
+  covers rewinds (Warden's Stopwatch negates Redo). AI treats a known-Redo capture as a loss of
+  tempo. `pnpm check` 1,560 unit tests (redo 11, examples E16, Scenario Lab and replay viewer rebuild rewound frames), `content:validate` ok (32 abilities),
+  `req:coverage` 83/83; `pnpm test:fuzz` 500 games, replays identical, 0 failures.
+
+- 2026-10-06 Catalogue Phase 4 (DD-104): Electric Slide (level 3, Storm signature, Passive) with a
+  base/attuned split: pawns leap one adjacent ally (plain move, no en passant, promotes); attuned
+  sliders turn at allied squares once per move (queen twice), never stopping on the ally nor
+  continuing straight or back; `Pos.attacked` walks the same paths backwards (checks, pins and
+  Block Path's approach direction through turns); `moveFilter.pawnLeap`/`redirects` hooks,
+  `ReadCtx.attuned` for passives, movement grants in the reveal-on-observation framework (the
+  Attunement Charm is revealed with the first observed turn it alone allows). Squall is neutral
+  (version 2, attuned version retired); NPC and simulator builds pick an element's signature
+  passive. `pnpm check` 1,544 unit tests (electric_slide 12, squall tests updated, examples E15), `content:validate`
+  ok (31 abilities), `req:coverage` 83/83; `pnpm test:perft` 30/30; `pnpm test:fuzz` 500 games,
+  replays identical, 0 failures.
+
+- 2026-10-06 Catalogue Phase 3 (DD-99, DD-102, DD-105): Obstinate (level 9) and Block Path (level 12) as neutral passives; Stalwart (version 2) on any piece: effect captures fizzle (`stalwart_guard`)
+  unless the effect carries the new `venom` tag (Poisoned Meat, version 2), bypass of blocked squares
+  and soft capture restrictions, loadout rule 8 (`excluded_category`, `AbilityDef.excludes`).
+  Engine: `MoveRules` capture restrictions (per victim: attacker ids, hard/soft compass masks,
+  bypass flags) applied in `Pos.pseudo`/`attacked` (a king is not in check from its Block Path
+  facing; castling paths included), `moveFilter.captureFilter`/`bypass` hooks, `onActionEnd` hook
+  with `ctx.choose` (the facing prompt: kind square, purpose `facing`, declinable), `FacingSet`
+  event, reveal-on-observation of restrictions (legal-move and check comparisons at Settle, bonus
+  options, the mover's own relaxed move), DD-46 public-knowledge INV-03 for hidden facings, pending
+  prompts hidden from the opponent until the ability is known (DD-105). Compass helpers
+  (`COMPASS`, `stepTowards`, `compassFrom`, `dirFrom`). AI faces the strongest attacker; client
+  draws facing wedges, labels facing options, names the stalwart fizzle. `pnpm check` 1,528 unit
+  tests (obstinate 9, block_path 13, stalwart 21, examples 28, loadout rule 8 and its property mutation), `content:validate`
+  ok (30 abilities), `req:coverage` 83/83, `format:check` clean; `pnpm test:perft` 30/30;
+  `pnpm test:fuzz` 500 games, replays identical, 0 failures. Reduced `pnpm sim --suite elements`
+  (20 games per pairing First Blood, 12 Full Battle, 20,000 nodes): advantaged element 42.9% /
+  88.2%, white 54.3% / 51.6%, surprise losses 33.1% / 0.0%, unchanged in kind from
+  `docs/BALANCE_DD98.md`; the simulator's build picker skips passives, so Obstinate and Block Path
+  are not in these builds (only the Stalwart king set changed under rule 8).
+
+- 2026-10-06 Catalogue Phase 2 (DD-97, DD-103): Necromancer (level 11, 1 charge) and Quantum Kill
+  (level 13, 2 charges) as neutral Captures modules; engine: `PIECE_RANK`/`rankCompare`, trigger
+  condition `rank`, `PieceFilter.rank`, `target.chosenCaptured` (options in square order of starting
+  squares), `square.startElse`, `cond.noneMatch`; AI scores revive/move prompts; client labels
+  captured-piece options; golden examples E10 and E11 in the Scenario Lab. `pnpm check` 1,490 unit
+  tests (necromancer 8, quantum_kill 7, examples 25), `content:validate` ok (28 abilities),
+  `req:coverage` 83/83; `pnpm test:fuzz` 500 games, replays identical, 0 failures.
+
+- 2026-10-06 Catalogue Phase 0-1 (DD-97..DD-104): spec 5.7 rewritten, 5.8 planned abilities, 6.3/6.5/4.3/7.2
+  updated; 18 ability modules neutral (versions bumped), signatures Cleave and Stonewall at level 3;
+  validator rule "exactly one signature per element"; wild drops include neutral cards. `pnpm check`
+  1,467 unit tests, `content:validate` ok, `req:coverage` 83/83, `format:check` clean; `pnpm test:fuzz`
+  500 games 0 failures; `pnpm sim` elements: First Blood advantaged element 46.4% (was 64.0%), Full
+  Battle 89.8% (was 73.1%), white 51.4% / 47.9%, surprise losses 35.2% / 0.0%; archetypes: Maximum
+  beats Flexible 69% (FB) and all three in Full Battle (65-75%).
+
+- 2026-10-06 Art: overworld trainers at 17x26 with a 3-frame walk (stand, left, right; alternating
+  by step parity). `pnpm check` 1,469 unit tests; `pnpm format:check` clean; `pnpm test:e2e` 19/19;
+  `docs/screenshots` refreshed from the running game (local battles with medieval, samurai and
+  Roman armies, the Academy with the new trainers). `pnpm test:e2e:online` 9/9 (battle, first win,
+  two players in the world, trade and wager, checkout, guild, moderation, spectating, tournament);
+  `pnpm measure:client` 9 of 9 budgets pass with the new art (initial JS 102.8 kB gzip, first
+  playable 587.0 kB, minimum device 38.2 fps, desktop 58.3 fps, renderer PSS under 150 MB on both
+  profiles; `docs/BUDGETS.md` updated).
+
+- 2026-10-06 Art: human armies (DD-96). `pnpm check` 1,469 unit tests (art: silhouettes by type
+  across styles, front/back faces, owner brightness, emblems per element under colour-vision
+  simulations, badge corner clear), `req:coverage` 83/83; `pnpm test:e2e` 19/19; `pnpm format:check`
+  clean; board screenshots at 1280x800 and 390x844 with each side in a different style.
 
 - 2026-09-25 Release: CI run 54 on `fb97bb1` green on all 8 jobs (check, perft, quick fuzz, SQLite,
   PostgreSQL, Durable Objects, Playwright local and online, and load, first win and both tournament

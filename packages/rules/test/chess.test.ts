@@ -64,6 +64,7 @@ const caps: Caps = {
   ENABLED_ELEMENTS: ['ember', 'tide', 'grove'],
   FORMATS,
   MAX_EVENTS_PER_ACTION: 512,
+  TWIN_GROUP_MAX: 3,
 };
 
 const engine = createEngine(emptyRegistry, caps);

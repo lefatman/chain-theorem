@@ -154,24 +154,127 @@ a {
 /* ---- title and setup screens ------------------------------------------------------------------ */
 .title {
   display: grid;
-  place-items: center;
+  justify-items: center;
+  align-content: center;
+  gap: 1.4em;
   min-height: 100vh;
   text-align: center;
-  padding: 16px;
+  padding: 32px 16px;
+  max-width: 880px;
+  margin: 0 auto;
 }
 .title h1 {
-  font-size: 3em;
+  font-size: clamp(2.4em, 7vw, 3.4em);
   margin: 0;
   letter-spacing: 0.04em;
   color: var(--accent);
 }
+.hero {
+  display: grid;
+  gap: 0.4em;
+  justify-items: center;
+}
 .tagline {
   color: var(--muted);
+  margin: 0;
+}
+.pitch {
+  max-width: 44em;
+  margin: 0.4em 0 0;
+  line-height: 1.45;
+}
+.title .cta {
+  width: min(100%, 560px);
+  padding: 1em 1.2em;
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  background: var(--panel);
+  display: grid;
+  gap: 0.5em;
+  justify-items: center;
+}
+.title .cta h2 {
+  margin: 0;
+  font-size: 1.2em;
+}
+.title .cta p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+button.big {
+  font-size: 1.1em;
+  padding: 0.55em 1.4em;
 }
 .menu {
   display: grid;
   gap: 0.6em;
-  min-width: min(260px, 100%);
+  width: min(100%, 420px);
+}
+.how {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8em;
+  width: 100%;
+  text-align: left;
+}
+.how > div {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.8em 0.9em;
+}
+.how h3 {
+  margin: 0 0 0.3em;
+  font-size: 1em;
+  color: var(--accent);
+}
+.how p {
+  margin: 0;
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+@media (max-width: 640px) {
+  .how {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .title {
+    align-content: start;
+    gap: 1.1em;
+  }
+}
+.fine {
+  font-size: 0.85em;
+  margin: 0;
+}
+/* Alpha play: the "have a code?" box and the created code (9.6). */
+.join-box {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.6em;
+  align-items: end;
+  padding: 0.8em 0.9em;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.join-box label {
+  display: grid;
+  gap: 0.3em;
+}
+@media (max-width: 480px) {
+  .join-box {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.code-big {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: clamp(1.6em, 6vw, 2.4em);
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  margin: 0.2em 0;
+  user-select: all;
+  overflow-wrap: anywhere;
 }
 .setup {
   max-width: 720px;
@@ -447,6 +550,13 @@ fieldset {
 }
 .level-input input[type='number'] {
   width: 4.5em;
+}
+/* A level the editor may not change (alpha guest play, 9.6): shown where the input would be. */
+.fixed-level {
+  display: grid;
+  gap: 0.2em;
+  align-content: start;
+  margin: 0;
 }
 .element-picker {
   display: grid;

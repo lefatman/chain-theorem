@@ -10,6 +10,7 @@ import type { BattleEvent, PublicState } from '@chain-theorem/rules';
 import type { Highlights } from '../battle/scene/BoardScene.ts';
 import type { BoardGame } from '../battle/scene/game.ts';
 import { settings } from '../state/settings.ts';
+import { armyStylesFor } from '../battle/scene/army.ts';
 
 export interface BoardFrame {
   pub: PublicState;
@@ -65,6 +66,10 @@ export function LabBoard({
         g.scene.bind({
           onSquare: (sq: number) => onSquareRef.current(sq),
           classicView: () => settings.value.classicView,
+          armyStyle: (side) =>
+            armyStylesFor(settings.value.armyStyle, { white: 'White', black: 'Black' }, ['white'])[
+              side
+            ],
           animationMs,
           fastMode: () => settings.value.fastMode,
           textScale: () => settings.value.textScale,
@@ -103,6 +108,7 @@ export function LabBoard({
   // Classic View and text size are read when the scene draws: redraw the pinned frame on change.
   useSignalEffect(() => {
     void settings.value.classicView;
+    void settings.value.armyStyle;
     void settings.value.textScale;
     const g = board.current;
     const pub = shown.current;

@@ -193,6 +193,9 @@ export function play(ctx: SearchCtx, m: number): Played {
       }
     }
     if (reactions?.selfRevive) out.bias -= Math.round((VALUE[victimType] as number) * 0.6);
+    // Redo (DD-100): the capture and the mover's previous action are undone; the material gain is
+    // illusory and the tempo is lost.
+    if (reactions?.undoesCapture) out.bias -= (VALUE[victimType] as number) + 15;
     // Buttress: the captor's CAPTURING guard shields a neighbour from Backdraft-style captures.
     const guarded = !capturingSilenced && cK.capturing.protectsFriend;
     if (reactions?.killsOther && !guarded) out.bias -= 70;
@@ -208,6 +211,8 @@ export function play(ctx: SearchCtx, m: number): Played {
       if (cK.captures.killsOther) out.bias += 70;
       if (cK.captures.reviveFriendly) out.bias += 60;
       if (cK.captures.bonus) out.bias += 20;
+      // A twin is a second piece of this type that moves every turn (DD-101).
+      if (cK.captures.spawns) out.bias += Math.round((VALUE[captorType] as number) * 0.5);
       if (cK.captures.movesEnemy) out.bias += 25;
     }
     if (vK.uncertain) out.bias -= Math.round(ctx.risk * (VALUE[captorType] as number));

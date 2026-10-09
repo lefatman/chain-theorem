@@ -17,7 +17,7 @@ export default defineAbility({
   affinity: 'stone',
   eligible: 'all',
   tags: [],
-  minLevel: 6,
+  minLevel: 3,
   slotCost: 1,
   limits: { perAction: 1 },
   effects: [fx.negate('captor', ['CAPTURES'])],

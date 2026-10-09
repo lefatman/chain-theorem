@@ -42,8 +42,12 @@ export interface Profile {
   sendsCaptorHome: boolean;
   /** Protects a chosen friendly piece from effect captures (Buttress; M7). */
   protectsFriend: boolean;
-  /** Moves a chosen enemy piece: control (Snowdrift, Snowbound, attuned Permafrost; M7). */
+  /** Moves a chosen enemy piece: control (Snowdrift, Snowbound; M7). */
   movesEnemy: boolean;
+  /** CAPTURED: the capture is undone by a rewind (Redo, DD-100). */
+  undoesCapture: boolean;
+  /** CAPTURES: the captor gains a twin that moves every turn (Schrödinger's Joker, DD-101). */
+  spawns: boolean;
 }
 
 const EMPTY: Profile = {
@@ -61,6 +65,8 @@ const EMPTY: Profile = {
   sendsCaptorHome: false,
   protectsFriend: false,
   movesEnemy: false,
+  undoesCapture: false,
+  spawns: false,
 };
 
 function scan(effects: readonly EffectSpec[], p: Profile, cat: AbilityDef['category']): void {
@@ -95,6 +101,12 @@ function scan(effects: readonly EffectSpec[], p: Profile, cat: AbilityDef['categ
         break;
       case 'reveal':
         p.reveals = true;
+        break;
+      case 'rewind':
+        if (cat === 'CAPTURED') p.undoesCapture = true;
+        break;
+      case 'spawn':
+        if (cat === 'CAPTURES') p.spawns = true;
         break;
       case 'when':
         scan(e.then, p, cat);

@@ -26,6 +26,9 @@ export async function settleBattle(
   origin: BattleOrigin,
   now: number,
 ): Promise<void> {
+  // 9.6 (DD-107): an alpha guest battle pays, rates and records nothing; the BattleRoom does not
+  // call this for one, and a guest id would match no player anyway.
+  if (origin.kind === 'alpha') return;
   // M6 6.2: a ranked battle is rated once, both players in one atomic list (R-FMT-004, R-SEC-008).
   // A failure here is logged and never holds back the rewards below.
   if (origin.kind === 'ranked') {

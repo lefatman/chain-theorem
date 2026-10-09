@@ -4,6 +4,60 @@ Local development and every automated test run without any cloud account. This g
 human-only production steps (BUILD_PROMPT section 11). Run `pnpm deploy:check` at any point: it reports
 which prerequisites are present and what is still missing.
 
+## 0. An alpha on Cloudflare, no domain or PostgreSQL needed
+
+The `alpha` environment in `apps/server/wrangler.jsonc` runs the game on your `workers.dev`
+subdomain with a D1 database and an R2 bucket of its own and alpha guest play switched on (spec 9.6,
+DD-107): testers open the title page, press **Play a friend by code**, play as guests and share
+one-time codes. No Neon, no Hyperdrive, no mail provider and no payment setup are involved. Sign-in
+links for test accounts print to `wrangler tail` instead of an inbox. Takes about fifteen minutes.
+
+1. Create a Cloudflare account and subscribe to the **Workers Paid** plan (about 5 dollars a month;
+   Durable Objects and WebSockets need it). In Workers & Pages note your `workers.dev` subdomain
+   (shown on the overview page; it can be changed there once).
+2. `pnpm --filter @chain-theorem/server exec wrangler login` (opens the browser once).
+3. Create the database and the bucket, from `apps/server`:
+
+   ```sh
+   pnpm exec wrangler d1 create chain-theorem-alpha
+   pnpm exec wrangler r2 bucket create chain-theorem-alpha-battle-logs
+   ```
+
+   Paste the printed `database_id` into `env.alpha.d1_databases[0].database_id` in
+   `wrangler.jsonc` (replace `REPLACE_WITH_ALPHA_D1_ID`). The Worker runs the migrations itself on
+   first use; there is nothing to migrate by hand.
+
+4. Set `env.alpha.vars.APP_ORIGIN` to `https://chain-theorem-alpha.<your subdomain>.workers.dev`
+   (replace `REPLACE_WITH_YOUR_SUBDOMAIN`). Share links and the guest cookie use it, so it has to
+   match the address testers open.
+5. The one secret: `pnpm exec wrangler secret put AUTH_SECRET --env alpha` and paste 64 random hex
+   characters (`openssl rand -hex 32`).
+6. Build and deploy, from the repository root:
+
+   ```sh
+   pnpm --filter @chain-theorem/client build
+   pnpm --filter @chain-theorem/server exec wrangler deploy --env alpha
+   ```
+
+   Open the printed URL. `pnpm deploy:check` lists what is still missing, and
+   `pnpm --filter @chain-theorem/server exec wrangler tail --env alpha` streams the logs (magic
+   links included).
+
+Later deploys are the two commands of step 6, or the **Deploy alpha** workflow under Actions (manual
+trigger; it needs the repository secrets `CLOUDFLARE_API_TOKEN`, a token with Workers Scripts, R2
+and D1 edit permissions, and `CLOUDFLARE_ACCOUNT_ID`). To close the alpha, redeploy with
+`ALPHA_GUEST_PLAY` removed from `env.alpha.vars`; the codes stop working at once.
+
+**A domain registered elsewhere (Namecheap, for example).** A Workers custom domain needs the
+domain's DNS at Cloudflare, but the registration can stay where it is. Add the domain as a site in
+the Cloudflare dashboard (the Free plan is enough), copy the two nameservers it gives you, and at
+Namecheap open Domain List, Manage, Nameservers, choose Custom DNS and paste them (propagation takes
+minutes to a day). Then in Workers & Pages open `chain-theorem-alpha`, Settings, Domains & Routes,
+add the custom domain (`alpha.yourdomain.com` or the bare domain); Cloudflare creates the DNS record
+and the certificate. Set `env.alpha.vars.APP_ORIGIN` to that `https://` address and redeploy. Any
+other DNS records you had at Namecheap (mail, a website) must be recreated in the Cloudflare zone
+before switching the nameservers, or they stop resolving.
+
 ## 1. Cloudflare
 
 1. Create a Cloudflare account and subscribe to the **Workers Paid** plan (Durable Objects with SQLite
@@ -51,17 +105,18 @@ merge (`pnpm test:db`, `pnpm test:db:pg`).
 Every variable is documented in `apps/server/.dev.vars.example`. In production set them with
 `wrangler secret put <NAME>` (never commit them; R-SEC-009):
 
-| Secret                                                                           | Purpose                                                                                                             |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `AUTH_SECRET`                                                                    | HMAC key for 60-second WebSocket tickets and OAuth state (R-SEC-006); 32+ random bytes, e.g. `openssl rand -hex 32` |
-| `MAIL_ENDPOINT`, `MAIL_API_KEY`, `MAIL_FROM`                                     | transactional email provider for magic links (a JSON `send` endpoint with bearer auth)                              |
-| `GITHUB_CLIENT_ID/SECRET`, `GOOGLE_CLIENT_ID/SECRET`, `DISCORD_CLIENT_ID/SECRET` | optional OAuth; the callback URL is `https://<domain>/api/auth/oauth/<provider>/callback`                           |
-| `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`                                        | Paddle Billing API key and the notification destination's secret; with both set, Paddle is the billing provider     |
-| `PADDLE_ENV`                                                                     | `sandbox` (the default) or `production`                                                                             |
-| `PADDLE_PRICE_MONTHLY/QUARTERLY/YEARLY`                                          | Paddle price ids for the $4, $11 and $40 plans (spec 14.3); a plan without a price id is not offered                |
-| `PADDLE_CLIENT_TOKEN`                                                            | Paddle.js client-side token for the pay page `/api/billing/paddle/pay` (public by design; kept with the others)     |
-| `FAKE_BILLING`, `FAKE_BILLING_SECRET`                                            | local and preview only: `on` allows the fake provider on a non-local origin; its signing key. Never in production   |
-| `ADMIN_EMAILS`                                                                   | comma-separated allow-list for the cost dashboard (`/admin/cost`) and, from M6, the admin console                   |
+| Secret                                                                           | Purpose                                                                                                                                                                                                                       |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AUTH_SECRET`                                                                    | HMAC key for 60-second WebSocket tickets and OAuth state (R-SEC-006); 32+ random bytes, e.g. `openssl rand -hex 32`                                                                                                           |
+| `MAIL_ENDPOINT`, `MAIL_API_KEY`, `MAIL_FROM`                                     | transactional email provider for magic links (a JSON `send` endpoint with bearer auth)                                                                                                                                        |
+| `GITHUB_CLIENT_ID/SECRET`, `GOOGLE_CLIENT_ID/SECRET`, `DISCORD_CLIENT_ID/SECRET` | optional OAuth; the callback URL is `https://<domain>/api/auth/oauth/<provider>/callback`                                                                                                                                     |
+| `ALPHA_GUEST_PLAY`                                                               | `on` opens alpha guest play (spec 9.6, DD-107): guests without accounts play one-time-code battles at a chosen level under `/#/alpha`; nothing is recorded. Leave unset in production until the designer wants a public alpha |
+| `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`                                        | Paddle Billing API key and the notification destination's secret; with both set, Paddle is the billing provider                                                                                                               |
+| `PADDLE_ENV`                                                                     | `sandbox` (the default) or `production`                                                                                                                                                                                       |
+| `PADDLE_PRICE_MONTHLY/QUARTERLY/YEARLY`                                          | Paddle price ids for the $4, $11 and $40 plans (spec 14.3); a plan without a price id is not offered                                                                                                                          |
+| `PADDLE_CLIENT_TOKEN`                                                            | Paddle.js client-side token for the pay page `/api/billing/paddle/pay` (public by design; kept with the others)                                                                                                               |
+| `FAKE_BILLING`, `FAKE_BILLING_SECRET`                                            | local and preview only: `on` allows the fake provider on a non-local origin; its signing key. Never in production                                                                                                             |
+| `ADMIN_EMAILS`                                                                   | comma-separated allow-list for the cost dashboard (`/admin/cost`) and, from M6, the admin console                                                                                                                             |
 
 ## 5. Paddle Billing
 
@@ -128,8 +183,10 @@ pnpm --filter @chain-theorem/client build
 pnpm --filter @chain-theorem/server exec wrangler deploy --env production
 ```
 
-GitHub Actions runs the same checks on every pull request; add a deploy job with a
-`CLOUDFLARE_API_TOKEN` repository secret to deploy previews per pull request.
+The alpha environment deploys with `--env alpha` instead (section 0); it has no Neon migration step.
+
+GitHub Actions runs the same checks on every pull request; `.github/workflows/deploy-alpha.yml` is a
+manual deploy of the alpha environment (section 0) and a template for a production deploy job.
 
 ## 7. Rollback
 

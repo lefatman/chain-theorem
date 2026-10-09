@@ -5,6 +5,7 @@
  */
 import { abilityById, itemById, traitById } from '@chain-theorem/content';
 import {
+  type Compass,
   squareName,
   type PublicEvent,
   type PublicState,
@@ -40,11 +41,24 @@ export function sourceName(src: SourceRef | undefined): string {
         silence: 'elemental silence',
         depth: 'the chain depth limit',
         bonus_in_bonus: 'the one-bonus-action rule',
+        twin_group: 'the twin group limit',
+        linked_fate: 'linked fate',
       }[src.id];
     case 'hidden':
       return 'something hidden';
   }
 }
+
+export const COMPASS_NAMES: Record<Compass, string> = {
+  N: 'north',
+  NE: 'north-east',
+  E: 'east',
+  SE: 'south-east',
+  S: 'south',
+  SW: 'south-west',
+  W: 'west',
+  NW: 'north-west',
+};
 
 const FIZZLE: Record<string, string> = {
   no_body: 'its piece is gone',
@@ -53,6 +67,8 @@ const FIZZLE: Record<string, string> = {
   protected: 'the target is protected',
   bulwark: 'Bulwark absorbed it',
   burning: 'the square is burning',
+  stalwart_guard: 'Stalwart holds the piece in place',
+  group_full: 'the twin group is already full',
   occupied: 'the square is occupied',
   no_target: 'there is no valid target',
   depth_limit: 'the chain is too deep',
@@ -72,11 +88,13 @@ export function describe(ev: PublicEvent, pub: PublicState): string {
       if (ev.castle)
         return `${cap(ev.side)} castles ${ev.castle === 'K' ? 'king side' : 'queen side'}.`;
       const verb = ev.capture ? 'captures on' : 'moves to';
-      const bonus = ev.bonus ? ' (bonus move)' : '';
+      const bonus = ev.bonus ? ' (bonus move)' : ev.twin ? ' (twin move)' : '';
       const promo = ev.promotion ? ` and promotes to a ${ev.promotion}` : '';
       return `${who} ${verb} ${squareName(ev.to)}${ev.enPassant ? ' en passant' : ''}${promo}${bonus}.`;
     }
     case 'Captured':
+      if (ev.waiting)
+        return `The twin waiting on ${squareName(ev.square)} vanishes with its group (${sourceName(ev.source)}).`;
       return ev.by === 'move'
         ? `${cap(ev.victimSide)} ${ev.victimType} on ${squareName(ev.square)} is captured.`
         : `${sourceName(ev.source)} removes the ${ev.victimSide} ${ev.victimType} on ${squareName(ev.square)}.`;
@@ -98,6 +116,14 @@ export function describe(ev: PublicEvent, pub: PublicState): string {
       return `${squareName(ev.square)} bursts into flame for ${ev.turns} turns.`;
     case 'SquareExtinguished':
       return `The fire on ${squareName(ev.square)} goes out.`;
+    case 'FacingSet':
+      return `${pieceLabel(pub, ev.piece)} turns to face ${COMPASS_NAMES[ev.facing]}.`;
+    case 'Spawned':
+      return `${pieceLabel(pub, ev.twinOf)} splits: a twin waits on ${squareName(ev.square)} (${sourceName(ev.source)}).`;
+    case 'Emerged':
+      return `${cap(ev.side)}'s twin steps onto ${squareName(ev.square)}.`;
+    case 'Rewound':
+      return `${sourceName(ev.source)}: time turns back ${ev.plies === 1 ? 'one ply' : `${ev.plies} plies`}; the position before move ${Math.floor(ev.toPly / 2) + 1} returns.`;
     case 'Revealed': {
       const whose = cap(ev.side);
       const i = ev.info;

@@ -65,11 +65,7 @@ describe('overabundance (R-ELEM-007)', () => {
       white: { elements: ['neutral'] },
       black: { elements: ['grove'], abilities: ['rebirth'] },
       moves: ['c8f5', 'f1f5', 'c8d7', 'f5d7', 'c8b7', 'd7b7'],
-      // Attuned Rebirth (Grove bearer) offers the back rank; the owner picks the start square.
-      answers: [
-        { kind: 'square', square: sq('c8') },
-        { kind: 'square', square: sq('c8') },
-      ],
+      // Rebirth is neutral (DD-98): no prompt, the bishop returns to its empty starting square.
     });
     const bishop = idAt(r.initial, 'c8');
     expect(r.engine.remainingCharges(r.initial, bishop, 'rebirth')).toBe(2);
@@ -98,7 +94,7 @@ describe('overabundance (R-ELEM-007)', () => {
     expect(eventsOf(step(5), 'AbilityTriggered')).toEqual([]);
     expect(eventsOf(step(5), 'PieceRevived')).toEqual([]);
     expect(r.state.pieces[bishop]?.square).toBe(-1);
-    expect(r.prompts).toHaveLength(2);
+    expect(r.prompts).toHaveLength(0);
     expect(r.state.usage[`${bishop}:rebirth`]).toBe(2);
     expect(r.engine.remainingCharges(r.state, bishop, 'rebirth')).toBe(0);
   });

@@ -5,13 +5,45 @@
 
 export type Side = 'white' | 'black';
 export type PieceType = 'pawn' | 'knight' | 'bishop' | 'rook' | 'queen' | 'king';
+/**
+ * Piece rank for abilities that compare pieces (5.1, DD-97): pawn 1 < knight 2 = bishop 2 < rook 3
+ * < queen 4 < king 5. "Equal or higher" includes the knight/bishop tie.
+ */
+export const PIECE_RANK: Readonly<Record<PieceType, number>> = {
+  pawn: 1,
+  knight: 2,
+  bishop: 2,
+  rook: 3,
+  queen: 4,
+  king: 5,
+};
+export type RankCmp = '<' | '<=' | '==' | '>=' | '>';
+export function pieceRank(t: PieceType): number {
+  return PIECE_RANK[t];
+}
+export function rankCompare(a: PieceType, cmp: RankCmp, b: PieceType): boolean {
+  const x = PIECE_RANK[a];
+  const y = PIECE_RANK[b];
+  switch (cmp) {
+    case '<':
+      return x < y;
+    case '<=':
+      return x <= y;
+    case '==':
+      return x === y;
+    case '>=':
+      return x >= y;
+    case '>':
+      return x > y;
+  }
+}
 export type PromotionType = 'knight' | 'bishop' | 'rook' | 'queen';
 export type ElementId = 'ember' | 'tide' | 'grove' | 'storm' | 'stone' | 'frost' | 'neutral';
 export type Category = 'CAPTURING' | 'CAPTURES' | 'CAPTURED' | 'PASSIVE';
 export type FormatId = 'first_blood' | 'vanguard' | 'full';
 /** 0..63, a1 = 0, b1 = 1, ..., h8 = 63. */
 export type Square = number;
-/** Stable piece identity 0..31, assigned at battle start in square order a1..h8. */
+/** Stable piece identity: 0..31 assigned at battle start in square order a1..h8; spawned twins follow. */
 export type PieceId = number;
 
 export const SIDES: readonly Side[] = ['white', 'black'];
@@ -24,6 +56,45 @@ export const PIECE_TYPES: readonly PieceType[] = [
   'king',
 ];
 export const ELEMENTS: readonly ElementId[] = ['ember', 'tide', 'grove', 'storm', 'stone', 'frost'];
+
+/** Compass directions on the board as drawn (north = towards rank 8), clockwise (DD-99). */
+export type Compass = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
+export const COMPASS: readonly Compass[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const COMPASS_STEP: Readonly<Record<Compass, [number, number]>> = {
+  N: [0, 1],
+  NE: [1, 1],
+  E: [1, 0],
+  SE: [1, -1],
+  S: [0, -1],
+  SW: [-1, -1],
+  W: [-1, 0],
+  NW: [-1, 1],
+};
+/** The adjacent square in that direction, or -1 off the board. */
+export function stepTowards(sq: Square, dir: Compass): Square {
+  const [df, dr] = COMPASS_STEP[dir];
+  const f = (sq & 7) + df;
+  const r = (sq >> 3) + dr;
+  return f < 0 || f > 7 || r < 0 || r > 7 ? -1 : r * 8 + f;
+}
+/**
+ * The direction in which `other` stands as seen from `sq`: along a shared rank, file or diagonal,
+ * or along the long leg of a knight's offset (DD-99); null for any other pair.
+ */
+export function compassFrom(sq: Square, other: Square): Compass | null {
+  const df = (other & 7) - (sq & 7);
+  const dr = (other >> 3) - (sq >> 3);
+  if (df === 0 && dr === 0) return null;
+  if (df === 0) return dr > 0 ? 'N' : 'S';
+  if (dr === 0) return df > 0 ? 'E' : 'W';
+  if (Math.abs(df) === Math.abs(dr)) return dr > 0 ? (df > 0 ? 'NE' : 'NW') : df > 0 ? 'SE' : 'SW';
+  if (Math.abs(df) + Math.abs(dr) === 3) {
+    // Knight offset: the two-square leg names the direction.
+    if (Math.abs(dr) === 2) return dr > 0 ? 'N' : 'S';
+    return df > 0 ? 'E' : 'W';
+  }
+  return null;
+}
 
 export interface Move {
   from: Square;
@@ -51,6 +122,17 @@ export interface PieceState {
   start: Square;
   /** captureSeq value when this piece was last captured; -1 if never. */
   capturedSeq: number;
+  /**
+   * A twin (Schrödinger's Joker, DD-101) waiting to emerge on this square: it is off the board
+   * (`square` -1) until its owner's next turn. Absent for every other piece.
+   */
+  spawnSquare?: Square;
+}
+
+/** Pieces that share one fate (DD-101): capturing any member removes them all. `members[0]` is the original. */
+export interface TwinGroup {
+  ability: string;
+  members: PieceId[];
 }
 
 export interface ArmyState {
@@ -97,9 +179,12 @@ export interface ChoiceRequest {
   chooser: Side;
   source: { ability: string; piece: PieceId; side: Side };
   kind: 'target' | 'square' | 'bonusMove';
-  /** Target prompts: what the effect does to the chosen piece. */
-  purpose?: 'capture' | 'move' | 'revive' | 'protect';
-  /** Square prompts: the piece that will be moved or revived onto the chosen square. */
+  /**
+   * Target prompts: what the effect does to the chosen piece. Square prompts with `facing`: the
+   * chosen square names the direction the subject will face (Block Path, DD-99).
+   */
+  purpose?: 'capture' | 'move' | 'revive' | 'protect' | 'facing';
+  /** Square prompts: the piece that will be moved, revived or turned. */
   subject?: PieceId;
   options: ChoiceOption[];
   /** Index used when the chooser does not answer in time (5.4, DD-18). */
@@ -115,6 +200,27 @@ export interface PendingAction {
   preUsed: number;
   emitted: number;
   queue: { piece: PieceId; ability: string }[];
+}
+
+/**
+ * The position before an action, kept for Redo (REWIND, DD-100): everything a rewind restores.
+ * Charges (`usage`), reveals and the event sequence are not part of it and survive a rewind.
+ */
+export interface RewindPoint {
+  ply: number;
+  turn: Side;
+  board: number[];
+  pieces: PieceState[];
+  castling: number;
+  ep: Square;
+  halfmove: number;
+  fullmove: number;
+  slices: Record<string, unknown>;
+  objective: Record<Side, number>;
+  inCheck: Side | null;
+  repetition: string[];
+  links?: TwinGroup[];
+  pieceCount: number;
 }
 
 export interface GameState {
@@ -141,6 +247,10 @@ export interface GameState {
   result: BattleResult | null;
   inCheck: Side | null;
   eventSeq: number;
+  /** Pre-action snapshots of the last two actions, kept only while a side carries a REWIND ability. */
+  history?: RewindPoint[];
+  /** Twin groups (Schrödinger's Joker, DD-101); absent until one is spawned. */
+  links?: TwinGroup[];
 }
 
 export type MoveInput = { kind: 'move'; side: Side; move: Move; choices?: ChoiceOption[] };
@@ -157,7 +267,17 @@ export type SourceRef =
   | { kind: 'ability'; id: string; piece: PieceId; side: Side }
   | { kind: 'item'; id: string; side: Side }
   | { kind: 'trait'; id: string; element: ElementId }
-  | { kind: 'rule'; id: 'royal_immunity' | 'inv03' | 'silence' | 'depth' | 'bonus_in_bonus' }
+  | {
+      kind: 'rule';
+      id:
+        | 'royal_immunity'
+        | 'inv03'
+        | 'silence'
+        | 'depth'
+        | 'bonus_in_bonus'
+        | 'twin_group'
+        | 'linked_fate';
+    }
   /** Projection only: the source is hidden from this viewer. */
   | { kind: 'hidden' };
 
@@ -168,6 +288,10 @@ export type FizzleReason =
   | 'protected'
   | 'bulwark'
   | 'burning'
+  /** A Stalwart piece is removed only by a move capture or a venom effect (DD-102). */
+  | 'stalwart_guard'
+  /** A twin group already holds the most pieces allowed (DD-101). */
+  | 'group_full'
   | 'occupied'
   | 'no_target'
   | 'depth_limit'
@@ -198,6 +322,8 @@ export type BattleEvent = EventBase &
     | { k: 'ActionStarted'; side: Side; ply: number; move: Move }
     | {
         k: 'MoveMade';
+        /** An extra move of a twin group member after the owner's normal move (DD-101). */
+        twin?: true;
         side: Side;
         piece: PieceId;
         pieceType: PieceType;
@@ -211,6 +337,8 @@ export type BattleEvent = EventBase &
       }
     | {
         k: 'Captured';
+        /** The victim was a twin still waiting to emerge on `square` (linked fate, DD-101). */
+        waiting?: true;
         victim: PieceId;
         victimSide: Side;
         victimType: PieceType;
@@ -270,6 +398,30 @@ export type BattleEvent = EventBase &
       }
     | { k: 'SquareIgnited'; square: Square; side: Side; turns: number }
     | { k: 'SquareExtinguished'; square: Square }
+    /** A piece turned to face a direction (Block Path, DD-99). */
+    | {
+        k: 'FacingSet';
+        piece: PieceId;
+        side: Side;
+        square: Square;
+        facing: Compass;
+        source: SourceRef;
+      }
+    /** The position returned to the start of ply `toPly`, undoing `plies` plies (Redo, DD-100). */
+    | { k: 'Rewound'; side: Side; toPly: number; toTurn: Side; plies: number; source: SourceRef }
+    /** A twin of `twinOf` now waits on `square` until its owner's next turn (DD-101). */
+    | {
+        k: 'Spawned';
+        piece: PieceId;
+        twinOf: PieceId;
+        side: Side;
+        type: PieceType;
+        element: ElementId;
+        square: Square;
+        source: SourceRef;
+      }
+    /** A waiting twin stepped onto the board on `square` (DD-101). */
+    | { k: 'Emerged'; piece: PieceId; side: Side; square: Square }
     | { k: 'Revealed'; side: Side; info: RevealInfo; cause: RevealCause; source?: SourceRef }
     | { k: 'PieceMoved'; piece: PieceId; side: Side; from: Square; to: Square; source: SourceRef }
     | { k: 'PieceRevived'; piece: PieceId; side: Side; square: Square; source: SourceRef }
@@ -330,10 +482,11 @@ export type LoadoutErrorCode =
   | 'unknown_item'
   | 'unknown_ability'
   | 'item_param'
-  | 'bad_level';
+  | 'bad_level'
+  | 'excluded_category';
 
 export interface LoadoutError {
-  rule: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  rule: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   code: LoadoutErrorCode;
   message: string;
   ref?: string;

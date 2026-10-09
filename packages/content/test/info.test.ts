@@ -305,32 +305,21 @@ describe('R-INFO-002 reveal rules', () => {
     expect(pieceAt(r.state, 'd5')).toMatchObject({ side: 'white', type: 'knight' });
   });
 
-  it('R-INFO-002 DD-40 a REVEAL effect names items: attuned Last Word discloses the complete item list, even when empty', () => {
+  it("R-INFO-002 DD-40 DD-98 Last Word is neutral: it reveals the captor's whole type set and never the item list", () => {
     const r = scenario({
       fen: E1_FEN,
       white: { items: ['resonance_crystal', 'wardens_stopwatch'] },
       black: { elements: ['tide'], abilities: ['last_word'] },
       moves: ['c3d5'],
     });
-    expect([...r.state.reveals.white.items].sort()).toEqual([
-      'resonance_crystal',
-      'wardens_stopwatch',
-    ]);
-    expect(r.state.reveals.white.allItems).toBe(true);
-    // Base effect: the captor's whole type set (empty here) is known and complete.
+    // The captor's whole type set (empty here) is known and complete; items stay hidden.
     expect(r.state.reveals.white.complete).toContain('knight');
     expect(r.state.reveals.white.abilities.knight).toEqual([]);
+    expect(r.state.reveals.white.items).toEqual([]);
+    expect(r.state.reveals.white.allItems).toBe(false);
     const black = r.engine.project(r.state, 'black').armies.white.revealed;
-    expect(black.allItems).toBe(true);
-    expect([...black.items].sort()).toEqual(['resonance_crystal', 'wardens_stopwatch']);
-
-    const empty = scenario({
-      fen: E1_FEN,
-      black: { elements: ['tide'], abilities: ['last_word'] },
-      moves: ['c3d5'],
-    });
-    expect(empty.state.reveals.white.items).toEqual([]);
-    expect(empty.state.reveals.white.allItems).toBe(true);
+    expect(black.allItems).toBe(false);
+    expect(black.items).toEqual([]);
   });
 
   it("R-INFO-002 DD-27 Scout's Lens is revealed when it fires at battle start, with the pawn ability it exposed", () => {

@@ -6,19 +6,39 @@
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { CHOICE_PROMPT_MS } from '@chain-theorem/content';
-import { squareName, type ChoiceOption, type PublicState } from '@chain-theorem/rules';
+import {
+  compassFrom,
+  squareName,
+  type ChoiceOption,
+  type ChoiceRequest,
+  type PublicState,
+} from '@chain-theorem/rules';
 import type { BattleController } from '../battle/controller.ts';
-import { abilityName, pieceLabel } from '../battle/describe.ts';
+import { COMPASS_NAMES, abilityName, pieceLabel } from '../battle/describe.ts';
 import { nowFor } from './Clocks.tsx';
 
-export function optionLabel(pub: PublicState, o: ChoiceOption): string {
+export function optionLabel(
+  pub: PublicState,
+  o: ChoiceOption,
+  req?: Pick<ChoiceRequest, 'purpose' | 'subject' | 'source'>,
+): string {
+  const facing = req?.purpose === 'facing';
   switch (o.kind) {
     case 'decline':
-      return 'Decline';
+      return facing ? 'Keep the current facing' : 'Decline';
     case 'piece':
-      return `${pieceLabel(pub, o.piece)} on ${squareName(o.square)}`;
-    case 'square':
+      return (pub.pieces[o.piece]?.square ?? 0) < 0
+        ? `${pieceLabel(pub, o.piece)} (captured) back to ${squareName(o.square)}`
+        : `${pieceLabel(pub, o.piece)} on ${squareName(o.square)}`;
+    case 'square': {
+      if (facing && req) {
+        // Block Path (DD-99): the square names the direction the piece will face.
+        const at = pub.pieces[req.subject ?? req.source.piece]?.square ?? -1;
+        const dir = at >= 0 ? compassFrom(at, o.square) : null;
+        if (dir) return `Face ${COMPASS_NAMES[dir]} (${squareName(o.square)})`;
+      }
       return squareName(o.square);
+    }
     case 'move':
       return `${squareName(o.from)} → ${squareName(o.to)}${o.promotion ? ` (${o.promotion})` : ''}`;
   }
@@ -42,6 +62,12 @@ const KIND_TEXT = {
   square: 'Choose a square.',
   target: 'Choose a target.',
 } as const;
+
+function promptText(p: ChoiceRequest): string {
+  if (p.purpose === 'facing')
+    return 'Turn it to face a direction: no move can capture it from there. Or keep its facing.';
+  return KIND_TEXT[p.kind];
+}
 
 export function PromptDialog({
   controller,
@@ -79,7 +105,7 @@ export function PromptDialog({
         {abilityName(p.source.ability)}: your choice
       </h3>
       <p id="prompt-d">
-        {pieceLabel(s.pub, p.source.piece)}. {KIND_TEXT[p.kind]}
+        {pieceLabel(s.pub, p.source.piece)}. {promptText(p)}
       </p>
       {secs !== null && left !== null && (
         <div class={`countdown ${secs <= 5 ? 'low' : ''}`}>
@@ -90,7 +116,7 @@ export function PromptDialog({
           <progress max={total} value={left} aria-hidden="true" />
           <span class="muted">
             {secs === 0 ? 'Time is up: ' : 'Then: '}
-            {defaultOpt ? optionLabel(s.pub, defaultOpt) : 'the first option'}
+            {defaultOpt ? optionLabel(s.pub, defaultOpt, p) : 'the first option'}
           </span>
           <span class="sr-only" aria-live="assertive">
             {secs === 10 || secs === 5 ? `${secs} seconds left` : ''}
@@ -108,7 +134,7 @@ export function PromptDialog({
             onFocus={() => onFocusOption(optionSquare(o))}
             onMouseLeave={() => onFocusOption(null)}
           >
-            {optionLabel(s.pub, o)}
+            {optionLabel(s.pub, o, p)}
             {i === p.defaultOption && <span class="muted"> (default)</span>}
           </button>
         ))}

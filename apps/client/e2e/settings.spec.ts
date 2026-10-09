@@ -1,5 +1,5 @@
 /**
- * Classic View (11.2, R-ART-002): the toggle persists across reloads and swaps the creatures on the
+ * Classic View (11.2, R-ART-002): the toggle persists across reloads and swaps the unit sprites on the
  * board for standard chess glyphs. Reduced motion freezes the idle animation so board screenshots
  * are stable enough to compare.
  */
@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 
 test.use({ reducedMotion: 'reduce' });
 
-const CLASSIC = 'Classic View (chess glyphs instead of creatures)';
+const CLASSIC = 'Classic View (chess glyphs instead of army sprites)';
 
 async function setClassicView(page: Page, on: boolean): Promise<void> {
   await openTitle(page);

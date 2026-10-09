@@ -7,13 +7,13 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { abilities, items, traits } from '@chain-theorem/content';
 import { world } from '@chain-theorem/content/world';
-import { creatures } from './battle/scene/creatures.ts';
+import { units } from './battle/scene/army.ts';
 
 const root = new URL('../../..', import.meta.url).pathname;
 const json = <T>(path: string): T => JSON.parse(readFileSync(join(root, path), 'utf8')) as T;
 
 describe('core scope (spec 1)', () => {
-  it('R-CORE-005 no Pokémon names anywhere in the content, the world or the creature roster', () => {
+  it('R-CORE-005 no Pokémon names anywhere in the content, the world or the army roster', () => {
     const deny = [
       'pokemon',
       'pokémon',
@@ -47,7 +47,7 @@ describe('core scope (spec 1)', () => {
       ...world.zones.flatMap((z) => z.encounters.map((e) => e.name)),
       ...world.quests.map((q) => q.name),
       ...world.keyItems.map((k) => k.name),
-      ...creatures.map((c) => c.name),
+      ...units.map((u) => u.name),
     ];
     expect(names.length).toBeGreaterThan(50);
     for (const name of names) {

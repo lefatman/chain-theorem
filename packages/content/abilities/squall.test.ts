@@ -1,7 +1,7 @@
 /**
- * Squall scenario tests (R-ABIL-005, M7 7.3): Captured, Storm, all, replay. When captured, the owner
- * may move one of its pawns (a non-capturing move). Attuned (Storm bearer): any of its pieces may
- * make the move instead.
+ * Squall scenario tests (R-ABIL-005, M7 7.3): Captured, neutral, all, replay. When captured, the
+ * owner may move one of its pawns (a non-capturing move). Storm's signature until Electric Slide
+ * shipped (DD-98, DD-104): its former attuned version (any piece may move) is retired.
  *
  * Expected behaviour comes from spec 4.1 (INV-01, INV-03), 5.1-5.6, 6.1-6.3, 7.2 (Warden's
  * Stopwatch), 8.2 and DD-12, DD-18, DD-21, not from the engine's current output.
@@ -22,11 +22,12 @@ const mv = (from: string, to: string): ChoiceOption => ({
 const FEN = '1n2k3/p7/7p/3p4/8/2N5/8/4K3 w - - 0 1';
 
 describe('squall (R-ABIL-005)', () => {
-  it('R-ABIL-005 squall is a level-1, 1-slot Storm When-captured card with the replay tag and no charges', () => {
+  it('R-ABIL-005 DD-104 squall is a level-1, 1-slot neutral When-captured card with the replay tag, no charges and no attuned version', () => {
     const def = abilityById.get('squall');
+    expect(def?.attuned).toBeUndefined();
     expect(def).toMatchObject({
       category: 'CAPTURED',
-      affinity: 'storm',
+      affinity: 'neutral',
       eligible: 'all',
       tags: ['replay'],
       minLevel: 1,
@@ -74,32 +75,29 @@ describe('squall (R-ABIL-005)', () => {
     }
   });
 
-  it('R-ELEM-003 attuned (Storm bearer): any friendly piece may make the move', () => {
+  it('R-ELEM-003 DD-104 a Storm bearer gets no attuned version any more: pawns only, not the knight or king', () => {
     const r = scenario({
       fen: FEN,
       black: { elements: ['storm'], abilities: ['squall'] },
       moves: ['c3d5'],
-      answers: [mv('b8', 'c6')],
+      answers: [mv('a7', 'a5')],
     });
-    expect(eventsOf(r.events, 'AbilityTriggered')[0]?.attuned).toBe(true);
+    expect(eventsOf(r.events, 'AbilityTriggered')[0]?.attuned).toBe(false);
     const options = r.prompts[0]?.options ?? [];
-    expect(options).toContainEqual(mv('b8', 'c6'));
-    expect(options).toContainEqual(mv('e8', 'f7'));
-    expect(options).toContainEqual(mv('a7', 'a5'));
-    expect(pieceAt(r.state, 'c6')?.type).toBe('knight');
+    expect(options).toEqual([{ kind: 'decline' }, mv('a7', 'a6'), mv('a7', 'a5'), mv('h6', 'h5')]);
+    expect(pieceAt(r.state, 'a5')?.type).toBe('pawn');
   });
 
   it('INV-03 DD-21 the bonus move may not leave the acting player’s king in check: no checking move is offered', () => {
-    // Attuned: the black rook a2 could give check on the first rank or the e-file; those moves are not offered.
+    // The black pawn b3 could step to b2 and check the king on c1; that move is not offered.
     const r = scenario({
-      fen: '4k3/8/8/3p4/8/2N5/r7/4K3 w - - 0 1',
-      black: { elements: ['storm'], abilities: ['squall'] },
+      fen: '4k3/7p/8/3p4/8/1pN5/8/2K5 w - - 0 1',
+      black: { abilities: ['squall'] },
       moves: ['c3d5'],
     });
     const options = r.prompts[0]?.options ?? [];
-    expect(options).toContainEqual(mv('a2', 'b2'));
-    expect(options).not.toContainEqual(mv('a2', 'a1'));
-    expect(options).not.toContainEqual(mv('a2', 'e2'));
+    expect(options).toEqual([{ kind: 'decline' }, mv('h7', 'h6'), mv('h7', 'h5')]);
+    expect(options).not.toContainEqual(mv('b3', 'b2'));
   });
 
   it('R-ELEM-002 a Stone captor silences Squall on a Storm victim (Stone beats Storm), and the silence reveals it', () => {

@@ -21,6 +21,7 @@ import {
 import type { BattleController, BattleSnapshot } from './controller.ts';
 import type { BoardGame } from './scene/game.ts';
 import { settings } from '../state/settings.ts';
+import { armyStylesFor } from './scene/army.ts';
 import { attackHints } from '../ui/attacks.ts';
 import { BattleHud } from '../ui/BattleHud.tsx';
 import { cap } from '../ui/labels.ts';
@@ -99,6 +100,12 @@ export function BattleView({ controller }: { controller: BattleController }) {
           onSquare: (sq: number) => onSquareRef.current(sq),
           onHover: (sq: number | null) => setHoverSq(sq),
           classicView: () => settings.value.classicView,
+          armyStyle: (side) =>
+            armyStylesFor(
+              settings.value.armyStyle,
+              controller.snapshot.value.names,
+              controller.snapshot.value.controls,
+            )[side],
           animationMs,
           fastMode: () => settings.value.fastMode,
           textScale: () => settings.value.textScale,
@@ -124,6 +131,7 @@ export function BattleView({ controller }: { controller: BattleController }) {
   useSignalEffect(() => {
     const s = controller.snapshot.value;
     void settings.value.classicView;
+    void settings.value.armyStyle;
     const g = board.current;
     if (!g) return;
     // The scene stores this and draws it once no animation is queued and no replay frame is pinned.

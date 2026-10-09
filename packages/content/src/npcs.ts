@@ -34,12 +34,16 @@ function pickElement(seed: number): ElementId {
 
 /**
  * Abilities an NPC of `element` at `level` would pick: own affinity first, then neutral, then any
- * other (low levels offer few abilities per element, as they do for players); triggered only.
+ * other (low levels offer few abilities per element, as they do for players); triggered only, except
+ * the element's own signature when it is a passive (Storm's Electric Slide, DD-104).
  */
 function candidates(element: ElementId, level: number): AbilityDef[] {
   const rank = (a: AbilityDef) => (a.affinity === element ? 0 : a.affinity === 'neutral' ? 1 : 2);
   return abilities
-    .filter((a) => !a.retired && a.minLevel <= level && a.category !== 'PASSIVE')
+    .filter(
+      (a) =>
+        !a.retired && a.minLevel <= level && (a.category !== 'PASSIVE' || a.affinity === element),
+    )
     .sort((a, b) => rank(a) - rank(b) || b.minLevel - a.minLevel || (a.id < b.id ? -1 : 1));
 }
 

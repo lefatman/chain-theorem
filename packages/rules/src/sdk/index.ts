@@ -18,6 +18,8 @@ import type {
 } from './types.ts';
 
 export type * from './types.ts';
+/** Rank and compass helpers for module hooks (5.1 DD-97, DD-99). */
+export { pieceRank, rankCompare, COMPASS, stepTowards, compassFrom } from '../types.ts';
 
 /** Identity helpers that type-check a module definition. */
 export function defineAbility<const T extends AbilityDef>(def: T): T {
@@ -42,6 +44,8 @@ export const target = {
     side,
     type,
   }),
+  /** The owner chooses among captured pieces matching the filter (never a king). */
+  chosenCaptured: (filter: PieceFilter): TargetSpec => ({ t: 'chosenCaptured', filter }),
 };
 
 export const square = {
@@ -52,6 +56,11 @@ export const square = {
   /** The ability's owner chooses an empty square matching the filter. */
   chosen: (filter: Omit<SquareFilter, 'empty'>): SquareSpec => ({
     s: 'chosen',
+    filter: { empty: true, ...filter },
+  }),
+  /** The piece's starting square when empty, otherwise the owner chooses from the filter. */
+  startElse: (filter: Omit<SquareFilter, 'empty'>): SquareSpec => ({
+    s: 'startElse',
     filter: { empty: true, ...filter },
   }),
 };
@@ -87,6 +96,10 @@ export const fx = {
   /** REVEAL(target) */
   reveal: (reveal: RevealSpec): EffectSpec => ({ op: 'reveal', reveal }),
   /** MODIFY_RULE(ruleId, params): passive marker; the behaviour lives in the module's hooks. */
+  /** REWIND: return to the position before the previous action (Redo, DD-100); ends the action. */
+  rewind: (): EffectSpec => ({ op: 'rewind' }),
+  /** SPAWN: the bearer gets a linked twin that moves after the owner's normal move (DD-101). */
+  spawn: (): EffectSpec => ({ op: 'spawn' }),
   modifyRule: (rule: string, params?: Record<string, string | number | boolean>): EffectSpec =>
     params ? { op: 'modifyRule', rule, params } : { op: 'modifyRule', rule },
   when: (cond: EffectCondition, then: EffectSpec[]): EffectSpec => ({ op: 'when', cond, then }),
@@ -108,6 +121,8 @@ export const cond = {
   typeIs: (of: 'captor' | 'victim' | 'self', types: PieceType[]): EffectCondition => ({
     typeIs: { of, types },
   }),
+  /** True when no piece on the board matches the filter as an effect-capture target. */
+  noneMatch: (filter: PieceFilter): EffectCondition => ({ noneMatch: filter }),
   not: (c: EffectCondition): EffectCondition => ({ not: c }),
   all: (...cs: EffectCondition[]): EffectCondition => ({ all: cs }),
 };

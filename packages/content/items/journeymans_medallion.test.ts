@@ -74,7 +74,7 @@ describe("journeyman's medallion (R-LOAD-002)", () => {
       FOUR,
       ['scout', 'pierce', 'antidote', 'last_word'],
       ['poisoned_meat', 'pierce', 'cleave', 'hit_and_run'],
-      ['scout', 'pierce', 'antidote', 'stalwart'],
+      ['last_word', 'poisoned_meat', 'veil', 'stalwart'],
     ];
     const l = loadout([ID, 'multitaskers_schedule', 'blended_family', 'scouts_lens'], sets, [
       'tide',

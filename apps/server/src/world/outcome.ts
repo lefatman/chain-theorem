@@ -90,6 +90,7 @@ export function zoneOutcome(
     case 'ranked':
     case 'wager':
     case 'tournament':
+    case 'alpha':
       return null;
   }
 }
@@ -179,5 +180,8 @@ export function battleGrants(
           flags: [],
         },
       ];
+    // 9.6 (DD-107): an alpha guest battle pays nothing; its seats may not even be players.
+    case 'alpha':
+      return [];
   }
 }

@@ -165,6 +165,30 @@ describe('step-through replay frames (R-ART-002)', () => {
       expect(kinds, k).toContain(k);
   });
 
+  it('R-ART-002 DD-100 frames before a Redo rewind are rebuilt by replaying the undone plies forward', () => {
+    // Frost and Stone: no Overabundance doubling the charge, no silence against Ember or Tide.
+    const redo: Loadout = { elements: ['frost', 'stone'], items: [], sets: [['redo']] };
+    const plain: Loadout = { elements: ['ember', 'tide'], items: [], sets: [[]] };
+    const d = new Driver(plain, redo, '4k3/7p/8/3n4/8/8/8/R3K3 w - - 0 1');
+    // a1-d1, h7-h6, d1xd5 (rewound to before h7-h6), h7-h5, d1xd5 (the charge is spent: it stands).
+    for (const uci of ['a1d1', 'h7h6', 'd1d5', 'h7h5', 'd1d5', 'e8f8']) d.move(uci);
+    expect(d.events.filter((e) => e.k === 'Rewound')).toHaveLength(1);
+    expect(d.verify()).toBeGreaterThan(6);
+    // A random Redo battle too.
+    const rand = rng(77);
+    const r = new Driver(
+      { ...EMBER_GROVE, sets: [['redo', 'rebirth', 'cleave', 'momentum', 'poisoned_meat']] },
+      { ...TIDE_EMBER, sets: [['redo', 'reinforce', 'riposte', 'hit_and_run', 'scout']] },
+    );
+    for (let ply = 0; ply < 120 && !r.state.result; ply++) {
+      const legal = engine.legalMoves(r.state, r.state.turn);
+      const m = legal[Math.floor(rand() * legal.length)];
+      if (!m) break;
+      r.move(moveToUci(m), (n) => Math.floor(rand() * n));
+    }
+    expect(r.verify()).toBeGreaterThan(50);
+  });
+
   it('R-ART-002 a log that does not match the board yields null instead of a wrong frame', () => {
     const d = new Driver(EMBER_GROVE, TIDE_EMBER);
     d.move('e2e4');

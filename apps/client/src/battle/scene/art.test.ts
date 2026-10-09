@@ -1,20 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import type { ElementId, PieceType, PublicPiece, PublicState } from '@chain-theorem/rules';
+import type { ElementId, PieceType, PublicPiece, PublicState, Side } from '@chain-theorem/rules';
 import {
-  creatureGrid,
-  CREATURE_FRAMES,
-  drawCreature,
+  BADGE_CLEAR,
+  drawUnit,
   ELEMENTS,
   PIECE_TYPES,
   SPRITE,
-  type CreatureFacing,
-  type CreatureFrame,
+  unitGrid,
+  UNIT_FRAMES,
+  type UnitFacing,
+  type UnitFrame,
 } from './sprites.ts';
+import { ARMY_STYLES, type ArmyStyle } from './army.ts';
 import { elementIconGrid, glyphBadgeGrid, pipGrid, pipKinds } from './icons.ts';
-import { creaturePalette } from './palette.ts';
+import { A, armyPalette, elementPalette } from './palette.ts';
 import { gba, M, type Ctx2D, type PixelGrid } from './pixel.ts';
 
 const ALL_ELEMENTS: ElementId[] = [...ELEMENTS, 'neutral'];
+const SIDES: Side[] = ['white', 'black'];
 
 function iou(a: Uint8Array, b: Uint8Array): number {
   let inter = 0;
@@ -32,98 +35,149 @@ function count(g: PixelGrid, m: number): number {
   return n;
 }
 
-describe('creature sprites (R-ART-001, R-ART-002)', () => {
+function luminance(rgb: number): number {
+  return 0.2126 * ((rgb >> 16) & 255) + 0.7152 * ((rgb >> 8) & 255) + 0.0722 * (rgb & 255);
+}
+
+describe('army sprites (R-ART-001, R-ART-002)', () => {
   for (const facing of ['front', 'back'] as const) {
     for (const frame of ['idle0', 'idle1'] as const) {
-      it(`R-ART-002 piece type is readable from the outline alone (${facing} ${frame})`, () => {
-        // Nearest silhouette among every other element's creatures always has the same type.
+      it(`R-ART-002 piece type is readable from the outline alone across styles (${facing} ${frame})`, () => {
+        // The nearest silhouette among every other style's units always has the same type.
         for (const type of PIECE_TYPES) {
-          for (const el of ELEMENTS) {
-            const mask = creatureGrid(type, el, facing, frame).mask();
+          for (const style of ARMY_STYLES) {
+            const mask = unitGrid(style, type, 'neutral', facing, frame).mask();
             let best = -1;
             let bestType: PieceType | null = null;
             for (const t2 of PIECE_TYPES) {
-              for (const e2 of ELEMENTS) {
-                if (e2 === el) continue;
-                const v = iou(mask, creatureGrid(t2, e2, facing, frame).mask());
+              for (const s2 of ARMY_STYLES) {
+                if (s2 === style) continue;
+                const v = iou(mask, unitGrid(s2, t2, 'neutral', facing, frame).mask());
                 if (v > best) {
                   best = v;
                   bestType = t2;
                 }
               }
             }
-            expect(bestType, `${type}/${el}`).toBe(type);
+            expect(bestType, `${style}/${type}`).toBe(type);
           }
         }
       });
     }
   }
 
-  it('R-ART-002 silhouettes follow type across elements (same type overlaps more than any other type)', () => {
-    let minSame = 1;
-    let maxOther = 0;
-    for (const type of PIECE_TYPES) {
-      const ref = creatureGrid(type, 'neutral', 'front', 'idle0').mask();
-      for (const el of ELEMENTS) {
-        for (const t2 of PIECE_TYPES) {
-          const v = iou(ref, creatureGrid(t2, el, 'front', 'idle0').mask());
-          if (t2 === type) minSame = Math.min(minSame, v);
-          else maxOther = Math.max(maxOther, v);
+  it('R-ART-002 silhouettes follow type across styles (every unit overlaps each same-type unit more than any other type)', () => {
+    for (const facing of ['front', 'back'] as const) {
+      for (const ref of ARMY_STYLES) {
+        for (const type of PIECE_TYPES) {
+          const mask = unitGrid(ref, type, 'neutral', facing, 'idle0').mask();
+          let minSame = 1;
+          let maxOther = 0;
+          for (const style of ARMY_STYLES) {
+            if (style === ref) continue;
+            for (const t2 of PIECE_TYPES) {
+              const v = iou(mask, unitGrid(style, t2, 'neutral', facing, 'idle0').mask());
+              if (t2 === type) minSame = Math.min(minSame, v);
+              else maxOther = Math.max(maxOther, v);
+            }
+          }
+          expect(minSame, `${ref}/${type} ${facing}`).toBeGreaterThan(maxOther);
         }
       }
     }
-    expect(minSame).toBeGreaterThan(maxOther);
   });
 
-  it('R-ART-002 pawns are the smallest creatures and queens and kings the largest', () => {
-    const area = (t: PieceType) => count(creatureGrid(t, 'neutral', 'front', 'idle0'), M.EMPTY);
-    const filled = (t: PieceType) => SPRITE * SPRITE - area(t);
-    for (const t of PIECE_TYPES) if (t !== 'pawn') expect(filled('pawn')).toBeLessThan(filled(t));
-    for (const t of ['pawn', 'knight', 'bishop'] as const) {
-      expect(filled(t)).toBeLessThan(filled('queen'));
-      expect(filled(t)).toBeLessThan(filled('king'));
+  it('R-ART-002 pawns are the shortest units and smaller than all but the slender bishop; queens and kings stand full height', () => {
+    // The figure's own top (head and headgear): columns 10..21, not the weapon held at the side.
+    const top = (g: PixelGrid) => {
+      for (let y = 0; y < g.h; y++) for (let x = 10; x <= 21; x++) if (g.get(x, y)) return y;
+      return g.h;
+    };
+    for (const style of ARMY_STYLES) {
+      const grid = (t: PieceType) => unitGrid(style, t, 'neutral', 'front', 'idle0');
+      const filled = (t: PieceType) => SPRITE * SPRITE - count(grid(t), A.EMPTY);
+      for (const t of PIECE_TYPES) {
+        if (t === 'pawn') continue;
+        expect(top(grid('pawn')), `${style}: pawn shorter than ${t}`).toBeGreaterThan(top(grid(t)));
+        if (t !== 'bishop')
+          expect(filled('pawn'), `${style}: pawn smaller than ${t}`).toBeLessThan(filled(t));
+      }
+      for (const t of ['queen', 'king'] as const)
+        expect(top(grid(t)), `${style}/${t}`).toBeLessThanOrEqual(5);
     }
   });
 
   it('R-ART-002 owner: front sprites show a face, back sprites never do', () => {
-    for (const type of PIECE_TYPES) {
-      for (const el of ALL_ELEMENTS) {
-        expect(
-          count(creatureGrid(type, el, 'front', 'idle0'), M.EYE),
-          `${type}/${el}`,
-        ).toBeGreaterThan(0);
-        expect(count(creatureGrid(type, el, 'back', 'idle0'), M.EYE), `${type}/${el}`).toBe(0);
+    for (const style of ARMY_STYLES) {
+      for (const type of PIECE_TYPES) {
+        for (const el of ALL_ELEMENTS) {
+          expect(
+            count(unitGrid(style, type, el, 'front', 'idle0'), A.EYE),
+            `${style}/${type}/${el}`,
+          ).toBeGreaterThan(0);
+          expect(
+            count(unitGrid(style, type, el, 'back', 'idle0'), A.EYE),
+            `${style}/${type}/${el}`,
+          ).toBe(0);
+        }
       }
     }
   });
 
-  it('R-ART-001 every creature has front and back sprites, a 2-frame idle and a faint frame', () => {
+  it('R-ART-002 owner: white steel and black iron armour differ in brightness on every unit', () => {
+    for (const el of ALL_ELEMENTS) {
+      const w = armyPalette('white', el);
+      const b = armyPalette('black', el);
+      for (const m of [A.ARM_SH, A.ARM, A.ARM_LT]) {
+        expect(luminance(w[m] ?? 0) - luminance(b[m] ?? 0), `${el} material ${m}`).toBeGreaterThan(
+          80,
+        );
+      }
+    }
+    // Both owners share the grid: only the palette tells them apart.
+    const g = unitGrid('roman', 'rook', 'ember', 'front', 'idle0');
+    expect(count(g, A.ARM) + count(g, A.ARM_SH) + count(g, A.ARM_LT)).toBeGreaterThan(60);
+  });
+
+  it('R-ART-001 every unit has front and back sprites, a 2-frame idle and a faint frame', () => {
     const key = (g: PixelGrid) => g.px.join(',');
-    for (const type of PIECE_TYPES) {
-      for (const el of ALL_ELEMENTS) {
-        for (const facing of ['front', 'back'] as CreatureFacing[]) {
-          const frames = CREATURE_FRAMES.map((f: CreatureFrame) =>
-            key(creatureGrid(type, el, facing, f)),
+    for (const style of ARMY_STYLES) {
+      for (const type of PIECE_TYPES) {
+        for (const facing of ['front', 'back'] as UnitFacing[]) {
+          const frames = UNIT_FRAMES.map((f: UnitFrame) =>
+            key(unitGrid(style, type, 'ember', facing, f)),
           );
-          expect(new Set(frames).size, `${type}/${el}/${facing}`).toBe(3);
+          expect(new Set(frames).size, `${style}/${type}/${facing}`).toBe(3);
         }
-        expect(key(creatureGrid(type, el, 'front', 'idle0'))).not.toBe(
-          key(creatureGrid(type, el, 'back', 'idle0')),
+        expect(key(unitGrid(style, type, 'ember', 'front', 'idle0'))).not.toBe(
+          key(unitGrid(style, type, 'ember', 'back', 'idle0')),
         );
       }
     }
   });
 
-  it('R-ART-002 element changes the palette and motif, never the piece type', () => {
-    for (const type of PIECE_TYPES) {
-      const grids = ELEMENTS.map((el) => creatureGrid(type, el, 'front', 'idle0').px.join(','));
-      expect(new Set(grids).size).toBe(ELEMENTS.length);
+  it('R-ART-002 element changes the accents and the emblem, never the silhouette', () => {
+    for (const style of ARMY_STYLES) {
+      for (const type of PIECE_TYPES) {
+        for (const facing of ['front', 'back'] as const) {
+          const ref = unitGrid(style, type, 'neutral', facing, 'idle0');
+          const grids = new Set<string>();
+          for (const el of ALL_ELEMENTS) {
+            const g = unitGrid(style, type, el, facing, 'idle0');
+            expect(g.mask(), `${style}/${type}/${el}/${facing} silhouette`).toEqual(ref.mask());
+            grids.add(g.px.join(','));
+          }
+          expect(grids.size, `${style}/${type}/${facing} emblems`).toBe(ALL_ELEMENTS.length);
+        }
+      }
     }
-    const bases = ALL_ELEMENTS.map((el) => creaturePalette(el)[M.BASE]);
-    expect(new Set(bases).size).toBe(ALL_ELEMENTS.length);
+    for (const side of SIDES) {
+      const accents = ALL_ELEMENTS.map((el) => armyPalette(side, el)[A.ACC]);
+      expect(new Set(accents).size).toBe(ALL_ELEMENTS.length);
+    }
   });
 
-  it('R-ART-001 palettes are limited GBA-style: 16 entries snapped to 15-bit colour', () => {
+  it('R-ART-001 palettes are limited handheld-style: 16 entries snapped to 15-bit colour', () => {
     const snapped = (c: number) =>
       [16, 8, 0].every((s) => {
         const v = (c >> s) & 255;
@@ -131,7 +185,13 @@ describe('creature sprites (R-ART-001, R-ART-002)', () => {
       });
     for (const el of ALL_ELEMENTS) {
       for (const faint of [false, true]) {
-        const p = creaturePalette(el, faint);
+        for (const side of SIDES) {
+          const p = armyPalette(side, el, faint);
+          expect(p).toHaveLength(16);
+          for (const c of p.slice(1))
+            expect(snapped(c), `${side} ${el} ${c.toString(16)}`).toBe(true);
+        }
+        const p = elementPalette(el, faint);
         expect(p).toHaveLength(16);
         for (const c of p.slice(1)) expect(snapped(c), `${el} ${c.toString(16)}`).toBe(true);
       }
@@ -140,7 +200,7 @@ describe('creature sprites (R-ART-001, R-ART-002)', () => {
     expect(gba(0x000000)).toBe(0);
   });
 
-  it('R-ART-001 drawCreature draws nearest-neighbour pixels at an integer scale', () => {
+  it('R-ART-001 drawUnit draws nearest-neighbour pixels at an integer scale', () => {
     const rects: [number, number, number, number][] = [];
     const ctx: Ctx2D = {
       fillStyle: '#000',
@@ -148,7 +208,7 @@ describe('creature sprites (R-ART-001, R-ART-002)', () => {
         rects.push([x, y, w, h]);
       },
     };
-    drawCreature(ctx, 'knight', 'storm', 'front', 'idle0', 3, 10, 20);
+    drawUnit(ctx, 'arab', 'knight', 'black', 'storm', 'front', 'idle0', 3, 10, 20);
     expect(rects.length).toBeGreaterThan(20);
     for (const [x, y, w, h] of rects) {
       expect(h).toBe(3);
@@ -160,15 +220,31 @@ describe('creature sprites (R-ART-001, R-ART-002)', () => {
     }
   });
 
-  it('R-ART-002 the glyph badge corner (x <= 4, y <= 4) stays clear of every creature', () => {
-    for (const type of PIECE_TYPES) {
-      for (const el of ALL_ELEMENTS) {
-        for (const facing of ['front', 'back'] as const) {
-          for (const frame of CREATURE_FRAMES) {
-            const g = creatureGrid(type, el, facing, frame);
-            for (let y = 0; y <= 4; y++) {
-              for (let x = 0; x <= 4; x++)
-                expect(g.get(x, y), `${type}/${el}/${facing}/${frame} ${x},${y}`).toBe(M.EMPTY);
+  it('R-ART-002 the glyph badge corner stays clear of every unit, and nothing rises above the square', () => {
+    for (const style of ARMY_STYLES) {
+      for (const type of PIECE_TYPES) {
+        for (const el of ALL_ELEMENTS) {
+          for (const facing of ['front', 'back'] as const) {
+            for (const frame of UNIT_FRAMES) {
+              const g = unitGrid(style, type, el, facing, frame);
+              for (let y = BADGE_CLEAR.y0; y <= BADGE_CLEAR.y1; y++) {
+                for (let x = 0; x <= BADGE_CLEAR.x; x++)
+                  expect(g.get(x, y), `${style}/${type}/${el}/${facing}/${frame} ${x},${y}`).toBe(
+                    A.EMPTY,
+                  );
+              }
+              for (let y = 0; y < BADGE_CLEAR.y0; y++)
+                for (let x = 0; x < SPRITE; x++)
+                  expect(
+                    g.get(x, y),
+                    `${style}/${type}/${el}/${facing}/${frame} above the square ${x},${y}`,
+                  ).toBe(A.EMPTY);
+              // The bottom row holds at most the boots' outline: feet stand on the base ring.
+              for (let x = 0; x < SPRITE; x++)
+                expect(
+                  [A.EMPTY, A.OUT],
+                  `${style}/${type}/${el}/${facing}/${frame} bottom row`,
+                ).toContain(g.get(x, SPRITE - 1));
             }
           }
         }
@@ -202,18 +278,26 @@ function seen(rgb: number, m: readonly number[]): [number, number, number] {
   return [at(0), at(3), at(6)];
 }
 
-/** Pixels that differ (shape, or a clearly different seen colour) between two front sprites. */
-function seenDifference(type: PieceType, a: ElementId, b: ElementId, m: readonly number[]): number {
-  const ga = creatureGrid(type, a, 'front', 'idle0');
-  const gb = creatureGrid(type, b, 'front', 'idle0');
-  const pa = creaturePalette(a);
-  const pb = creaturePalette(b);
+/** Pixels that differ (shape, or a clearly different seen colour) between two sprites of a unit. */
+function seenDifference(
+  style: ArmyStyle,
+  type: PieceType,
+  side: Side,
+  a: ElementId,
+  b: ElementId,
+  facing: UnitFacing,
+  m: readonly number[],
+): number {
+  const ga = unitGrid(style, type, a, facing, 'idle0');
+  const gb = unitGrid(style, type, b, facing, 'idle0');
+  const pa = armyPalette(side, a);
+  const pb = armyPalette(side, b);
   let n = 0;
   for (let i = 0; i < ga.px.length; i++) {
     const ma = ga.px[i] ?? 0;
     const mb = gb.px[i] ?? 0;
-    if (ma === M.EMPTY && mb === M.EMPTY) continue;
-    if (ma === M.EMPTY || mb === M.EMPTY) {
+    if (ma === A.EMPTY && mb === A.EMPTY) continue;
+    if (ma === A.EMPTY || mb === A.EMPTY) {
       n++;
       continue;
     }
@@ -224,33 +308,38 @@ function seenDifference(type: PieceType, a: ElementId, b: ElementId, m: readonly
   return n;
 }
 
-describe('the Storm, Stone and Frost creatures (M7 7.3, R-ART-001, R-ART-002)', () => {
-  const NEW: ElementId[] = ['storm', 'stone', 'frost'];
-
-  it('R-ART-002 each wears its own chest emblem on its front sprites only, painted inside the body', () => {
-    for (const type of PIECE_TYPES) {
-      const neutral = creatureGrid(type, 'neutral', 'front', 'idle0').mask();
-      const emblems = NEW.map((el) => {
-        const g = creatureGrid(type, el, 'front', 'idle0');
-        // The emblem never changes the outline: same mask as the element-free training dummy's,
-        // apart from the element's own crest and tail motifs.
-        expect(iou(g.mask(), neutral), `${type}/${el}`).toBeGreaterThan(0.6);
-        return g.px.map((v) => (v === M.ACC_SH || v === M.MOTIF ? 1 : 0)).join('');
-      });
-      expect(new Set(emblems).size, type).toBe(3);
+describe('element emblems (R-ART-002: colour is never the only signal)', () => {
+  it('R-ART-002 every unit wears its element emblem on both facings, painted inside the armour or cloth', () => {
+    for (const style of ARMY_STYLES) {
+      for (const type of PIECE_TYPES) {
+        for (const facing of ['front', 'back'] as const) {
+          const emblems = ELEMENTS.map((el) =>
+            unitGrid(style, type, el, facing, 'idle0')
+              .px.map((v) => (v === A.ACC || v === A.ACC_LT ? 1 : 0))
+              .join(''),
+          );
+          expect(new Set(emblems).size, `${style}/${type}/${facing}`).toBe(ELEMENTS.length);
+        }
+      }
     }
   });
 
-  it('R-ART-002 colour is never the only element cue: under protanopia, deuteranopia and tritanopia simulations and in grayscale, each new creature differs from every other element’s creature of the same type', () => {
+  it('R-ART-002 under protanopia, deuteranopia and tritanopia simulations and in grayscale, each element’s unit differs from every other element’s unit of the same style, type and owner', () => {
     for (const [vision, m] of Object.entries(VISION)) {
-      for (const type of PIECE_TYPES) {
-        for (const a of NEW) {
-          for (const b of ELEMENTS) {
-            if (a === b) continue;
-            expect(
-              seenDifference(type, a, b, m),
-              `${vision} ${type} ${a}/${b}`,
-            ).toBeGreaterThanOrEqual(24);
+      for (const style of ARMY_STYLES) {
+        for (const type of PIECE_TYPES) {
+          for (const side of SIDES) {
+            for (const facing of ['front', 'back'] as const) {
+              for (const a of ELEMENTS) {
+                for (const b of ELEMENTS) {
+                  if (a === b) continue;
+                  expect(
+                    seenDifference(style, type, side, a, b, facing, m),
+                    `${vision} ${side} ${style} ${type} ${facing} ${a}/${b}`,
+                  ).toBeGreaterThanOrEqual(8);
+                }
+              }
+            }
           }
         }
       }

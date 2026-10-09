@@ -44,6 +44,12 @@ const ELEM_KEYS = table(MAX_PIECES * 7);
 const SIDE_KEY = table(1);
 const CASTLE_KEYS = table(16);
 const EP_KEYS = table(8);
+// Spawned twins (DD-101) take ids past 31; their keys come after the original tables so every key
+// a battle without twins uses is the same as before (DD-34).
+const EXTRA_PIECES = 16;
+const SQ_KEYS_X = table(EXTRA_PIECES * 64);
+const TYPE_KEYS_X = table(EXTRA_PIECES * 6);
+const ELEM_KEYS_X = table(EXTRA_PIECES * 7);
 
 /** Canonical JSON: object keys sorted recursively, so equal values always serialize identically. */
 export function canonicalJson(value: unknown): string {
@@ -98,13 +104,16 @@ export function boardHash(
   let lo = 0;
   for (const p of state.pieces) {
     if (p.square < 0) continue;
-    const id = p.id;
+    const extra = p.id >= MAX_PIECES;
+    const id = extra ? (p.id - MAX_PIECES) % EXTRA_PIECES : p.id;
+    const sq = extra ? SQ_KEYS_X : SQ_KEYS;
+    const tp = extra ? TYPE_KEYS_X : TYPE_KEYS;
+    const el = extra ? ELEM_KEYS_X : ELEM_KEYS;
     const sqk = (id * 64 + p.square) * 2;
     const tk = (id * 6 + (TYPE_INDEX.get(p.type) ?? 0)) * 2;
     const ek = (id * 7 + (ELEMENT_INDEX.get(p.element) ?? 6)) * 2;
-    hi ^= (SQ_KEYS[sqk] as number) ^ (TYPE_KEYS[tk] as number) ^ (ELEM_KEYS[ek] as number);
-    lo ^=
-      (SQ_KEYS[sqk + 1] as number) ^ (TYPE_KEYS[tk + 1] as number) ^ (ELEM_KEYS[ek + 1] as number);
+    hi ^= (sq[sqk] as number) ^ (tp[tk] as number) ^ (el[ek] as number);
+    lo ^= (sq[sqk + 1] as number) ^ (tp[tk + 1] as number) ^ (el[ek + 1] as number);
   }
   if (state.turn === 'black') {
     hi ^= SIDE_KEY[0] as number;
@@ -151,6 +160,18 @@ export function stateHashOf(
   const [bh, bl] = boardHash(state, epUsable);
   const slices: Record<string, unknown> = {};
   for (const id of hashedSlices) slices[id] = state.slices[id];
-  const [xh, xl] = fnv1a64(canonicalJson({ r: state.reveals, u: state.usage, s: slices }));
+  // Twin groups and twins still waiting to emerge are position too (DD-101).
+  const waiting = state.pieces
+    .filter((p) => p.square < 0 && p.spawnSquare !== undefined)
+    .map((p) => [p.id, p.spawnSquare]);
+  const extra =
+    state.links && state.links.length > 0
+      ? { l: state.links, w: waiting }
+      : waiting.length
+        ? { w: waiting }
+        : {};
+  const [xh, xl] = fnv1a64(
+    canonicalJson({ r: state.reveals, u: state.usage, s: slices, ...extra }),
+  );
   return hex(bh ^ xh) + hex(bl ^ xl);
 }

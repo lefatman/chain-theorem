@@ -11,7 +11,24 @@
 import { parseSquare } from '@chain-theorem/rules';
 import type { ScenarioSpec } from './testing.ts';
 
-export type WorkedExampleId = 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6' | 'E7' | 'E8' | 'E9';
+export type WorkedExampleId =
+  | 'E1'
+  | 'E2'
+  | 'E3'
+  | 'E4'
+  | 'E5'
+  | 'E6'
+  | 'E7'
+  | 'E8'
+  | 'E9'
+  | 'E10'
+  | 'E11'
+  | 'E12'
+  | 'E13'
+  | 'E14'
+  | 'E15'
+  | 'E16'
+  | 'E17';
 
 export interface WorkedExampleVariant {
   /** Short label, e.g. 'Stalwart king'. */
@@ -187,17 +204,145 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     setupText: 'Grove bishop with Rebirth is captured three times in one battle',
     specText:
       'Overabundance: Rebirth has 2 charges on a Grove piece, so the bishop returns twice (each time its starting square is empty); the third capture removes it for good.',
-    note: 'The bishop steps out and the rook captures it three times; White answers both attuned Rebirth prompts with c1. Ids: c1 B=0, e1 K=1, d8 r=2, e8 k=3.',
+    note: 'The bishop steps out and the rook captures it three times; Rebirth (neutral since DD-98) returns it to c1 without a prompt while that square is empty. Ids: c1 B=0, e1 K=1, d8 r=2, e8 k=3.',
     setup: {
       fen: '3rk3/8/8/8/8/8/8/2B1K3 w - - 0 1',
       format: 'full',
       white: { elements: ['grove'], abilities: ['rebirth'] },
       black: { elements: ['neutral'] },
       moves: ['c1d2', 'd8d2', 'c1b2', 'd2b2', 'c1d2', 'b2d2'],
-      answers: [
-        { kind: 'square', square: sq('c1') },
-        { kind: 'square', square: sq('c1') },
-      ],
+    },
+  },
+  {
+    id: 'E10',
+    title: 'Necromancer: a knight takes a rook and raises the fallen pawn',
+    setupText:
+      'White knight c3, pawn b2 and bishop b1; Black rook b8. The rook takes the pawn, then the bishop with check; the knight (Necromancer) takes the rook',
+    specText:
+      "Rank 3 ≥ rank 2: the owner is offered the captured bishop and pawn in square order (b1, then b2), each at its starting square; the pawn returns to b2. The bishop's start b1 now holds the knight, so choosing it would offer the empty back-rank squares instead.",
+    note: 'Ids: b1 B=0, e1 K=1, b2 P=2, c3 N=3, b8 r=4, e8 k=5. White answers the target prompt with the pawn (DD-97, DD-103).',
+    setup: {
+      fen: '1r2k3/8/8/8/8/2N5/1P6/1B2K3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'], abilities: ['necromancer'] },
+      black: { elements: ['neutral'] },
+      moves: ['c3e4', 'b8b2', 'e4c3', 'b2b1', 'c3b1'],
+      answers: [{ kind: 'piece', piece: 2, square: sq('b2') }],
+    },
+  },
+  {
+    id: 'E11',
+    title: 'Quantum Kill: a pawn takes a knight and a second piece with it',
+    setupText:
+      'White pawn d4 (Quantum Kill) takes a black knight on e5; Black has pawns on a7 and h7 and a rook on a8',
+    specText:
+      'Rank 2 > rank 1: the owner picks one enemy piece of rank ≤ 1 to effect-capture (a7 or h7; the rook and king are never offered). With no such piece the pawn could make one non-capturing move instead.',
+    note: 'Ids: e1 K=0, d4 P=1, e5 n=2, a7 p=3, h7 p=4, a8 r=5, e8 k=6. White answers the target prompt with the h7 pawn (DD-97, DD-103).',
+    setup: {
+      fen: 'r3k3/p6p/8/4n3/3P4/8/8/4K3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'], abilities: ['quantum_kill'] },
+      black: { elements: ['neutral'] },
+      moves: ['d4e5'],
+      answers: [{ kind: 'piece', piece: 4, square: sq('h7') }],
+    },
+  },
+  {
+    id: 'E12',
+    title: 'Obstinate: a queen may not take the knight, and the denial reveals it',
+    setupText:
+      'White queen d1 and knight c3; Black knight d5 (Obstinate) and pawn a7. Black plays a7a6',
+    specText:
+      "At Settle White sees their legal moves: the queen (rank 4) may not capture the knight (rank 2), the knight c3 may. That difference reveals Obstinate on Black's knights; an effect capture would still remove the knight.",
+    note: 'Ids: d1 Q=0, e1 K=1, c3 N=2, d5 n=3, a7 p=4, e8 k=5. No prompt (DD-97, DD-99).',
+    setup: {
+      fen: '4k3/p7/8/3n4/8/2N5/8/3QK3 b - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'] },
+      black: { elements: ['neutral'], abilities: ['obstinate'] },
+      moves: ['a7a6'],
+    },
+  },
+  {
+    id: 'E13',
+    title: 'Block Path: the rook turns east and the rook on its rank cannot take it',
+    setupText:
+      'White rook a1 (Block Path) moves to a4; Black rooks a8 and h4. White turns the rook to face east (b4)',
+    specText:
+      "After the move White may face the rook anew (declinable; the current facing N is not offered, off-board directions neither). Facing east, the rook h4 may not capture it while the rook a8 (north) may; the missing capture reveals Block Path on White's rooks and the facing becomes visible to Black.",
+    note: 'Ids: a1 R=0, e1 K=1, h4 r=2, a8 r=3, e8 k=4. White answers the facing prompt with b4 (DD-99, DD-105).',
+    setup: {
+      fen: 'r3k3/8/8/8/7r/8/8/R3K3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'], abilities: ['block_path'] },
+      black: { elements: ['neutral'] },
+      moves: ['a1a4'],
+      answers: [{ kind: 'square', square: sq('b4') }],
+    },
+  },
+  {
+    id: 'E14',
+    title: 'Stalwart: Cleave cannot remove the pawn; only venom or a move could',
+    setupText:
+      'White knight c3 (Cleave) takes the black knight d5; the black pawn e6 (Stalwart) is diagonal to d5',
+    specText:
+      "Cleave's effect capture of the pawn fizzles (reason stalwart_guard) and Stalwart is revealed on Black's pawns; no charge is spent. Poisoned Meat (venom) or a capturing move would still take the pawn.",
+    note: 'Ids: e1 K=0, c3 N=1, d5 n=2, e6 p=3, e8 k=4. No prompt: the pawn is the only target (DD-102).',
+    setup: {
+      fen: '4k3/8/4p3/3n4/8/2N5/8/4K3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'], abilities: ['cleave'] },
+      black: { elements: ['neutral'], abilities: ['stalwart'] },
+      moves: ['c3d5'],
+    },
+  },
+  {
+    id: 'E15',
+    title: 'Electric Slide: the rook turns at its knight and checks through the corner',
+    setupText:
+      'White (Storm, Electric Slide) rook a1, knight b2, king a2; Black king d7. The knight goes to d1',
+    specText:
+      "The rook's rank-1 ray now meets its knight on d1 and turns north: the king on d7 is in check through the turn (attacks follow the paths), may not stay on the d-file, and Electric Slide is revealed on White's rooks. Unattuned, the same move gives no check.",
+    note: 'Ids: a1 R=0, a2 K=1, b2 N=2, d7 k=3. No prompt (DD-104).',
+    setup: {
+      fen: '8/3k4/8/8/8/8/KN6/R7 w - - 0 1',
+      format: 'full',
+      white: { elements: ['storm'], abilities: ['electric_slide'] },
+      black: { elements: ['neutral'] },
+      moves: ['b2d1'],
+    },
+  },
+  {
+    id: 'E16',
+    title: 'Redo: the rook takes the knight and time turns back two plies',
+    setupText:
+      'White rook a1, king e1; Black knight d5 (Redo), pawn h7, king e8. White a1-d1, Black h7-h6, White d1xd5',
+    specText:
+      "Rank 3 ≥ rank 2: Redo triggers and the position returns to before Black's h7-h6 (the pawn on h7, the knight on d5, the rook on d1, Black to move at ply 1); Redo's charge is spent and it is revealed on Black's knights; the undone plies leave the repetition history; no objective is adjudicated.",
+    note: 'Ids: a1 R=0, e1 K=1, d5 n=2, h7 p=3, e8 k=4. No prompt (DD-97, DD-100).',
+    setup: {
+      fen: '4k3/7p/8/3n4/8/8/8/R3K3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'] },
+      black: { elements: ['neutral'], abilities: ['redo'] },
+      moves: ['a1d1', 'h7h6', 'd1d5'],
+    },
+  },
+  {
+    id: 'E17',
+    title: "Schr\u00f6dinger's Joker: the knight that beat a rook becomes two",
+    setupText:
+      "White knight c3 (Schr\u00f6dinger's Joker), king e1; Black rook d5, pawn h7, king e8. White c3xd5, Black h7-h6, White e1-f1 and the twin's move d5-f6",
+    specText:
+      "Rank 3 > rank 2: the capture spawns a twin that waits on d5. On White's next turn, after the king move, the owner is asked for the twin's move: the knight moves out to f6 and the twin takes d5 (two knights, one group). Capturing either later removes both.",
+    note: 'Ids: e1 K=0, c3 N=1, d5 r=2, h7 p=3, e8 k=4; the twin is piece 5. White answers the twin prompt with d5-f6 (DD-97, DD-101).',
+    setup: {
+      fen: '4k3/7p/8/3r4/8/2N5/8/4K3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'], abilities: ['schrodingers_joker'] },
+      black: { elements: ['neutral'] },
+      moves: ['c3d5', 'h7h6', 'e1f1'],
+      answers: [{ kind: 'move', from: sq('d5'), to: sq('f6') }],
     },
   },
 ];

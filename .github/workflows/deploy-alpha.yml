@@ -1,0 +1,33 @@
+# Deploys the alpha environment (DEPLOY.md section 0) on demand: Actions → "Deploy alpha" → Run
+# workflow. Needs two repository secrets: CLOUDFLARE_API_TOKEN (a token with the Workers Scripts,
+# Workers R2 Storage and D1 edit permissions) and CLOUDFLARE_ACCOUNT_ID. The D1 id and the origin in
+# apps/server/wrangler.jsonc must be filled in first; AUTH_SECRET is set once with `wrangler secret
+# put AUTH_SECRET --env alpha`.
+name: Deploy alpha
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-alpha
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy chain-theorem-alpha
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm --filter @chain-theorem/client build
+      - name: Deploy
+        run: pnpm --filter @chain-theorem/server exec wrangler deploy --env alpha
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

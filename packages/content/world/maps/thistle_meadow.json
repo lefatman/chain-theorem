@@ -234,7 +234,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Thistle Meadow. The grass here is thick with wild creatures. Paths ring every field, so you choose when to battle."
+              "value": "Thistle Meadow. The grass here is thick with wild challengers. Paths ring every field, so you choose when to battle."
             }
           ],
           "rotation": 0,
@@ -252,7 +252,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "West: Highcairn Pass. Storm, Stone and Frost creatures live on its slopes; the trainers there will show you how they fight."
+              "value": "West: Highcairn Pass. Storm, Stone and Frost fighters live on its slopes; the trainers there will show you how they fight."
             }
           ],
           "rotation": 0,

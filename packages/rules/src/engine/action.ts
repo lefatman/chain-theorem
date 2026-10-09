@@ -38,8 +38,10 @@ import type {
   EffectCondition,
   EffectInfo,
   EffectSpec,
+  HookChoice,
   Pattern,
   PieceFilter,
+  PieceMovedInfo,
   PieceView,
   QueuedTrigger,
   RevealSpec,
@@ -58,17 +60,25 @@ import {
   type GameState,
   type MoveInput,
   type PieceId,
+  type PieceState,
   type PieceType,
   type RevealCause,
   type Side,
   type SourceRef,
   type Square,
+  rankCompare,
   RulesError,
 } from '../types.ts';
 import { beats } from './elements.ts';
 import { EventHost } from './host.ts';
 import { type Change, rulesAfterTurnEnd, simulate } from './simulate.ts';
-import { type HookEntry, type Runtime, sourceOf } from './runtime.ts';
+import {
+  type CapSource,
+  type HookEntry,
+  type Runtime,
+  type SkipRestriction,
+  sourceOf,
+} from './runtime.ts';
 
 export class NeedChoice {
   readonly request: ChoiceRequest;
@@ -76,6 +86,9 @@ export class NeedChoice {
     this.request = request;
   }
 }
+
+/** Thrown once a REWIND has resolved: the rest of the action is abandoned (DD-100). */
+class RewindSignal {}
 
 interface Cap {
   id: number;
@@ -143,6 +156,13 @@ function sameOption(a: ChoiceOption, b: ChoiceOption): boolean {
   }
 }
 
+function sameMoves(a: readonly number[], b: readonly number[]): boolean {
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort((x, y) => x - y);
+  const sb = [...b].sort((x, y) => x - y);
+  return sa.every((m, i) => m === sb[i]);
+}
+
 export function eligibleFor(def: AbilityDef, type: PieceType): boolean {
   return def.eligible === 'all' || def.eligible.includes(type);
 }
@@ -162,6 +182,10 @@ export class ActionRun extends EventHost {
   /** Activations that already spent their charge (DD-48). */
   private readonly spent = new Set<Trig>();
   private readonly stalwartCaptured = new Set<Side>();
+  /** Every piece movement of the action, for onActionEnd hooks. */
+  private readonly movedLog: PieceMovedInfo[] = [];
+  /** Set by a REWIND effect; the action unwinds once its charge is spent. */
+  private rewind: { tc: TCtx } | null = null;
   private objectiveWinner: Side | null = null;
   private irreversible = false;
   private currentQueue: Trig[] = [];
@@ -196,20 +220,286 @@ export class ActionRun extends EventHost {
     const s = this.s;
     this.emit({ k: 'ActionStarted', side: this.actor, ply: s.ply, move: decodeMove(encoded) });
     this.revealStalwartIfRelaxed(encoded, this.actor);
-    this.runMove(encoded, 0, this.actor, false);
-    // Chain end (Rebirth and other deferred effects), in the order their triggers resolved.
-    while (this.chainEnd.length > 0) {
-      const d = this.chainEnd.shift() as { effects: EffectSpec[]; tc: TCtx };
+    this.revealRestrictionsIfRelaxed(encoded, this.actor);
+    // Twins spawned during this action wait for the next turn: list the movers first (DD-101).
+    const twins = this.twinsOf(this.actor);
+    try {
+      this.runMove(encoded, 0, this.actor, false);
+      this.drainChainEnd();
+      // Twin groups move after the owner's normal move (DD-101), each with its own chain.
+      this.twinMoves(twins);
       this.depth = 0;
-      if (this.resolveEffects(d.effects, d.tc)) this.spendCharge(d.tc.trig);
+      this.actionEnd();
+    } catch (e) {
+      if (!(e instanceof RewindSignal)) throw e;
+      this.depth = 0;
+      this.applyRewind();
+      return;
     }
     this.depth = 0;
     this.settle();
   }
 
+  /** Chain end (Rebirth and other deferred effects), in the order their triggers resolved. */
+  private drainChainEnd(): void {
+    while (this.chainEnd.length > 0) {
+      const d = this.chainEnd.shift() as { effects: EffectSpec[]; tc: TCtx };
+      this.depth = 0;
+      if (this.resolveEffects(d.effects, d.tc)) this.spendCharge(d.tc.trig);
+      if (this.rewind) throw new RewindSignal();
+    }
+  }
+
+  // ---- twin groups (SPAWN, linked fate, extra moves; DD-101) ----------------------------------------
+
+  /**
+   * After the owner's normal move, every twin of theirs makes its own move (a declinable prompt): a
+   * twin on the board moves from where it stands; a waiting twin steps onto its spawn square when
+   * that is empty and then moves; when its original still stands there, the two are one piece in
+   * two places: the original moves out and the twin takes the square. Twins spawned during this
+   * action wait for the next turn.
+   */
+  private twinsOf(side: Side): { id: PieceId; ability: string }[] {
+    const out: { id: PieceId; ability: string }[] = [];
+    for (const g of this.s.links ?? []) {
+      for (const id of g.members.slice(1)) {
+        const p = this.s.pieces[id];
+        if (p && p.side === side && (p.square >= 0 || p.spawnSquare !== undefined))
+          out.push({ id, ability: g.ability });
+      }
+    }
+    return out;
+  }
+
+  private twinMoves(twins: readonly { id: PieceId; ability: string }[]): void {
+    const s = this.s;
+    for (const { id, ability } of twins) {
+      const p = s.pieces[id];
+      if (!p) continue;
+      if (p.square >= 0) {
+        this.extraMove(id, ability, id);
+        continue;
+      }
+      if (p.spawnSquare === undefined) continue; // removed with its group meanwhile
+      const sq = p.spawnSquare;
+      const occupant = s.board[sq] as number;
+      if (occupant < 0) {
+        this.emerge(id, sq);
+        this.extraMove(id, ability, id);
+        continue;
+      }
+      const o = s.pieces[occupant];
+      if (!o || o.side !== p.side || o.type !== p.type) continue;
+      if (this.extraMove(occupant, ability, id) && (s.board[sq] as number) < 0) this.emerge(id, sq);
+    }
+  }
+
+  private emerge(id: PieceId, sq: Square): void {
+    const p = this.s.pieces[id] as PieceState;
+    delete p.spawnSquare;
+    p.square = sq;
+    this.s.board[sq] = id;
+    this.emit({ k: 'Emerged', piece: id, side: p.side, square: sq });
+    this.pieceMoved(id, -1, sq, 'revive', false);
+  }
+
+  /** One extra move for `mover`, chosen by the actor; `subject` names the twin in the prompt. */
+  private extraMove(mover: PieceId, ability: string, subject: PieceId): boolean {
+    const s = this.s;
+    const p = s.pieces[mover];
+    if (!p || p.square < 0) return false;
+    const moves = this.legalFor(this.actor).filter((m) => mFrom(m) === p.square && !(m & F_CASTLE));
+    if (moves.length === 0) return false;
+    const options = this.moveOptions(moves, this.actor);
+    const choice = this.prompt(
+      this.actor,
+      'bonusMove',
+      options,
+      true,
+      { ability, piece: subject, side: this.actor },
+      false,
+    );
+    if (!choice || choice.kind !== 'move') return false;
+    const m = moves.find((x) => {
+      const mv = decodeMove(x);
+      return mv.from === choice.from && mv.to === choice.to && mv.promotion === choice.promotion;
+    });
+    if (m === undefined) return false;
+    this.depth = 0;
+    this.runMove(m, 0, this.actor, false, true);
+    this.drainChainEnd();
+    return true;
+  }
+
+  /** Bonus-move options in square order from the owner's side (5.4), promotions queen first. */
+  private moveOptions(moves: readonly number[], owner: Side): ChoiceOption[] {
+    const keyed = moves.map((m) => ({
+      m,
+      key: relOrder(owner, mFrom(m)) * 64 * 8 + relOrder(owner, mTo(m)) * 8 + (7 - mPromo(m)),
+    }));
+    keyed.sort((a, b) => a.key - b.key);
+    return keyed.map(({ m }) => {
+      const mv = decodeMove(m);
+      return mv.promotion
+        ? { kind: 'move', from: mv.from, to: mv.to, promotion: mv.promotion }
+        : { kind: 'move', from: mv.from, to: mv.to };
+    });
+  }
+
+  /** SPAWN (DD-101): a twin of the bearer waits on its square until the owner's next turn. */
+  private fxSpawn(tc: TCtx): boolean {
+    const s = this.s;
+    const bearer = s.pieces[tc.bearer];
+    if (!bearer || bearer.square < 0) {
+      this.fizzle(tc, 'spawn', 'no_body');
+      return false;
+    }
+    const links = s.links ?? [];
+    const gi = links.findIndex((g) => g.members.includes(bearer.id));
+    const group = gi >= 0 ? (links[gi] as { ability: string; members: PieceId[] }) : null;
+    if ((group?.members.length ?? 1) >= this.rt.caps.TWIN_GROUP_MAX) {
+      this.fizzle(tc, 'spawn', 'group_full', undefined, { kind: 'rule', id: 'twin_group' });
+      return false;
+    }
+    const id = s.pieces.length;
+    const twin: PieceState = {
+      id,
+      side: bearer.side,
+      type: bearer.type,
+      element: bearer.element,
+      square: -1,
+      start: bearer.square,
+      capturedSeq: -1,
+      spawnSquare: bearer.square,
+    };
+    s.pieces.push(twin);
+    const next = group
+      ? { ...group, members: [...group.members, id] }
+      : { ability: tc.trig.def.id, members: [bearer.id, id] };
+    s.links = group ? links.map((g, i) => (i === gi ? next : g)) : [...links, next];
+    this.emit({
+      k: 'Spawned',
+      piece: id,
+      twinOf: bearer.id,
+      side: twin.side,
+      type: twin.type,
+      element: twin.element,
+      square: bearer.square,
+      source: tc.source,
+    });
+    return true;
+  }
+
+  /** Linked fate (DD-101): the rest of a captured piece's twin group goes with it. */
+  private linkedFate(vid: PieceId): void {
+    const s = this.s;
+    const links = s.links;
+    if (!links) return;
+    const gi = links.findIndex((g) => g.members.includes(vid));
+    if (gi < 0) return;
+    const group = links[gi] as { ability: string; members: PieceId[] };
+    const rest = links.filter((_, i) => i !== gi);
+    if (rest.length > 0) s.links = rest;
+    else delete s.links;
+    const source: SourceRef = { kind: 'rule', id: 'linked_fate' };
+    for (const m of group.members) {
+      if (m === vid) continue;
+      const p = s.pieces[m];
+      if (!p) continue;
+      if (p.square >= 0) {
+        this.capturePiece(m, 'effect', null, source);
+      } else if (p.spawnSquare !== undefined) {
+        const sq = p.spawnSquare;
+        delete p.spawnSquare;
+        this.lastSq.set(m, sq);
+        p.capturedSeq = ++s.captureSeq;
+        this.irreversible = true;
+        this.emit({
+          k: 'Captured',
+          victim: m,
+          victimSide: p.side,
+          victimType: p.type,
+          square: sq,
+          by: 'effect',
+          captor: null,
+          source,
+          waiting: true,
+        });
+      }
+    }
+  }
+
+  /**
+   * REWIND (5.2, DD-100): restore the position from before the previous action (two plies back;
+   * one when this is the battle's first action). Charges, reveals, the event sequence and the
+   * snapshots of earlier actions survive; the undone plies leave the repetition history; no format
+   * objective is adjudicated. The side to move in the restored position acts.
+   */
+  private applyRewind(): void {
+    const s = this.s;
+    const tc = (this.rewind as { tc: TCtx }).tc;
+    const history = s.history ?? [];
+    const target = history.length >= 2 ? history[history.length - 2] : history[history.length - 1];
+    if (!target) throw new RulesError('internal', 'rewind without a snapshot');
+    this.emit({
+      k: 'Rewound',
+      side: tc.owner,
+      toPly: target.ply,
+      toTurn: target.turn,
+      plies: s.ply - target.ply + 1,
+      source: tc.source,
+    });
+    s.board = target.board.slice();
+    s.pieces = target.pieces.map((p) => ({ ...p }));
+    s.turn = target.turn;
+    s.castling = target.castling;
+    s.ep = target.ep;
+    s.halfmove = target.halfmove;
+    s.fullmove = target.fullmove;
+    s.ply = target.ply;
+    s.slices = { ...target.slices };
+    s.objective = { ...target.objective };
+    s.inCheck = target.inCheck;
+    s.repetition = [...target.repetition];
+    if (target.links) s.links = target.links.map((g) => ({ ...g, members: [...g.members] }));
+    else delete s.links;
+    s.history = history.filter((h) => h.ply < target.ply);
+    s.pending = null;
+    s.result = null;
+    // No TurnPassed: the turn did not pass and no onTurnEnd ran; the restored check alert returns.
+    if (s.inCheck) this.emitCheck(s.inCheck);
+  }
+
+  /** onActionEnd hooks (Block Path's facing choice, DD-99): after the chain, before Settle. */
+  private actionEnd(): void {
+    for (const e of this.rt.hook(this.s, 'onActionEnd')) {
+      e.hooks.onActionEnd?.(this.rt.ctx(this, e), { actor: this.actor, moved: this.movedLog });
+    }
+  }
+
+  /** Host.choose: a hook's question to the module's owner (onActionEnd only). */
+  choose(entry: HookEntry, req: HookChoice): ChoiceOption | null {
+    if (entry.owner === null || entry.kind !== 'ability') {
+      throw new RulesError('internal', 'only an ability may ask its owner a question');
+    }
+    const about: Pick<ChoiceRequest, 'purpose' | 'subject'> = {};
+    if (req.purpose) about.purpose = req.purpose;
+    if (req.kind === 'square') about.subject = req.piece;
+    const answer = this.prompt(
+      entry.owner,
+      req.kind,
+      req.options,
+      req.optional,
+      { ability: entry.id, piece: req.piece, side: entry.owner },
+      false,
+      about,
+    );
+    return answer && answer.kind !== 'decline' ? answer : null;
+  }
+
   // ---- phases ------------------------------------------------------------------------------------
 
-  private runMove(m: number, depth: number, mover: Side, bonus: boolean): void {
+  private runMove(m: number, depth: number, mover: Side, bonus: boolean, twin = false): void {
     const s = this.s;
     const from = mFrom(m);
     const to = mTo(m);
@@ -251,7 +541,8 @@ export class ActionRun extends EventHost {
       this.capturePiece(vid, 'move', pid, undefined);
       captured = true;
     }
-    this.movePiece(m, bonus, captured);
+    this.movePiece(m, bonus, captured, twin);
+    if (captured) this.linkedFate(vid);
     // Phase 4: Reactions. Victim's CAPTURED first, then captor's CAPTURES; Always First reorders.
     if (cap && captured) {
       let queue: Trig[] = [];
@@ -324,7 +615,7 @@ export class ActionRun extends EventHost {
     return v.capturedSeq;
   }
 
-  private movePiece(m: number, bonus: boolean, capture: boolean): void {
+  private movePiece(m: number, bonus: boolean, capture: boolean, twin = false): void {
     const s = this.s;
     const from = mFrom(m);
     const to = mTo(m);
@@ -367,6 +658,7 @@ export class ActionRun extends EventHost {
       to,
       capture,
       bonus,
+      ...(twin ? { twin: true as const } : {}),
       ...(m & F_EP ? { enPassant: true } : {}),
       ...(m & F_CASTLE ? { castle: to > from ? ('K' as const) : ('Q' as const) } : {}),
       ...(promo ? { promotion: p.type as 'queen' } : {}),
@@ -390,18 +682,11 @@ export class ActionRun extends EventHost {
     cause: 'move' | 'castle' | 'bonus' | 'effect' | 'revive',
     capture: boolean,
   ): void {
-    const hooks = this.rt.hook(this.s, 'onPieceMoved');
-    if (hooks.length === 0) return;
     const piece = this.rt.view(this, id);
-    for (const e of hooks)
-      e.hooks.onPieceMoved?.(this.rt.ctx(this, e), {
-        piece,
-        from,
-        to,
-        cause,
-        capture,
-        depth: this.depth,
-      });
+    const info: PieceMovedInfo = { piece, from, to, cause, capture, depth: this.depth };
+    this.movedLog.push(info);
+    for (const e of this.rt.hook(this.s, 'onPieceMoved'))
+      e.hooks.onPieceMoved?.(this.rt.ctx(this, e), info);
   }
 
   // ---- triggers ----------------------------------------------------------------------------------
@@ -441,7 +726,19 @@ export class ActionRun extends EventHost {
     if ('victimTypeNot' in c) return victim.type !== c.victimTypeNot;
     if ('victimTypeIs' in c) return c.victimTypeIs.includes(victim.type);
     if ('captorTypeIs' in c) return c.captorTypeIs.includes(captor.type);
+    if ('rank' in c) {
+      const of = c.rank.of === 'victim' ? victim.type : captor.type;
+      const to = c.rank.to === 'victim' ? victim.type : captor.type;
+      return rankCompare(of, c.rank.cmp, to);
+    }
     return captor.type !== c.captorTypeNot;
+  }
+
+  /** The rank filter of a piece filter, against the captor, the victim or the bearer (DD-97). */
+  private rankOk(type: PieceType, r: NonNullable<PieceFilter['rank']>, tc: TCtx): boolean {
+    const refId = r.to === 'captor' ? tc.cap.captor : r.to === 'victim' ? tc.cap.victim : tc.bearer;
+    const ref = this.s.pieces[refId];
+    return ref !== undefined && rankCompare(type, r.cmp, ref.type);
   }
 
   remainingCharges(view: PieceView, def: AbilityDef): number {
@@ -633,6 +930,7 @@ export class ActionRun extends EventHost {
       source: { kind: 'ability', id: t.def.id, piece: t.piece, side: t.side },
     };
     if (this.resolveEffects(effects, tc)) this.spendCharge(t);
+    if (this.rewind) throw new RewindSignal();
   }
 
   /**
@@ -655,9 +953,12 @@ export class ActionRun extends EventHost {
     });
   }
 
-  private revealEntry(e: HookEntry, cause: RevealCause): void {
+  /** An item is revealed as such; a passive ability on the piece type it was observed on (8.2). */
+  private revealEntry(e: HookEntry, cause: RevealCause, pieceType?: PieceType): void {
     if (e.owner === null) return;
     if (e.kind === 'item') this.reveal(e.owner, { kind: 'item', item: e.id }, cause, sourceOf(e));
+    else if (e.kind === 'ability' && pieceType !== undefined)
+      this.reveal(e.owner, { kind: 'ability', pieceType, ability: e.id }, cause, sourceOf(e));
   }
 
   // ---- effects -----------------------------------------------------------------------------------
@@ -703,6 +1004,17 @@ export class ActionRun extends EventHost {
         return this.fxBonus(eff.bonus, tc);
       case 'reveal':
         return this.fxReveal(eff.reveal, tc);
+      case 'spawn':
+        return this.fxSpawn(tc);
+      case 'rewind': {
+        if ((this.s.history ?? []).length === 0) {
+          this.fizzle(tc, 'rewind', 'no_target');
+          return false;
+        }
+        // Resolves now; the action unwinds after the trigger spends its charge (DD-17, DD-100).
+        this.rewind = { tc };
+        return true;
+      }
       case 'modifyRule':
         return false;
       case 'when':
@@ -779,11 +1091,40 @@ export class ActionRun extends EventHost {
       }
       case 'chosen': {
         const options = this.pieceOptions(spec.filter, tc, purpose);
-        const choice = this.choose(tc.owner, 'target', options, tc, false, { purpose });
+        const choice = this.chooseFor(tc.owner, 'target', options, tc, false, { purpose });
+        if (!choice || choice.kind !== 'piece') return null;
+        return this.rt.view(this, choice.piece);
+      }
+      case 'chosenCaptured': {
+        const options = this.capturedOptions(spec.filter, tc);
+        const choice = this.chooseFor(tc.owner, 'target', options, tc, false, { purpose });
         if (!choice || choice.kind !== 'piece') return null;
         return this.rt.view(this, choice.piece);
       }
     }
+  }
+
+  /**
+   * Candidate captured pieces for a chosen target (Necromancer, DD-103): never a king, in the
+   * square order of their starting squares (5.4: the default answer is the first option in square
+   * order). Each option names the piece's starting square, where a revive would put it (protocol
+   * squares are 0..63, so an off-board piece cannot name its own square).
+   */
+  private capturedOptions(f: PieceFilter, tc: TCtx): ChoiceOption[] {
+    const out: { o: ChoiceOption; key: number }[] = [];
+    for (const p of this.s.pieces) {
+      if (p.capturedSeq < 0) continue; // never captured (a twin waiting to emerge, DD-101)
+      if (p.square >= 0 || p.type === 'king') continue;
+      if (f.side === 'enemy' && p.side === tc.owner) continue;
+      if (f.side === 'friendly' && p.side !== tc.owner) continue;
+      if (f.types && !f.types.includes(p.type)) continue;
+      if (f.rank && !this.rankOk(p.type, f.rank, tc)) continue;
+      out.push({
+        o: { kind: 'piece', piece: p.id, square: p.start },
+        key: relOrder(tc.owner, p.start),
+      });
+    }
+    return out.sort((a, b) => a.key - b.key).map((x) => x.o);
   }
 
   /** Candidate pieces for a chosen target, filtered by public rules only (DD-19). */
@@ -805,6 +1146,7 @@ export class ActionRun extends EventHost {
       if (f.side === 'friendly' && p.side !== tc.owner) continue;
       if (f.types && !f.types.includes(p.type)) continue;
       if (f.near && !near(f.near.pattern, anchor, p.square)) continue;
+      if (f.rank && !this.rankOk(p.type, f.rank, tc)) continue;
       if (purpose === 'capture') {
         if (p.type === 'king') continue; // Royal Immunity: kings cannot be targeted (R-RULES-004).
         if (this.inv03Verdict({ remove: p.id }, tc.owner) === 'fails') continue;
@@ -825,8 +1167,9 @@ export class ActionRun extends EventHost {
   ): Square | null {
     if (spec.s === 'origin') return tc.cap.from;
     if (spec.s === 'start') return piece.start;
+    if (spec.s === 'startElse' && (this.s.board[piece.start] as number) < 0) return piece.start;
     const options = this.squareOptions(spec.filter, piece, tc, kind);
-    const choice = this.choose(tc.owner, 'square', options, tc, false, { subject: piece.id });
+    const choice = this.chooseFor(tc.owner, 'square', options, tc, false, { subject: piece.id });
     if (!choice || choice.kind !== 'square') return null;
     return choice.square;
   }
@@ -876,12 +1219,34 @@ export class ActionRun extends EventHost {
    * Choice point (5.4 mid-action choices). Uses recorded answers first (replay), then pre-supplied
    * commit choices of the mover, else suspends with NeedChoice.
    */
-  private choose(
+  private chooseFor(
     chooser: Side,
     kind: ChoiceRequest['kind'],
     options: ChoiceOption[],
     tc: TCtx,
     optional: boolean,
+    about: Pick<ChoiceRequest, 'purpose' | 'subject'> = {},
+  ): ChoiceOption | null {
+    // Pre-supplied answers cover only the mover's own Capturing prompts of the committed action.
+    const allowPre = chooser === this.actor && this.depth === 0 && tc.trig.category === 'CAPTURING';
+    return this.prompt(
+      chooser,
+      kind,
+      options,
+      optional,
+      { ability: tc.trig.def.id, piece: tc.bearer, side: tc.owner },
+      allowPre,
+      about,
+    );
+  }
+
+  private prompt(
+    chooser: Side,
+    kind: ChoiceRequest['kind'],
+    options: ChoiceOption[],
+    optional: boolean,
+    source: ChoiceRequest['source'],
+    allowPre: boolean,
     about: Pick<ChoiceRequest, 'purpose' | 'subject'> = {},
   ): ChoiceOption | null {
     if (options.length === 0) return null;
@@ -896,13 +1261,7 @@ export class ActionRun extends EventHost {
       }
     } else {
       const pre = this.input.choices;
-      if (
-        pre &&
-        chooser === this.actor &&
-        this.depth === 0 &&
-        tc.trig.category === 'CAPTURING' &&
-        this.preIdx < pre.length
-      ) {
+      if (pre && allowPre && this.preIdx < pre.length) {
         const candidate = pre[this.preIdx] as ChoiceOption;
         if (all.some((o) => sameOption(o, candidate))) {
           answer = candidate;
@@ -914,7 +1273,7 @@ export class ActionRun extends EventHost {
       throw new NeedChoice({
         promptId,
         chooser,
-        source: { ability: tc.trig.def.id, piece: tc.bearer, side: tc.owner },
+        source,
         kind,
         ...about,
         options: all,
@@ -944,6 +1303,7 @@ export class ActionRun extends EventHost {
       return false;
     }
     this.capturePiece(target.id, 'effect', tc.bearer, tc.source);
+    this.linkedFate(target.id);
     return true;
   }
 
@@ -1080,11 +1440,11 @@ export class ActionRun extends EventHost {
   // ---- bonus actions (INV-01) --------------------------------------------------------------------
 
   /** A position for move generation mid-action; own-king safety uses the rules after the turn ends. */
-  private positionFor(side: Side, strictSide: Side | null = null): Pos {
+  private positionFor(side: Side, strictSide: Side | null = null, skip?: SkipRestriction): Pos {
     const kingSources = new Map<Side, HookEntry>();
-    const rules = this.rt.moveRules(this, kingSources);
+    const rules = this.rt.moveRules(this, kingSources, undefined, skip);
     const pos = Pos.fromState(this.s, rules);
-    pos.safety = rulesAfterTurnEnd(this.rt, this.s, this.actor);
+    pos.safety = rulesAfterTurnEnd(this.rt, this.s, this.actor, skip);
     if (strictSide) {
       // Judge `strictSide`'s king as ordinary, keeping the other side's rules (DD-32 comparisons).
       const code = sideCode(strictSide);
@@ -1113,11 +1473,32 @@ export class ActionRun extends EventHost {
     return this.inv03Verdict({ chess: m }, viewer) === 'fails';
   }
 
-  /** Legal bonus moves for `owner` that also keep the acting player's ordinary king safe (INV-03). */
+  /**
+   * Legal bonus moves for `owner` that also keep the acting player's ordinary king safe (INV-03).
+   * A capture restriction on an enemy piece that removes an option is observed by the chooser, so
+   * the restricting ability is revealed (DD-99).
+   */
   private bonusOptions(spec: BonusSpec, tc: TCtx): number[] {
+    const sources: CapSource[] = [];
+    this.rt.moveRules(this, undefined, sources);
+    const out = this.bonusFrom(this.legalFor(tc.owner), spec, tc);
+    for (const src of sources) {
+      const victim = this.s.pieces[src.victim];
+      if (!victim || victim.side === tc.owner) continue;
+      const skip: SkipRestriction = (e, v) => e === src.entry && v === src.victim;
+      const strict = this.bonusFrom(
+        this.positionFor(tc.owner, null, skip).legal(sideCode(tc.owner)),
+        spec,
+        tc,
+      );
+      if (!sameMoves(out, strict)) this.revealRestriction(src);
+    }
+    return out;
+  }
+
+  private bonusFrom(moves: number[], spec: BonusSpec, tc: TCtx): number[] {
     const s = this.s;
     const owner = tc.owner;
-    const moves = this.legalFor(owner);
     let allowedFrom: Set<Square> | null = null;
     let captorSq = -1;
     if (spec.capture === 'captor') {
@@ -1180,21 +1561,13 @@ export class ActionRun extends EventHost {
       this.fizzle(tc, 'bonusAction', 'no_target');
       return false;
     }
-    const keyed = moves.map((m) => ({
-      m,
-      key: relOrder(tc.owner, mFrom(m)) * 64 * 8 + relOrder(tc.owner, mTo(m)) * 8 + (7 - mPromo(m)),
-    }));
-    keyed.sort((a, b) => a.key - b.key);
-    const options: ChoiceOption[] = keyed.map(({ m }) => {
-      const mv = decodeMove(m);
-      return mv.promotion
-        ? { kind: 'move', from: mv.from, to: mv.to, promotion: mv.promotion }
-        : { kind: 'move', from: mv.from, to: mv.to };
-    });
-    const choice = this.choose(tc.owner, 'bonusMove', options, tc, spec.optional);
+    const options = this.moveOptions(moves, tc.owner);
+    const choice = this.chooseFor(tc.owner, 'bonusMove', options, tc, spec.optional);
     if (!choice || choice.kind !== 'move') return false;
-    const idx = options.findIndex((o) => sameOption(o, choice));
-    const m = (keyed[idx] as { m: number }).m;
+    const m = moves.find((x) => {
+      const mv = decodeMove(x);
+      return mv.from === choice.from && mv.to === choice.to && mv.promotion === choice.promotion;
+    }) as number;
     this.revealStalwartIfRelaxed(m, tc.owner);
     if (tc.owner !== this.actor && this.inv03Verdict({ chess: m }, null) === 'relaxed') {
       // The opponent's bonus capture leaves the actor's Stalwart king in check: observable (DD-32).
@@ -1235,6 +1608,7 @@ export class ActionRun extends EventHost {
       const p = this.s.pieces[id];
       return p !== undefined && c.typeIs.types.includes(p.type);
     }
+    if ('noneMatch' in c) return this.pieceOptions(c.noneMatch, tc, 'capture').length === 0;
     if ('not' in c) return !this.evalCond(c.not, tc);
     return c.all.every((x) => this.evalCond(x, tc));
   }
@@ -1260,7 +1634,7 @@ export class ActionRun extends EventHost {
     for (const e of this.rt.hook(this.s, 'effectIntercept')) {
       const v = e.hooks.effectIntercept?.(this.rt.ctx(this, e), info);
       if (v && v !== 'allow') {
-        this.revealEntry(e, 'observed');
+        this.revealEntry(e, 'observed', info.target.type);
         return { reason: v.fizzle, source: sourceOf(e) };
       }
     }
@@ -1287,7 +1661,19 @@ export class ActionRun extends EventHost {
   private inv03Verdict(change: Change, viewer: Side | null): 'ok' | 'fails' | 'relaxed' {
     const sim = simulate(this.rt, this.s, change);
     const actorCode = sideCode(this.actor);
-    if (!sim.pos.inCheck(actorCode)) return 'ok';
+    let inCheck = sim.pos.inCheck(actorCode);
+    if (!inCheck && viewer !== null && viewer !== this.actor) {
+      // The opponent judges the actor's king without its unrevealed capture restrictions (a hidden
+      // Block Path facing), so the options offered never leak them (DD-46, DD-99).
+      const hidden = sim.capSources.filter((c) => this.hiddenRestriction(c, this.actor));
+      if (hidden.length > 0) {
+        const strict = simulate(this.rt, this.s, change, (e, v) =>
+          hidden.some((c) => c.entry === e && c.victim === v),
+        );
+        inCheck = strict.pos.inCheck(actorCode);
+      }
+    }
+    if (!inCheck) return 'ok';
     const src = this.stalwartSource(this.actor);
     const relaxed =
       src !== null &&
@@ -1329,6 +1715,81 @@ export class ActionRun extends EventHost {
     this.revealStalwartOf(side);
   }
 
+  // ---- capture-restriction observation (captureFilter: Obstinate, Block Path; DD-99) -------------
+
+  /** A restriction on `side`'s own piece whose ability the opponent has not seen on that type. */
+  private hiddenRestriction(c: CapSource, side: Side): boolean {
+    const victim = this.s.pieces[c.victim];
+    if (!victim || victim.side !== side) return false;
+    return !(this.s.reveals[side].abilities[victim.type] ?? []).includes(c.entry.id);
+  }
+
+  private revealRestriction(c: CapSource): void {
+    const victim = this.s.pieces[c.victim];
+    if (!victim || c.entry.owner === null) return;
+    this.reveal(
+      c.entry.owner,
+      { kind: 'ability', pieceType: victim.type, ability: c.entry.id },
+      'observed',
+      sourceOf(c.entry),
+    );
+    // A movement grant that only an item's attunement allows (a redirect on a non-Storm piece)
+    // makes the item observable too (8.2, DD-104).
+    const def = this.rt.ability(c.entry.id);
+    if (
+      c.kind === 'movement' &&
+      def &&
+      def.affinity !== 'neutral' &&
+      victim.element !== def.affinity
+    ) {
+      const { via } = this.attunement(this.rt.view(this, victim.id), def);
+      if (via) this.revealEntry(via, 'observed');
+    }
+  }
+
+  /**
+   * The mover plays a move that is legal only because one of their own pieces restricts captures
+   * (a Block Path king ignoring an attack from its facing): the restriction is observable (DD-32).
+   */
+  private revealRestrictionsIfRelaxed(m: number, side: Side): void {
+    const sources: CapSource[] = [];
+    this.rt.moveRules(this, undefined, sources);
+    for (const c of sources) {
+      if (!this.hiddenRestriction(c, side)) continue;
+      const skip: SkipRestriction = (e, v) => e === c.entry && v === c.victim;
+      if (!this.positionFor(side, null, skip).legal(sideCode(side)).includes(m))
+        this.revealRestriction(c);
+    }
+  }
+
+  /**
+   * At Settle the next player sees their legal moves (DD-37) and both players the check alert: a
+   * restriction on an enemy piece that changes the legal moves, or one on the player's own king
+   * that changes whether it is in check, is observed and revealed (DD-99).
+   */
+  private observeRestrictions(
+    next: Side,
+    sources: CapSource[],
+    legal: number[],
+    inCheck: boolean,
+  ): void {
+    const s = this.s;
+    const code = sideCode(next);
+    for (const c of sources) {
+      const victim = s.pieces[c.victim];
+      if (!victim || c.entry.owner === null) continue;
+      if ((s.reveals[victim.side].abilities[victim.type] ?? []).includes(c.entry.id)) continue;
+      const skip: SkipRestriction = (e, v) => e === c.entry && v === c.victim;
+      const strict = Pos.fromState(s, this.rt.moveRules(this, undefined, undefined, skip));
+      strict.safety = rulesAfterTurnEnd(this.rt, s, next, skip);
+      const observed =
+        victim.side === next
+          ? strict.inCheck(code) !== inCheck
+          : !sameMoves(strict.legal(code), legal);
+      if (observed) this.revealRestriction(c);
+    }
+  }
+
   // ---- Settle (phase 5) --------------------------------------------------------------------------
 
   private settle(): void {
@@ -1345,7 +1806,8 @@ export class ActionRun extends EventHost {
     const next = s.turn;
     const defeated = new Set<Side>(this.stalwartCaptured);
     const kingSources = new Map<Side, HookEntry>();
-    const rules = this.rt.moveRules(this, kingSources);
+    const capSources: CapSource[] = [];
+    const rules = this.rt.moveRules(this, kingSources, capSources);
     const pos = Pos.fromState(s, rules);
     // The next player's own king safety is judged as their own turn will end (R-ELEM-005).
     pos.safety = rulesAfterTurnEnd(this.rt, s, next);
@@ -1354,7 +1816,9 @@ export class ActionRun extends EventHost {
     let nextInCheck = false;
     if (!defeated.has(next)) {
       nextInCheck = pos.inCheck(nextCode);
-      nextLegal = pos.legal(nextCode).length;
+      const legal = pos.legal(nextCode);
+      nextLegal = legal.length;
+      if (capSources.length > 0) this.observeRestrictions(next, capSources, legal, nextInCheck);
       if (nextLegal === 0 && nextInCheck && !rules.stalwart[nextCode]) defeated.add(next);
       if (rules.stalwart[nextCode] && nextInCheck && !defeated.has(mover)) {
         // Would-be checkmate survived: Stalwart is observable (DD-32).

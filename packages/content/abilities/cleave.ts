@@ -12,7 +12,7 @@ export default defineAbility({
   affinity: 'ember',
   eligible: 'all',
   tags: [],
-  minLevel: 6,
+  minLevel: 3,
   slotCost: 1,
   limits: { perAction: 1 },
   effects: [

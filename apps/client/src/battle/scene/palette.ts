@@ -1,6 +1,11 @@
 /**
- * Limited GBA-era palettes (R-ART-001): every creature uses one 16-entry palette (15 colours plus
- * transparency) snapped to 15-bit colour. Element changes the palette; piece type never does.
+ * Limited handheld-era palettes (R-ART-001): every sprite uses one 16-entry palette (15 colours
+ * plus transparency) snapped to 15-bit colour.
+ *
+ * - Army units (sprites.ts) take `armyPalette(side, element)`: the armour is the owner's colour
+ *   (white steel for White, black iron for Black) and the accents (plumes, cloaks, sashes, trim and
+ *   the emblem) are the element's colour. Piece type and army style never change the palette.
+ * - Element icons and rings take `elementPalette(element)`, the element's full tone set.
  */
 import type { ElementId, Side } from '@chain-theorem/rules';
 import { faded, gba, M, type Palette } from './pixel.ts';
@@ -131,8 +136,8 @@ export const ELEMENT_ICON_SHAPE: Record<ElementId, string> = {
 
 const cache = new Map<string, Palette>();
 
-/** The 16-entry creature palette for an element (optionally the desaturated faint version). */
-export function creaturePalette(element: ElementId, faint = false): Palette {
+/** The 16-entry element palette (icons, rings, VFX), optionally the desaturated faint version. */
+export function elementPalette(element: ElementId, faint = false): Palette {
   const key = `${element}:${faint ? 1 : 0}`;
   const hit = cache.get(key);
   if (hit) return hit;
@@ -155,6 +160,72 @@ export function creaturePalette(element: ElementId, faint = false): Palette {
   p[M.MOTIF2] = t.motif2;
   const out = p.map((c, i) => (i === 0 ? 0 : faint && i !== M.OUT ? faded(c) : gba(c)));
   cache.set(key, out);
+  return out;
+}
+
+/** Army unit materials (sprites.ts): one 16-entry palette per owner and element. */
+export const A = {
+  EMPTY: 0,
+  OUT: 1,
+  /** Armour: the owner's colour (shade, base, light). */
+  ARM_SH: 2,
+  ARM: 3,
+  ARM_LT: 4,
+  /** Accents: the element's colour (shade, base, light). */
+  ACC_SH: 5,
+  ACC: 6,
+  ACC_LT: 7,
+  EYE: 8,
+  WHITE: 9,
+  SKIN: 10,
+  SKIN_SH: 11,
+  GOLD: 12,
+  GOLD_SH: 13,
+  /** Leather, wood and rope: weapon shafts, straps, boots. */
+  CLOTH: 14,
+  HAIR: 15,
+} as const;
+
+/** Armour tones per owner (R-ART-002 "Owner": white steel for White, black iron for Black). */
+export const ARMOUR: Record<Side, { out: number; shade: number; base: number; light: number }> = {
+  white: { out: 0x303040, shade: 0xa0a8b8, base: 0xe0e4ec, light: 0xffffff },
+  black: { out: 0x100c18, shade: 0x202028, base: 0x404450, light: 0x687080 },
+};
+
+const armyCache = new Map<string, Palette>();
+
+/**
+ * The 16-entry unit palette for one owner and element. Accents are darker on white steel and
+ * brighter on black iron so they keep contrast on both; skin, hair, leather and gold are shared.
+ */
+export function armyPalette(side: Side, element: ElementId, faint = false): Palette {
+  const key = `${side}:${element}:${faint ? 1 : 0}`;
+  const hit = armyCache.get(key);
+  if (hit) return hit;
+  const t = TONES[element];
+  const arm = ARMOUR[side];
+  const acc =
+    side === 'white'
+      ? { sh: t.accSh, base: t.shade, lt: t.base }
+      : { sh: t.shade, base: t.base, lt: t.light };
+  const p: number[] = new Array<number>(16).fill(0);
+  p[A.OUT] = arm.out;
+  p[A.ARM_SH] = arm.shade;
+  p[A.ARM] = arm.base;
+  p[A.ARM_LT] = arm.light;
+  p[A.ACC_SH] = acc.sh;
+  p[A.ACC] = acc.base;
+  p[A.ACC_LT] = acc.lt;
+  p[A.EYE] = SHARED.eye;
+  p[A.WHITE] = SHARED.white;
+  p[A.SKIN] = 0xf0c8a0;
+  p[A.SKIN_SH] = 0xc89068;
+  p[A.GOLD] = SHARED.gold;
+  p[A.GOLD_SH] = SHARED.goldSh;
+  p[A.CLOTH] = 0x9a6838;
+  p[A.HAIR] = 0x3a2820;
+  const out = p.map((c, i) => (i === 0 ? 0 : faint && i !== A.OUT ? faded(c) : gba(c)));
+  armyCache.set(key, out);
   return out;
 }
 

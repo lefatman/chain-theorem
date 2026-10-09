@@ -74,6 +74,9 @@ export interface RoomInfo {
   status: 'empty' | 'lobby' | 'active' | 'ended';
   format?: string;
   code?: string;
+  /** An alpha guest battle or lobby (9.6, DD-107), and the level both seats play at. */
+  alpha?: true;
+  level?: number;
   creator?: { name: string; level: number; playerId: string };
   players?: Record<Side, { name: string; level: number; playerId: string | null }>;
   /** A public battle (M7 7.2): why it is listed and how many spectators watch it. */
@@ -159,6 +162,9 @@ export class BattleRoom extends DurableObject<Env> {
         status: s.endedAt === null ? 'active' : 'ended',
         format: s.format,
         players: { white: tag(s.seats.white), black: tag(s.seats.black) },
+        ...(this.origin?.kind === 'alpha'
+          ? { alpha: true as const, level: this.origin.level }
+          : {}),
         ...(kind && this.origin
           ? {
               spectate: {
@@ -172,10 +178,13 @@ export class BattleRoom extends DurableObject<Env> {
     }
     if (this.lobby) {
       const c = this.lobby.creator;
+      const alpha = this.lobby.alpha;
       return {
-        status: 'lobby',
+        // An alpha lobby past its expiry is closed even before the alarm clears it (DD-107).
+        status: alpha && Date.now() >= alpha.expiresAt ? 'ended' : 'lobby',
         format: this.lobby.format,
         code: this.lobby.code,
+        ...(alpha ? { alpha: true as const, level: alpha.level } : {}),
         creator: { name: c.name, level: c.level, playerId: c.playerId },
       };
     }
@@ -186,6 +195,20 @@ export class BattleRoom extends DurableObject<Env> {
     if (this.core) return new Response('exists', { status: 409 });
     const now = Date.now();
     let started: { core: BattleCore; out: Outbox };
+    // 9.6 (DD-107): an alpha guest battle has no `battles` row and tells no zone; its seats may be
+    // guests that no table knows.
+    if (origin.kind === 'alpha') {
+      try {
+        started = BattleCore.create(init, now);
+      } catch (e) {
+        return new Response(`bad init: ${String(e)}`, { status: 400 });
+      }
+      this.core = started.core;
+      this.origin = origin;
+      await this.ctx.storage.put('origin', origin);
+      await this.deliver(started.out);
+      return new Response('ok');
+    }
     const db = await getDb(this.env);
     try {
       // M7 7.2: a public kind of battle is listed when both players allow spectators.
@@ -247,18 +270,33 @@ export class BattleRoom extends DurableObject<Env> {
     if (this.core || this.lobby) return new Response('exists', { status: 409 });
     this.lobby = lobby;
     await this.ctx.storage.put('lobby', lobby);
+    // An alpha lobby closes by itself when nobody joins in time (DD-107).
+    if (lobby.alpha) await this.ctx.storage.setAlarm(lobby.alpha.expiresAt);
     return new Response('ok');
+  }
+
+  /** Close an alpha lobby whose time ran out: the code is dead and the waiting creator is told. */
+  private async expireLobby(now: number): Promise<void> {
+    const lobby = this.lobby;
+    if (!lobby?.alpha || now < lobby.alpha.expiresAt) return;
+    this.lobby = null;
+    await this.ctx.storage.delete('lobby');
+    for (const ws of this.ctx.getWebSockets('lobby')) ws.close(4002, 'expired');
   }
 
   private async join(seat: SeatInit): Promise<Response> {
     const lobby = this.lobby;
     if (!lobby || this.core) return Response.json({ error: 'challenge_closed' }, { status: 409 });
+    if (lobby.alpha && Date.now() >= lobby.alpha.expiresAt) {
+      await this.expireLobby(Date.now());
+      return Response.json({ error: 'challenge_closed' }, { status: 409 });
+    }
     if (playerOf(seat) === lobby.creator.playerId)
       return Response.json({ error: 'own_challenge' }, { status: 409 });
     const { white, black } = assignColours<SeatInit>(lobby.creator, seat);
     const res = await this.init(
       { battleId: lobby.battleId, format: lobby.format, white, black },
-      { kind: 'pvp' },
+      lobby.alpha ? { kind: 'alpha', level: lobby.alpha.level } : { kind: 'pvp' },
     );
     if (!res.ok) return Response.json({ error: 'invalid_loadout' }, { status: 400 });
     this.lobby = null;
@@ -407,7 +445,10 @@ export class BattleRoom extends DurableObject<Env> {
   }
 
   override async alarm(): Promise<void> {
-    if (!this.core) return;
+    if (!this.core) {
+      await this.expireLobby(Date.now());
+      return;
+    }
     await this.deliver(this.core.alarm(Date.now()));
   }
 
@@ -451,21 +492,24 @@ export class BattleRoom extends DurableObject<Env> {
         await this.env.BATTLE_LOGS.put(key, JSON.stringify(e.archive), {
           httpMetadata: { contentType: 'application/json' },
         });
-        const db = await getDb(this.env);
-        try {
-          const w = e.summary.result.winner;
-          await db.battles.finish(e.summary.battleId, {
-            result: w ?? 'draw',
-            reason: e.summary.result.reason,
-            endedAt: e.summary.endedAt,
-            logKey: key,
-          });
-          const origin = (await this.ctx.storage.get<BattleOrigin>('origin')) ?? { kind: 'pvp' };
-          await settleBattle(this.env, db, e.summary, e.archive, origin, Date.now());
-        } catch (err) {
-          console.error(`battle ${core.battleId}: settling failed: ${String(err)}`);
-        } finally {
-          await releaseDb(this.env, db);
+        const origin = (await this.ctx.storage.get<BattleOrigin>('origin')) ?? { kind: 'pvp' };
+        // 9.6 (DD-107): an alpha guest battle keeps its archive and nothing else.
+        if (origin.kind !== 'alpha') {
+          const db = await getDb(this.env);
+          try {
+            const w = e.summary.result.winner;
+            await db.battles.finish(e.summary.battleId, {
+              result: w ?? 'draw',
+              reason: e.summary.result.reason,
+              endedAt: e.summary.endedAt,
+              logKey: key,
+            });
+            await settleBattle(this.env, db, e.summary, e.archive, origin, Date.now());
+          } catch (err) {
+            console.error(`battle ${core.battleId}: settling failed: ${String(err)}`);
+          } finally {
+            await releaseDb(this.env, db);
+          }
         }
         try {
           await metricsStub(this.env).fetch('https://metrics/battle', {

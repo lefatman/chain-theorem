@@ -4,6 +4,10 @@
  */
 import type {
   AccessView,
+  AlphaCreated,
+  AlphaIdentity,
+  AlphaInfo,
+  AlphaMe,
   BattleTicket,
   BillingPlans,
   LiveBattles,
@@ -80,7 +84,22 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
     );
   }
   if (data === null) throw new ApiError(res.status, 'no_server');
+  // The dev proxy's answer when no Worker is running (vite.config.ts): the server is absent.
+  if (typeof data === 'object' && (data as { error?: string }).error === 'no_server')
+    throw new ApiError(503, 'no_server');
   return data as T;
+}
+
+/**
+ * Where a battle's socket ticket comes from (R-SEC-006). Alpha guest battles (9.6, R-FMT-007; DD-107)
+ * have ids `a-<code>` and issue tickets from the alpha routes, which know guests; every other battle's
+ * ticket comes from the account routes. `startOnlineBattle` uses this on every reconnect.
+ */
+export function ticketPath(battleId: string): string {
+  const id = encodeURIComponent(battleId);
+  return /^a-[A-Za-z0-9]{6,16}$/.test(battleId)
+    ? `/api/alpha/battles/${id}/ticket`
+    : `/api/battles/${id}/ticket`;
 }
 
 export interface Me {
@@ -157,8 +176,7 @@ export const api = {
     call<BattleTicket>('POST', `/api/challenges/${encodeURIComponent(code)}/accept`, { loadoutId }),
   queueTicket: (format: FormatId, loadoutId: string) =>
     call<{ url: string }>('POST', '/api/queue/ticket', { format, loadoutId }),
-  battleTicket: (battleId: string) =>
-    call<BattleTicket>('POST', `/api/battles/${encodeURIComponent(battleId)}/ticket`),
+  battleTicket: (battleId: string) => call<BattleTicket>('POST', ticketPath(battleId)),
   activeBattles: () =>
     call<{ battles: { id: string; format: FormatId; opponent: string }[] }>(
       'GET',
@@ -243,6 +261,17 @@ export const api = {
     call<TournamentView>('DELETE', `/api/tournaments/${encodeURIComponent(id)}/register`),
   tournamentTicket: (id: string) =>
     call<BattleTicket>('POST', `/api/tournaments/${encodeURIComponent(id)}/ticket`),
+  // Alpha guest play (9.6, R-FMT-007; DD-107): one-time codes at a chosen level, no account needed.
+  // Every route answers 404 unless the Worker's ALPHA_GUEST_PLAY flag is on (`alphaMe` says so).
+  alphaMe: () => call<AlphaMe>('GET', '/api/alpha/me'),
+  alphaGuest: () => call<{ me: AlphaIdentity }>('POST', '/api/alpha/guest'),
+  alphaCreate: (format: FormatId, level: number, loadout: LoadoutBody) =>
+    call<AlphaCreated>('POST', '/api/alpha/battles', { format, level, loadout }),
+  alphaInfo: (code: string) => call<AlphaInfo>('GET', `/api/alpha/${encodeURIComponent(code)}`),
+  alphaAccept: (code: string, loadout: LoadoutBody) =>
+    call<BattleTicket>('POST', `/api/alpha/${encodeURIComponent(code)}/accept`, { loadout }),
+  alphaTicket: (battleId: string) =>
+    call<BattleTicket>('POST', `/api/alpha/battles/${encodeURIComponent(battleId)}/ticket`),
 };
 
 /** Absolute WebSocket URL for a server-relative socket path. */

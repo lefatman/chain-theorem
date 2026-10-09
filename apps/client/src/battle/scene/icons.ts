@@ -7,7 +7,7 @@
  */
 import type { ElementId, PieceType, PublicPiece, PublicState, Side } from '@chain-theorem/rules';
 import { blit, gba, M, mix, PixelGrid, type Ctx2D, type Palette } from './pixel.ts';
-import { creaturePalette, ELEMENT_COLORS, OWNER } from './palette.ts';
+import { elementPalette, ELEMENT_COLORS, OWNER } from './palette.ts';
 
 const K: Record<string, number> = {
   b: M.BASE,
@@ -49,7 +49,7 @@ export function elementIconGrid(element: ElementId): PixelGrid {
 }
 
 export function elementIconPalette(element: ElementId): Palette {
-  const p = [...creaturePalette(element)];
+  const p = [...elementPalette(element)];
   p[M.OUT] = gba(0x181420);
   return p;
 }

@@ -66,7 +66,7 @@ describe('profiles of the Storm, Stone and Frost abilities (R-FMT-005, R-ABIL-00
     ['frost_heave', { pushesCaptor: true, sendsCaptorHome: false }],
     ['snowdrift', { movesEnemy: true }],
     ['snowbound', { movesEnemy: true }],
-    ['permafrost', { sendsCaptorHome: true, movesEnemy: true, pushesCaptor: false }],
+    ['permafrost', { sendsCaptorHome: true, movesEnemy: false, pushesCaptor: false }],
   ];
   for (const [id, expected] of cases) {
     it(`R-FMT-005 ${id} is profiled from its effect primitives`, () => {
@@ -187,8 +187,8 @@ describe('the fast search plays the new reactions (R-FMT-005)', () => {
 });
 
 describe('prompt answers for the new abilities (R-FMT-005, DD-18)', () => {
-  it('R-FMT-005 attuned Snowbound: the NPC sends the queen that could recapture home, not the pawn (default option)', () => {
-    const OPENING = ['e2e4', 'e7e5', 'g1f3', 'd7d6', 'd2d4', 'd8f6'];
+  it('R-FMT-005 Snowbound: the NPC sends the queen home rather than the bishop (the default option)', () => {
+    const OPENING = ['e2e4', 'e7e5', 'g1f3', 'f8d6', 'd2d4', 'd8f6'];
     const r = scenario({
       white: { elements: ['frost'], abilities: ['snowbound'] },
       moves: OPENING,

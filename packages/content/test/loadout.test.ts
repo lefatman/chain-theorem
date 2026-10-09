@@ -104,7 +104,7 @@ const ABILITIES_5_7: { id: string; minLevel: number }[] = [
   { id: 'pierce', minLevel: 3 },
   { id: 'backdraft', minLevel: 4 },
   { id: 'antidote', minLevel: 5 },
-  { id: 'cleave', minLevel: 6 },
+  { id: 'cleave', minLevel: 3 },
   { id: 'momentum', minLevel: 8 },
   { id: 'reinforce', minLevel: 10 },
   { id: 'riposte', minLevel: 12 },
@@ -114,24 +114,38 @@ const ABILITIES_5_7: { id: string; minLevel: number }[] = [
 ];
 
 /**
- * M7 7.3 affinity abilities, four per new element (6.5), spread over levels 1-20 (PLAYTEST, DD-05);
- * each costs 1 ability slot like the starter set.
+ * M7 7.3 abilities, spread over levels 1-20 (PLAYTEST, DD-05); each costs 1 ability slot like the
+ * starter set. Since DD-98 only each element's signature keeps an affinity (Stone: stonewall;
+ * Frost: frost_heave; Storm's is electric_slide from 5.8, DD-104); the rest are neutral.
  */
 const ABILITIES_M7: { id: string; minLevel: number; affinity: ElementId }[] = [
-  { id: 'squall', minLevel: 1, affinity: 'storm' },
-  { id: 'afterimage', minLevel: 5, affinity: 'storm' },
-  { id: 'pawn_storm', minLevel: 7, affinity: 'storm' },
-  { id: 'slipstream', minLevel: 12, affinity: 'storm' },
-  { id: 'buttress', minLevel: 2, affinity: 'stone' },
-  { id: 'stonewall', minLevel: 6, affinity: 'stone' },
-  { id: 'phalanx', minLevel: 10, affinity: 'stone' },
-  { id: 'rebuild', minLevel: 17, affinity: 'stone' },
+  { id: 'squall', minLevel: 1, affinity: 'neutral' },
+  { id: 'afterimage', minLevel: 5, affinity: 'neutral' },
+  { id: 'pawn_storm', minLevel: 7, affinity: 'neutral' },
+  { id: 'slipstream', minLevel: 12, affinity: 'neutral' },
+  { id: 'buttress', minLevel: 2, affinity: 'neutral' },
+  { id: 'stonewall', minLevel: 3, affinity: 'stone' },
+  { id: 'phalanx', minLevel: 10, affinity: 'neutral' },
+  { id: 'rebuild', minLevel: 17, affinity: 'neutral' },
   { id: 'frost_heave', minLevel: 3, affinity: 'frost' },
-  { id: 'snowdrift', minLevel: 9, affinity: 'frost' },
-  { id: 'snowbound', minLevel: 14, affinity: 'frost' },
-  { id: 'permafrost', minLevel: 20, affinity: 'frost' },
+  { id: 'snowdrift', minLevel: 9, affinity: 'neutral' },
+  { id: 'snowbound', minLevel: 14, affinity: 'neutral' },
+  { id: 'permafrost', minLevel: 20, affinity: 'neutral' },
 ];
-const ALL_ABILITIES = [...ABILITIES_5_7, ...ABILITIES_M7];
+/**
+ * Spec 5.8 abilities from the designer's 2026-10-06 brief (PLAYTEST, DD-97, DD-103): neutral, each
+ * costs 1 ability slot; levels sit in the 11-15 band between Reinforce and Stalwart.
+ */
+const ABILITIES_5_8: { id: string; minLevel: number }[] = [
+  { id: 'electric_slide', minLevel: 3 },
+  { id: 'obstinate', minLevel: 9 },
+  { id: 'necromancer', minLevel: 11 },
+  { id: 'block_path', minLevel: 12 },
+  { id: 'quantum_kill', minLevel: 13 },
+  { id: 'redo', minLevel: 15 },
+  { id: 'schrodingers_joker', minLevel: 20 },
+];
+const ALL_ABILITIES = [...ABILITIES_5_7, ...ABILITIES_M7, ...ABILITIES_5_8];
 
 /** A loadout holding only `id`, with what the item needs to be valid (6.4, DD-29). */
 function itemLoadout(id: string): Loadout {
@@ -267,17 +281,29 @@ describe('R-LOAD-002 item catalogue and level requirements (DD-05)', () => {
     }
   });
 
-  it('R-LOAD-002 R-ABIL-005 R-ELEM-001 6.5: Storm, Stone and Frost each have at least four affinity abilities (with attuned versions) spread over levels 1-20', () => {
-    for (const el of ['storm', 'stone', 'frost'] as const) {
-      const own = registry.abilities.filter((a) => a.affinity === el && !a.retired);
-      expect(own.map((a) => a.id).sort(), el).toEqual(
-        ABILITIES_M7.filter((a) => a.affinity === el)
-          .map((a) => a.id)
-          .sort(),
-      );
-      expect(own.length, el).toBeGreaterThanOrEqual(4);
-      for (const a of own) expect(a.attuned, a.id).toBeDefined();
+  it('R-LOAD-002 R-ABIL-005 R-ELEM-001 R-ELEM-003 6.5 DD-98: every element has exactly one signature ability with an attuned version; every other ability is neutral without one', () => {
+    const SIGNATURE: Record<Exclude<ElementId, 'neutral'>, string> = {
+      ember: 'cleave',
+      tide: 'hit_and_run',
+      grove: 'poisoned_meat',
+      storm: 'electric_slide',
+      stone: 'stonewall',
+      frost: 'frost_heave',
+    };
+    const live = registry.abilities.filter((a) => !a.retired);
+    for (const [el, id] of Object.entries(SIGNATURE)) {
+      const own = live.filter((a) => a.affinity === el);
+      expect(
+        own.map((a) => a.id),
+        el,
+      ).toEqual([id]);
+      expect(own[0]?.attuned, id).toBeDefined();
+      expect(own[0]?.minLevel, `${id} unlocks early`).toBeLessThanOrEqual(3);
     }
+    const neutral = live.filter((a) => a.affinity === 'neutral');
+    expect(neutral.length).toBe(live.length - 6);
+    expect(neutral.length / live.length).toBeGreaterThan(0.7);
+    for (const a of neutral) expect(a.attuned, a.id).toBeUndefined();
     const levels = ABILITIES_M7.map((a) => a.minLevel);
     expect(Math.min(...levels)).toBe(1);
     expect(Math.max(...levels)).toBe(20);
@@ -332,7 +358,7 @@ const MAX_SETS = perType({
   bishop: ['riposte', 'reinforce', 'poisoned_meat', 'scout', 'veil'],
   rook: ['cleave', 'momentum', 'hit_and_run', 'pierce', 'antidote'],
   queen: ['scout', 'pierce', 'riposte', 'reinforce', 'last_word'],
-  king: ['stalwart', 'antidote', 'veil', 'scout', 'last_word'],
+  king: ['stalwart', 'veil', 'last_word', 'poisoned_meat', 'riposte'],
 });
 
 const BUILDS = [
@@ -465,25 +491,55 @@ describe('R-LOAD-003 ability sets and builds', () => {
     PIECE_TYPES.forEach((t, i) => expect(six.state.armies.white.sets[t], t).toEqual(sets[i]));
   });
 
-  it('R-LOAD-003 R-LOAD-004 an ineligible ability (Stalwart in a pawn set) still uses a slot', () => {
+  it('R-LOAD-003 R-LOAD-004 an ineligible ability (Afterimage in a pawn set) still uses a slot', () => {
     const withScout = lo({
       items: ['multitaskers_schedule'],
-      sets: perType({ pawn: ['stalwart', 'scout'] }),
+      sets: perType({ pawn: ['afterimage', 'scout'] }),
     });
     expect(errs(engine.validateLoadout(withScout, { level: 30 }))).toEqual([
       { rule: 4, code: 'capacity_exceeded' },
     ]);
-    const alone = lo({ items: ['multitaskers_schedule'], sets: perType({ pawn: ['stalwart'] }) });
+    const alone = lo({ items: ['multitaskers_schedule'], sets: perType({ pawn: ['afterimage'] }) });
     expect(engine.validateLoadout(alone, { level: 16 }).errors).toEqual([]);
     const glove = lo({
       items: ['multitaskers_schedule', 'dual_adepts_glove'],
-      sets: perType({ pawn: ['stalwart', 'scout'] }),
+      sets: perType({ pawn: ['afterimage', 'scout'] }),
     });
     const v = engine.validateLoadout(glove, { level: 30 });
     expect(v.errors).toEqual([]);
     expect(v.capacity).toBe(2);
     // 4.3: an army-wide Stalwart is legal.
     expect(engine.validateLoadout(lo({ sets: [['stalwart']] }), { level: 16 }).errors).toEqual([]);
+  });
+
+  it('R-LOAD-004 R-RULES-003 DD-102 rule 8: Stalwart shares no set with a Capturing or Captures ability', () => {
+    const glove = (sets: string[][]) =>
+      errs(
+        engine.validateLoadout(
+          lo({
+            items: ['multitaskers_schedule', 'dual_adepts_glove'],
+            sets: perType({ pawn: sets[0] ?? [], king: sets[1] ?? [] }),
+          }),
+          { level: 30 },
+        ),
+      );
+    // Captures (Cleave) and Capturing (Scout) are offensive (DD-97): rejected with Stalwart.
+    expect(glove([['stalwart', 'cleave']])).toEqual([{ rule: 8, code: 'excluded_category' }]);
+    expect(glove([[], ['stalwart', 'scout']])).toEqual([{ rule: 8, code: 'excluded_category' }]);
+    // Captured and Passive cards may share the set; the same offensive card in another set is fine.
+    expect(
+      glove([
+        ['stalwart', 'last_word'],
+        ['cleave', 'veil'],
+      ]),
+    ).toEqual([]);
+    // Army-wide: the whole set is checked once.
+    const wide = engine.validateLoadout(
+      lo({ items: ['dual_adepts_glove'], sets: [['stalwart', 'pierce']] }),
+      { level: 30 },
+    );
+    expect(errs(wide)).toEqual([{ rule: 8, code: 'excluded_category' }]);
+    expect(wide.errors[0]?.ref).toBe('stalwart');
   });
 
   it('R-LOAD-003 R-RULES-003 Stalwart in a pawn set does nothing in battle: the king stays ordinary', () => {
@@ -571,8 +627,8 @@ describe('R-LOAD-004 loadout validation rules 1-7', () => {
     expect(item.errors).toEqual([
       expect.objectContaining({ rule: 2, code: 'item_level', ref: 'resonance_crystal' }),
     ]);
-    expect(engine.validateLoadout(lo({ sets: [['cleave']] }), { level: 6 }).ok).toBe(true);
-    const ability = engine.validateLoadout(lo({ sets: [['cleave']] }), { level: 5 });
+    expect(engine.validateLoadout(lo({ sets: [['cleave']] }), { level: 3 }).ok).toBe(true);
+    const ability = engine.validateLoadout(lo({ sets: [['cleave']] }), { level: 2 });
     expect(ability.errors).toEqual([
       expect.objectContaining({ rule: 2, code: 'ability_level', ref: 'cleave' }),
     ]);

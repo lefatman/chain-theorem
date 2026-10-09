@@ -51,6 +51,41 @@ export const CreateBattle = z.discriminatedUnion('kind', [
 /** Body of `POST /api/challenges/:code/accept` (the code is in the path). */
 export const AcceptChallenge = z.object({ loadoutId: z.string().max(64) });
 
+/**
+ * Alpha guest play (9.6, R-FMT-007, DD-107): a battle by one-time code at a level the creator picks,
+ * with every card and item at or below that level allowed (`validateLoadout` still applies its other
+ * rules), no account needed. The Worker variable `ALPHA_GUEST_PLAY=on` enables the routes.
+ */
+export const AlphaLevel = z.number().int().min(1).max(30);
+/** `POST /api/alpha/battles`: open a lobby; the answer is `AlphaCreated`. */
+export const AlphaCreate = z.object({ format: Format, level: AlphaLevel, loadout: LoadoutBody });
+/** `POST /api/alpha/:code/accept`: join with a loadout legal at the lobby's level. */
+export const AlphaAccept = z.object({ loadout: LoadoutBody });
+/** Who the alpha routes see: a guest (signed cookie, "Guest NNNN") or a signed-in player. */
+export interface AlphaIdentity {
+  id: string;
+  name: string;
+  guest: boolean;
+}
+/** `GET /api/alpha/me`. */
+export interface AlphaMe {
+  enabled: boolean;
+  me: AlphaIdentity | null;
+}
+/** `GET /api/alpha/:code`: what a joiner sees before accepting. */
+export interface AlphaInfo {
+  format: z.infer<typeof Format>;
+  level: number;
+  from: { name: string };
+  open: boolean;
+}
+/** `POST /api/alpha/battles` answer: the code to share, the join link and the creator's ticket. */
+export interface AlphaCreated {
+  code: string;
+  url: string;
+  ticket: BattleTicket;
+}
+
 export const JoinQueue = z.object({ format: Format, loadoutId: z.string().max(64) });
 
 /** Returned when a battle socket may be opened: a 60-second token bound to player and room (R-SEC-006). */

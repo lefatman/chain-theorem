@@ -45,3 +45,8 @@ APP_ORIGIN=http://localhost:5173
 # (14.2). Locally the seeded level25@local.test account is the admin; in production set it with
 # `wrangler secret put`.
 ADMIN_EMAILS=level25@local.test
+
+# Alpha guest play (spec 9.6, DD-107): `on` lets anyone open http://localhost:5173/#/alpha, play as a
+# guest and share a one-time code for a battle at a level of their choice with the whole catalogue
+# available; nothing is recorded or rewarded. Leave unset in production.
+ALPHA_GUEST_PLAY=on

@@ -1,7 +1,7 @@
 # Chain Theorem
 
 A lightweight, browser-first MMO where every battle is a full 8x8 game of chess whose pieces are
-original creatures, bent by capture-triggered abilities, elemental attunement and item synergies.
+original armies, bent by capture-triggered abilities, elemental attunement and item synergies.
 Build a concealed army, then use chess positioning to exploit your build and uncover your opponent's.
 
 - **Calculable depth:** abilities are deterministic; surprise comes from hidden loadouts, never dice.
@@ -25,7 +25,7 @@ pnpm dev            # client + local Worker, Durable Objects and SQLite
 ```
 
 What is in the build: six elements (Ember, Tide, Grove, Storm, Stone, Frost) with 26 abilities, 13
-items and 36 creatures; local battles against Wild, Trainer and Elite NPCs; online battles with
+items and four army styles (Roman, medieval, Arab, samurai); local battles against Wild, Trainer and Elite NPCs; online battles with
 clocks and reconnects; a shared overworld (Chess Academy, Rookhaven, Knight's Way, Thistle Meadow,
 Highcairn Pass) with encounters, trainers, quests, chat, friends and parties; trading and item
 wagers; ranked queues, leaderboards and guilds; Swiss and knockout tournaments; delayed spectating;
@@ -62,7 +62,7 @@ See [`TESTING.md`](TESTING.md) for every test command and a manual play-test scr
 | `pnpm test`                                                                               | Unit, golden (E1–E9), content scenario and property tests                            |
 | `pnpm test:perft`                                                                         | Perft suites (start position depth 5 = 4,865,609; Kiwipete depth 4 = 4,085,603)      |
 | `pnpm test:fuzz` / `pnpm test:fuzz:full`                                                  | Fuzzed battles with replay and projection checks (quick / 100,000 games)             |
-| `pnpm sim`                                                                                | Balance simulator; writes matchup tables to `reports/sim/`                           |
+| `pnpm sim`                                                                                | Balance simulator; writes matchup and per-card tables to `reports/sim/`              |
 | `pnpm content:new ability <id>`                                                           | Scaffold a new ability module and its scenario test                                  |
 | `pnpm test:db`, `pnpm test:db:pg`, `pnpm test:workers`, `pnpm test:e2e`, `pnpm test:load` | Database, Durable Object, browser and load tests                                     |
 | `pnpm test:e2e:online`, `pnpm test:firstwin`                                              | Browser tests against the real Worker; a new player's first win (M5)                 |
@@ -77,6 +77,6 @@ engine edits. Follow [`docs/CONTENT_GUIDE.md`](docs/CONTENT_GUIDE.md).
 
 ## Art and IP
 
-All creatures, sprites and effects are original and generated procedurally until final art arrives;
+All characters, sprites and effects are original and generated procedurally until final art arrives;
 sources and licences are recorded in [`assets/LICENSES.md`](assets/LICENSES.md). There are no Pokémon
 names, designs or references anywhere in the project (R-ART-003).

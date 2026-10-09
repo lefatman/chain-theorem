@@ -3,9 +3,12 @@
  * scaling, attack hints for newcomers (10.3) and Dossier deduction hints (8.3). Stored per browser.
  */
 import { effect, signal } from '@preact/signals';
+import { ARMY_STYLES, type ArmyStyle } from '../battle/scene/army.ts';
 
 export interface Settings {
   classicView: boolean;
+  /** The army style the player's own pieces wear (11.1 cosmetic; army.ts). */
+  armyStyle: ArmyStyle;
   fastMode: boolean;
   reducedMotion: boolean;
   textScale: number;
@@ -20,6 +23,7 @@ const prefersReduced =
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const DEFAULTS: Settings = {
   classicView: false,
+  armyStyle: 'medieval',
   fastMode: false,
   reducedMotion: prefersReduced,
   textScale: 1,
@@ -32,7 +36,9 @@ const DEFAULTS: Settings = {
 function load(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) } : DEFAULTS;
+    const s = raw ? { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) } : DEFAULTS;
+    if (!ARMY_STYLES.includes(s.armyStyle)) s.armyStyle = DEFAULTS.armyStyle;
+    return s;
   } catch {
     return DEFAULTS;
   }

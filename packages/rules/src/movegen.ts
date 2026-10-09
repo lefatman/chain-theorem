@@ -7,6 +7,14 @@
  * - passThrough[id]: Flow — the piece may slide (or double-push) through its own side's pieces.
  * - blocked[id]:     Hot Foot — squares the piece may not move to or capture a piece standing on.
  * - stalwart[side]:  Stalwart king — its owner may leave it in check and castle through attacks.
+ * - noCapBy[id], noCapDirs[id], noCapDirsSoft[id], bypass[id]: capture restrictions on a victim
+ *   (captureFilter, 5.6 and 13.5: Obstinate, Block Path) and the attackers that ignore the soft
+ *   ones (Stalwart, DD-102). A restriction only ever removes a move capture or an attack; effect
+ *   captures never consult it.
+ * - leap[id]:        Electric Slide base — a pawn may move straight over one adjacent ally.
+ * - redirect[id]:    Electric Slide attuned — a slider may turn at an ally's square this many times
+ *                    per move (never stopping on the ally); attacks follow the same paths (DD-104).
+ * - conducts[id]:    0 for an ally a slider is blocked by instead of turning at (DD-106: pawns)
  */
 import {
   BISHOP,
@@ -28,7 +36,7 @@ import {
   typeCode,
   typeOf,
 } from './board.ts';
-import type { GameState, Move, PromotionType, Side, Square } from './types.ts';
+import type { Compass, GameState, Move, PromotionType, Side, Square } from './types.ts';
 
 export const F_CAPTURE = 1 << 15;
 export const F_EP = 1 << 16;
@@ -55,6 +63,28 @@ export interface MoveRules {
   blocked: (Uint8Array | null)[];
   stalwart: [boolean, boolean];
   anyPass: [boolean, boolean];
+  /** Per victim: attacker ids that may not move-capture it (bypassing attackers already left out). */
+  noCapBy: (Uint8Array | null)[];
+  /** Per victim: bitmask of compass directions (DIR index) it cannot be move-captured from. */
+  noCapDirs: Uint8Array;
+  /** Same, but ignored by attackers with `bypass`. */
+  noCapDirsSoft: Uint8Array;
+  /** 1 for a piece that ignores soft capture restrictions and blocked squares (Stalwart). */
+  bypass: Uint8Array;
+  /** Fast path: no capture restriction is in force. */
+  anyCap: boolean;
+  /** 1 for a pawn that may leap over one adjacent ally to the empty square beyond (DD-104). */
+  leap: Uint8Array;
+  /** Redirects per move a slider may make at allied squares (0, 1 or 2; DD-104). */
+  redirect: Uint8Array;
+  /** Per side: some piece of that side has a redirect budget (fast path for `attacked`). */
+  anyRedirect: [boolean, boolean];
+  /**
+   * 1 for a piece at which its side's sliders may turn (a corner); 0 for one they are blocked by
+   * like any ally. Every piece conducts unless a `redirectCorner` hook says otherwise (Electric
+   * Slide: never a pawn, DD-106).
+   */
+  conducts: Uint8Array;
 }
 
 export function defaultRules(n: number): MoveRules {
@@ -63,8 +93,25 @@ export function defaultRules(n: number): MoveRules {
     blocked: new Array<Uint8Array | null>(n).fill(null),
     stalwart: [false, false],
     anyPass: [false, false],
+    noCapBy: new Array<Uint8Array | null>(n).fill(null),
+    noCapDirs: new Uint8Array(n),
+    noCapDirsSoft: new Uint8Array(n),
+    bypass: new Uint8Array(n),
+    anyCap: false,
+    leap: new Uint8Array(n),
+    redirect: new Uint8Array(n),
+    anyRedirect: [false, false],
+    conducts: new Uint8Array(n).fill(1),
   };
 }
+
+/** Opposite ray index in DIRS order (N<->S, E<->W, NE<->SW, NW<->SE). */
+const REVERSE = [1, 0, 3, 2, 7, 6, 5, 4];
+
+/** Compass directions in the DIRS table order (N, S, E, W, NE, NW, SE, SW). */
+const DIR_COMPASS: readonly Compass[] = ['N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW'];
+/** Bit of a compass direction in the `noCapDirs` masks. */
+export const dirBit = (c: Compass): number => 1 << DIR_COMPASS.indexOf(c);
 
 // ---- precomputed tables -------------------------------------------------------------------------
 
@@ -83,6 +130,13 @@ const DIRS: [number, number][] = [
   [-1, -1],
 ];
 const CASTLE_MASK = new Int32Array(64);
+/**
+ * DIR_FROM[victim * 64 + attacker]: the compass direction (DIRS index) in which an attacker on
+ * `attacker` stands as seen from `victim`: along the shared ray for queens, rooks, bishops, kings
+ * and pawns, along the long leg for a knight's offset (DD-99); -1 when no piece could attack from
+ * there.
+ */
+const DIR_FROM = new Int8Array(64 * 64).fill(-1);
 
 for (let s = 0; s < 64; s++) {
   const f = s & 7;
@@ -124,6 +178,20 @@ for (let s = 0; s < 64; s++) {
   }
   RAYS.push(rays);
   CASTLE_MASK[s] = castlingMaskFor(s);
+  rays.forEach((ray, d) => {
+    for (const a of ray) DIR_FROM[s * 64 + a] = d;
+  });
+  for (const a of kn) {
+    const df = (a & 7) - f;
+    const dr = (a >> 3) - r;
+    // The long leg (two squares) names the direction: N/S for a rank leg, E/W for a file leg.
+    DIR_FROM[s * 64 + a] = Math.abs(dr) === 2 ? (dr > 0 ? 0 : 1) : df > 0 ? 2 : 3;
+  }
+}
+
+/** The compass direction (DIRS index) of `attacker` as seen from `victim`, or -1. */
+export function dirFrom(victim: Square, attacker: Square): number {
+  return DIR_FROM[victim * 64 + attacker] as number;
 }
 
 export function kingTargets(s: Square): readonly number[] {
@@ -200,45 +268,64 @@ export class Pos {
     return this.ptype[id] !== KING || this.rules.stalwart[this.pside[id] as number] === true;
   }
 
-  /** Is `target` attacked by a piece of side `by`? Hook-aware: Flow rays and Hot Foot blocks. */
-  attacked(target: number, by: number): boolean {
+  /**
+   * May `att`, standing on `from`, move-capture (or attack) `vic` on `vicSq`? Capture restrictions
+   * from captureFilter hooks (Obstinate, Block Path); soft ones are ignored by a bypassing attacker.
+   */
+  private capOk(att: number, from: number, vic: number, vicSq: number): boolean {
+    const r = this.rules;
+    if (!r.anyCap) return true;
+    const by = r.noCapBy[vic];
+    if (by && by[att] === 1) return false;
+    const dirs = r.noCapDirs[vic] as number;
+    const soft = r.bypass[att] === 1 ? 0 : (r.noCapDirsSoft[vic] as number);
+    if ((dirs | soft) === 0) return true;
+    const d = DIR_FROM[vicSq * 64 + from] as number;
+    return d < 0 || (((dirs | soft) >> d) & 1) === 0;
+  }
+
+  /**
+   * Is `target` attacked by a piece of side `by`? Hook-aware: Flow rays, Hot Foot blocks and the
+   * capture restrictions of the piece on `target` (`victim` names it when the square is empty, as
+   * for a castling king's path).
+   */
+  attacked(target: number, by: number, victim: number = this.board[target] as number): boolean {
     const board = this.board;
     const ptype = this.ptype;
     const pside = this.pside;
+    const ok = (id: number, from: number): boolean =>
+      !this.blk(id, target) && (victim < 0 || this.capOk(id, from, victim, target));
     // Pawns: a white pawn on s attacks s+7 (file-1) and s+9 (file+1).
     const tf = target & 7;
     if (by === WHITE) {
       if (tf > 0 && target - 9 >= 0) {
         const id = board[target - 9] as number;
-        if (id >= 0 && pside[id] === WHITE && ptype[id] === PAWN && !this.blk(id, target))
-          return true;
+        if (id >= 0 && pside[id] === WHITE && ptype[id] === PAWN && ok(id, target - 9)) return true;
       }
       if (tf < 7 && target - 7 >= 0) {
         const id = board[target - 7] as number;
-        if (id >= 0 && pside[id] === WHITE && ptype[id] === PAWN && !this.blk(id, target))
-          return true;
+        if (id >= 0 && pside[id] === WHITE && ptype[id] === PAWN && ok(id, target - 7)) return true;
       }
     } else {
       if (tf < 7 && target + 9 < 64) {
         const id = board[target + 9] as number;
-        if (id >= 0 && pside[id] === BLACK && ptype[id] === PAWN && !this.blk(id, target))
-          return true;
+        if (id >= 0 && pside[id] === BLACK && ptype[id] === PAWN && ok(id, target + 9)) return true;
       }
       if (tf > 0 && target + 7 < 64) {
         const id = board[target + 7] as number;
-        if (id >= 0 && pside[id] === BLACK && ptype[id] === PAWN && !this.blk(id, target))
-          return true;
+        if (id >= 0 && pside[id] === BLACK && ptype[id] === PAWN && ok(id, target + 7)) return true;
       }
     }
     for (const s of KNIGHT_TARGETS[target] as number[]) {
       const id = board[s] as number;
-      if (id >= 0 && pside[id] === by && ptype[id] === KNIGHT && !this.blk(id, target)) return true;
+      if (id >= 0 && pside[id] === by && ptype[id] === KNIGHT && ok(id, s)) return true;
     }
     for (const s of KING_TARGETS[target] as number[]) {
       const id = board[s] as number;
-      if (id >= 0 && pside[id] === by && ptype[id] === KING && !this.blk(id, target)) return true;
+      if (id >= 0 && pside[id] === by && ptype[id] === KING && ok(id, s)) return true;
     }
     const anyPass = this.rules.anyPass[by] === true;
+    const anyRedirect = this.rules.anyRedirect[by] === true;
     const pass = this.rules.passThrough;
     const rays = RAYS[target] as number[][];
     for (let d = 0; d < 8; d++) {
@@ -246,14 +333,83 @@ export class Pos {
       const diag = d >= 4;
       let allyBlocked = false;
       for (let i = 0; i < ray.length; i++) {
-        const id = board[ray[i] as number] as number;
+        const sq = ray[i] as number;
+        const id = board[sq] as number;
         if (id < 0) continue;
         if (pside[id] !== by) break;
         const t = ptype[id];
         const matches = t === QUEEN || (diag ? t === BISHOP : t === ROOK);
-        if (matches && (!allyBlocked || pass[id] === 1) && !this.blk(id, target)) return true;
+        if (matches && (!allyBlocked || pass[id] === 1) && ok(id, sq)) return true;
+        // A slider that turned at this ally reaches `target` along ray d from here (DD-104), if
+        // the ally is a corner at all (DD-106).
+        if (
+          anyRedirect &&
+          this.rules.conducts[id] === 1 &&
+          this.reachesVia(sq, d, by, 1, victim, target, allyBlocked, d < 4 ? 1 : 2)
+        )
+          return true;
         if (!anyPass) break;
         allyBlocked = true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Is there a slider of side `by` that arrives at the ally square `corner` with its last segment
+   * along ray `last` (DIRS index, as walked from the target) after `used` redirects? Walking
+   * backwards from the target: the next segment leaves `corner` along any ray but `last` and its
+   * reverse. `segs` collects the geometry of every segment so far (1 orthogonal, 2 diagonal), which
+   * the slider's type must allow; `passed` says the previous segment crossed an ally, which only a
+   * Flow slider may do (DD-104).
+   */
+  private reachesVia(
+    corner: number,
+    last: number,
+    by: number,
+    used: number,
+    victim: number,
+    target: number,
+    passed: boolean,
+    segs: number,
+  ): boolean {
+    const board = this.board;
+    const pside = this.pside;
+    const ptype = this.ptype;
+    const pass = this.rules.passThrough;
+    const anyPass = this.rules.anyPass[by] === true;
+    const rays = RAYS[corner] as number[][];
+    for (let d = 0; d < 8; d++) {
+      if (d === last || d === REVERSE[last]) continue;
+      const ray = rays[d] as number[];
+      const geometry = segs | (d < 4 ? 1 : 2);
+      let crossed = passed;
+      for (let i = 0; i < ray.length; i++) {
+        const sq = ray[i] as number;
+        const id = board[sq] as number;
+        if (id < 0) continue;
+        if (pside[id] !== by) break;
+        const t = ptype[id];
+        const typeOk =
+          t === QUEEN || (t === ROOK ? geometry === 1 : t === BISHOP && geometry === 2);
+        if (
+          typeOk &&
+          (this.rules.redirect[id] as number) >= used &&
+          (!crossed || pass[id] === 1) &&
+          !this.blk(id, target) &&
+          (victim < 0 || this.capOk(id, corner, victim, target))
+        )
+          return true;
+        // Another ally that conducts: one more turn, if any piece has the budget (the queen's
+        // second redirect).
+        if (
+          used < 2 &&
+          this.rules.conducts[id] === 1 &&
+          this.reachesVia(sq, d, by, used + 1, victim, target, crossed, geometry)
+        )
+          return true;
+        if (!anyPass) break;
+        crossed = true;
       }
     }
     return false;
@@ -304,12 +460,21 @@ export class Pos {
         if (ahead < 0) {
           if (!this.blk(id, to)) this.pushPawn(out, from, to, 0, promoRank);
         }
+        let doubled = false;
         if (from >> 3 === startRank) {
           const canPass = ahead < 0 || (pass[id] === 1 && pside[ahead] === side);
           const to2 = to + dir;
           if (canPass && (board[to2] as number) < 0 && !this.blk(id, to2)) {
             out.push(encodeMove(from, to2, 0, F_DOUBLE));
+            doubled = true;
           }
+        }
+        // Electric Slide base (DD-104): leap straight over one adjacent ally to the empty square
+        // beyond (a plain move: the jumped square is occupied, so it never grants en passant).
+        if (ahead >= 0 && pside[ahead] === side && this.rules.leap[id] === 1 && !doubled) {
+          const to2 = to + dir;
+          if (to2 >= 0 && to2 < 64 && (board[to2] as number) < 0 && !this.blk(id, to2))
+            this.pushPawn(out, from, to2, 0, promoRank);
         }
         const f = from & 7;
         for (const df of [-1, 1]) {
@@ -317,7 +482,12 @@ export class Pos {
           const cs = to + df;
           const victim = board[cs] as number;
           if (victim >= 0) {
-            if (pside[victim] !== side && this.capturable(victim) && !this.blk(id, cs)) {
+            if (
+              pside[victim] !== side &&
+              this.capturable(victim) &&
+              !this.blk(id, cs) &&
+              this.capOk(id, from, victim, cs)
+            ) {
               this.pushPawn(out, from, cs, F_CAPTURE, promoRank);
             }
           } else if (cs === this.ep) {
@@ -328,7 +498,8 @@ export class Pos {
               pside[v] !== side &&
               this.ptype[v] === PAWN &&
               !this.blk(id, cs) &&
-              !this.blk(id, vs)
+              !this.blk(id, vs) &&
+              this.capOk(id, from, v, vs)
             ) {
               out.push(encodeMove(from, cs, 0, F_CAPTURE | F_EP));
             }
@@ -341,7 +512,12 @@ export class Pos {
           const v = board[to] as number;
           if (v < 0) {
             if (!this.blk(id, to)) out.push(encodeMove(from, to));
-          } else if (pside[v] !== side && this.capturable(v) && !this.blk(id, to)) {
+          } else if (
+            pside[v] !== side &&
+            this.capturable(v) &&
+            !this.blk(id, to) &&
+            this.capOk(id, from, v, to)
+          ) {
             out.push(encodeMove(from, to, 0, F_CAPTURE));
           }
         }
@@ -349,6 +525,11 @@ export class Pos {
       } else {
         const d0 = t === BISHOP ? 4 : 0;
         const d1 = t === ROOK ? 4 : 8;
+        const budget = this.rules.redirect[id] as number;
+        if (budget > 0) {
+          this.slideWithTurns(id, side, from, d0, d1, budget, out);
+          continue;
+        }
         const rays = RAYS[from] as number[][];
         const canPass = pass[id] === 1;
         for (let d = d0; d < d1; d++) {
@@ -364,13 +545,69 @@ export class Pos {
               if (canPass) continue;
               break;
             }
-            if (this.capturable(v) && !this.blk(id, to))
+            if (this.capturable(v) && !this.blk(id, to) && this.capOk(id, from, v, to))
               out.push(encodeMove(from, to, 0, F_CAPTURE));
             break;
           }
         }
       }
     }
+  }
+
+  /**
+   * Slider moves with Electric Slide redirects (DD-104): on meeting an ally that conducts (DD-106)
+   * the piece may continue from the ally's square along any of its rays but the one it came along
+   * and its reverse, up to `budget` times; it never stops on the ally. Destinations are
+   * deduplicated, and a capture's approach square (for Block Path) is the last corner.
+   */
+  private slideWithTurns(
+    id: number,
+    side: number,
+    from: number,
+    d0: number,
+    d1: number,
+    budget: number,
+    out: number[],
+  ): void {
+    const board = this.board;
+    const pside = this.pside;
+    const seen = new Uint8Array(64);
+    const canPass = this.rules.passThrough[id] === 1;
+    const walk = (start: number, exclude: number, left: number) => {
+      const rays = RAYS[start] as number[][];
+      for (let d = d0; d < d1; d++) {
+        if (exclude >= 0 && (d === exclude || d === REVERSE[exclude])) continue;
+        const ray = rays[d] as number[];
+        for (let i = 0; i < ray.length; i++) {
+          const to = ray[i] as number;
+          const v = board[to] as number;
+          if (v < 0) {
+            if (!seen[to] && !this.blk(id, to)) {
+              seen[to] = 1;
+              out.push(encodeMove(from, to));
+            }
+            continue;
+          }
+          if (pside[v] === side) {
+            // A turn needs budget and an ally that conducts (DD-106: never a pawn).
+            if (left > 0 && this.rules.conducts[v] === 1) walk(to, d, left - 1);
+            if (canPass) continue;
+            break;
+          }
+          if (
+            !seen[to] &&
+            this.capturable(v) &&
+            !this.blk(id, to) &&
+            this.capOk(id, start, v, to)
+          ) {
+            seen[to] = 1;
+            out.push(encodeMove(from, to, 0, F_CAPTURE));
+          }
+          break;
+        }
+      }
+    };
+    walk(from, -1, budget);
   }
 
   private castles(kid: number, side: number, from: number, out: number[]): void {
@@ -390,7 +627,7 @@ export class Pos {
     if (rights & kBit && isOwnRook(home + 3) && board[home + 1]! < 0 && board[home + 2]! < 0) {
       const rook = board[home + 3] as number;
       if (!this.blk(kid, home + 2) && !this.blk(rook, home + 1)) {
-        if (stalwart || (!this.attacked(home, opp) && !this.attacked(home + 1, opp))) {
+        if (stalwart || (!this.attacked(home, opp) && !this.attacked(home + 1, opp, kid))) {
           out.push(encodeMove(home, home + 2, 0, F_CASTLE));
         }
       }
@@ -404,7 +641,7 @@ export class Pos {
     ) {
       const rook = board[home - 4] as number;
       if (!this.blk(kid, home - 2) && !this.blk(rook, home - 1)) {
-        if (stalwart || (!this.attacked(home, opp) && !this.attacked(home - 1, opp))) {
+        if (stalwart || (!this.attacked(home, opp) && !this.attacked(home - 1, opp, kid))) {
           out.push(encodeMove(home, home - 2, 0, F_CASTLE));
         }
       }

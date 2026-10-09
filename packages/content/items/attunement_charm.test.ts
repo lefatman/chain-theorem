@@ -161,33 +161,46 @@ describe('attunement charm (R-LOAD-002)', () => {
     expect(charmReveals(r.events, 'white')).toEqual([]);
   });
 
-  it('R-LOAD-002 R-ELEM-003 DD-17 a Grove Charm gives an Ember piece attuned Reinforce, which triggers on a pawn victim', () => {
-    // 1. b2-b3 2. Ba4xb3 (the white pawn is captured) 3. Ne4xf6 takes a pawn: base Reinforce needs
-    // a non-pawn victim, attuned Reinforce triggers on any victim and revives the pawn on b2.
-    const fen = '7k/8/5p2/8/b3N3/8/1P6/7K w - - 0 1';
-    const moves = ['b2b3', 'a4b3', 'e4f6'];
+  it("R-LOAD-002 R-ELEM-003 DD-98 a Stone Charm gives an Ember piece attuned Stonewall, which also reveals the captor's whole type set", () => {
+    // 1. b2-b3 2. Ba4xb3: the white pawn (Stonewall) is captured by a bishop carrying Hit and Run,
+    // Scout and Last Word. Base Stonewall negates Hit and Run (revealed as negated, DD-36) and Scout
+    // reveals itself by activating; attuned Stonewall also reveals the bishop's whole set, so Last
+    // Word, which never fired, becomes known too.
+    const fen = '7k/8/8/8/b7/8/1P6/7K w - - 0 1';
+    const moves = ['b2b3', 'a4b3'];
+    const black = {
+      elements: ['neutral' as const],
+      abilities: ['hit_and_run', 'scout', 'last_word'],
+    };
     const control = scenario({
       fen,
-      white: { elements: ['ember'], abilities: ['reinforce'] },
+      white: { elements: ['ember'], abilities: ['stonewall'] },
+      black,
       moves,
     });
-    expect(eventsOf(control.events, 'AbilityTriggered')).toEqual([]);
-    expect(pieceAt(control.state, 'b2')).toBeUndefined();
+    const white = (events: readonly BattleEvent[]) =>
+      eventsOf(events, 'AbilityTriggered').filter((e) => e.side === 'white');
+    expect(white(control.events).map((e) => [e.ability, e.attuned])).toEqual([
+      ['stonewall', false],
+    ]);
+    expect([...(control.state.reveals.black.abilities.bishop ?? [])].sort()).toEqual([
+      'hit_and_run',
+      'scout',
+    ]);
+    expect(control.state.reveals.black.complete).not.toContain('bishop');
 
-    const r = scenario({ fen, white: charmed('ember', 'grove', ['reinforce']), moves });
+    const r = scenario({ fen, white: charmed('ember', 'stone', ['stonewall']), black, moves });
     const pawn = idAt(r.initial, 'b2');
-    const knight = idAt(r.initial, 'e4');
-    const last = r.steps[2]?.events ?? [];
-    expect(eventsOf(last, 'AbilityTriggered').map((e) => [e.piece, e.ability, e.attuned])).toEqual([
-      [knight, 'reinforce', true],
+    const last = r.steps[1]?.events ?? [];
+    expect(white(last).map((e) => [e.piece, e.ability, e.attuned])).toEqual([
+      [pawn, 'stonewall', true],
     ]);
-    expect(eventsOf(last, 'PieceRevived').map((e) => [e.piece, e.square])).toEqual([
-      [pawn, sq('b2')],
+    expect([...(r.state.reveals.black.abilities.bishop ?? [])].sort()).toEqual([
+      'hit_and_run',
+      'last_word',
+      'scout',
     ]);
-    expect(eventsOf(last, 'ChargeSpent').map((e) => [e.ability, e.remaining])).toEqual([
-      ['reinforce', 0],
-    ]);
-    expect(pieceAt(r.state, 'b2')?.id).toBe(pawn);
+    expect(r.state.reveals.black.complete).toContain('bishop');
     expect(charmReveals(last, 'white')).toHaveLength(1);
   });
 });
