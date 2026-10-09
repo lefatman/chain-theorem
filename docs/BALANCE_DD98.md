@@ -13,7 +13,8 @@ pairs point the wrong way). In Full Battle it rises from 73% to **90%**: with id
 on both sides, a long game is decided by whose triggers are silenced. White score and Full Battle
 surprise losses meet the targets; First Blood surprise losses (35%) still miss. The archetype suite
 shows the Maximum build ahead (65–75% in Full Battle). Section 4 lists the levers; they are the
-designer's.
+designer's. (Section 4's item 4, the build picker, has since been done: `docs/BALANCE_BASELINE.md`
+re-measures everything here with builds that carry all four categories and the passives.)
 
 ## 1. Method
 

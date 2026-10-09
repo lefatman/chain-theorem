@@ -77,7 +77,7 @@ The agent checklist from spec 13.5, with the real commands:
 | `pnpm check`                                 | Typecheck, lint, unit tests (content scenario tests included), `content:validate`, dependency rules                                                                             |
 | `pnpm test`                                  | Unit, golden (E1–E9), content scenario and property tests                                                                                                                       |
 | `pnpm test:fuzz`                             | 500 random battles with random valid loadouts drawn from the registry: no crash, bounded chains, identical replay (INV-04) and the R-SEC-001 payload scan. Your module is in it |
-| `pnpm sim`                                   | Balance simulator; archetype builds pick abilities from module data, so new abilities are included (see the slot-cost caveat in §3.4)                                           |
+| `pnpm sim`                                   | Balance simulator; builds pick abilities from module data, so new abilities are included; `--suite cards` screens one card at a time (§3.4)                                           |
 
 ## 2. How content plugs into the engine
 
@@ -249,9 +249,10 @@ Things to weigh when you price an ability:
 - Slot cost is public information once the ability is revealed: the Dossier proves a minimum
   capacity from the abilities seen on one piece type (`deduce.ts`), so expensive abilities leak build
   information.
-- Tooling caveat: the simulator's `pickAbilities` (`apps/tools/src/sim/builds.ts`) counts abilities,
-  not slot cost, so an ability with `slotCost > 1` can make an archetype build fail its validity
-  check. Ask the tools owner to make it cost-aware before shipping one.
+- Tooling: the simulator's `pickAbilities` (`apps/tools/src/sim/builds.ts`) fills a set by slot
+  cost, deals the slots across the four categories and includes passives (Stalwart on the king set
+  only, under rule 8), so a new ability of any cost or category is picked up by `pnpm sim` without
+  changes there; `pnpm sim --suite cards` screens it on its own (`docs/BALANCE_BASELINE.md`).
 
 ### 3.5 Eligibility
 

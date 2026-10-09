@@ -121,6 +121,36 @@ Until then step 2.8's "Arcane Chess" part is skipped (noted, not faked).
 - [x] 7.3 Storm, Stone, Frost + 18 creatures; another zone with NPC trainers; more abilities and items (balance targets partly missed: designer questions in `docs/BALANCE_M7.md`).
 - Done when: the first public tournament completes (locally, with test accounts).
 
+## Balance and alpha plan (designer request 2026-10-09)
+
+One item per session run, with singular focus; sub-items may go to agents. Each item ends with
+`pnpm check`, its own simulator or fuzz evidence, a commit and a push; design changes get a DD row.
+The proposal behind the list is in the chat record of 2026-10-09 and summarised per item here.
+
+- [x] B1 Simulator build picker deals all four categories and includes passives (Stalwart on the
+      king set only); new `--suite cards` mirror test per ability; baseline tables for both formats
+      and both silence scopes in `docs/BALANCE_BASELINE.md`. Tooling only, no design decision.
+- [ ] A2 Alpha one-time-code match mode for non-logged-in players: guest tokens behind a Worker var
+      (off in production), creator picks level 1-30, format and a loadout from everything at or
+      below that level, `c-<code>` lobby that expires in 30 minutes, single-use code, random colours,
+      no XP, rewards, rating, drops, telemetry, chat or spectating; client `#/alpha` screen; server
+      unit tests and one two-browser e2e; DD row.
+- [ ] B3 Silence scope `ONCE_PER_ABILITY` as a PLAYTEST knob (the foil silences each ability on each
+      piece type once per battle); Resonance Crystal "not even once" under it; sim run; DD row.
+- [ ] B4 Trait numbers as config knobs (Flow: at most one allied piece passed per move; Bulwark:
+      non-pawns only; Overabundance: +1 charge, not x2; Hot Foot: 4 turns); re-measure Storm vs Stone
+      first; one sim run per change; DD row. Identities (6.1) stay COMMITTED.
+- [ ] B5 Per-card changes and loadout rule 9: Redo non-pawn; Obstinate ignored by kings, 2 slots;
+      Block Path 2 slots and a king's facing resets to forward after it moves; rule 9 at most two
+      Passive abilities per set; Pierce 2 charges; Scout's Lens reveals the whole pawn set; sim run;
+      DD rows.
+- [ ] C6 Three neutral abilities: Cornered (Captured, L4, 1 charge, rim squares), Ricochet (Captures,
+      sliders, L8, 2 charges, continue past the capture), Overwhelm (Capturing, L9, 2 charges, negate
+      a lower-ranked victim's Captured abilities); primitives logged; golden examples; fuzz; sim.
+- [ ] C7 Three items: Duelist's Gauntlet (L10), Reliquary (L12, revive), Herald's Horn (L7); fuzz; sim.
+- [ ] B8 Final balance report against 17.2 on the finished catalogue, 3,000-game fuzz, PROGRESS
+      handoff.
+
 ## Release checklist (spec 17.3)
 
 - [x] All INVARIANT requirements have passing tests (`pnpm req:coverage`: all 83 requirement IDs,
