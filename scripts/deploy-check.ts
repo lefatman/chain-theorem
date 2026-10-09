@@ -30,6 +30,17 @@ rows.push({
   ok: wrangler.length > 0 && !wrangler.includes('REPLACE_WITH_HYPERDRIVE_ID'),
   hint: 'DEPLOY.md section 2 (human-only, step 0.4)',
 });
+// The alpha environment (DEPLOY.md section 0): D1 and the workers.dev origin.
+rows.push({
+  item: 'alpha D1 database id configured',
+  ok: wrangler.length > 0 && !wrangler.includes('REPLACE_WITH_ALPHA_D1_ID'),
+  hint: 'wrangler d1 create chain-theorem-alpha, then DEPLOY.md section 0',
+});
+rows.push({
+  item: 'alpha APP_ORIGIN set to your workers.dev subdomain or domain',
+  ok: wrangler.length > 0 && !wrangler.includes('REPLACE_WITH_YOUR_SUBDOMAIN'),
+  hint: 'DEPLOY.md section 0',
+});
 const whoami = tryRun('pnpm', ['--filter', '@chain-theorem/server', 'exec', 'wrangler', 'whoami']);
 rows.push({
   item: 'wrangler logged in',

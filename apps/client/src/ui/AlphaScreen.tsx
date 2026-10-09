@@ -12,7 +12,7 @@ import type { AlphaCreated, AlphaInfo, AlphaMe } from '@chain-theorem/protocol';
 import type { FormatId } from '@chain-theorem/rules';
 import { go, route } from '../app/router.ts';
 import { ApiError, api } from '../net/api.ts';
-import { alphaErrorText, alphaLoadout, formatLine } from './alpha.ts';
+import { alphaErrorText, alphaLoadout, codeFromInput, formatLine } from './alpha.ts';
 import { startOnlineBattle } from './battleSession.ts';
 import { LoadoutEditor } from './LoadoutEditor.tsx';
 
@@ -28,6 +28,7 @@ export function AlphaScreen() {
   const [format, setFormat] = useState<FormatId>('first_blood');
   const [created, setCreated] = useState<AlphaCreated | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [joinCode, setJoinCode] = useState('');
 
   /** Who the alpha routes see: a guest, a signed-in player or nobody; or that they are not there. */
   const load = async () => {
@@ -170,6 +171,9 @@ export function AlphaScreen() {
       ) : created ? (
         <div class="panel" role="status">
           <h3>Your code</h3>
+          <p class="code-big" aria-hidden="true">
+            {created.code}
+          </p>
           <label>
             Alpha code
             <input readOnly value={created.code} onFocus={selectAll} />
@@ -193,19 +197,45 @@ export function AlphaScreen() {
           </button>
         </div>
       ) : (
-        <label>
-          Format
-          <select
-            value={format}
-            onChange={(e) => setFormat((e.target as HTMLSelectElement).value as FormatId)}
+        <>
+          <form
+            class="join-box"
+            aria-label="Join with a code"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const c = codeFromInput(joinCode);
+              if (c) go('alpha', { c });
+              else setError('Enter the code or paste the link you were sent.');
+            }}
           >
-            {Object.values(FORMATS).map((f) => (
-              <option value={f.id} key={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            <label>
+              Have a code?
+              <input
+                value={joinCode}
+                placeholder="Paste the code or the link"
+                autoComplete="off"
+                onInput={(e) => setJoinCode((e.target as HTMLInputElement).value)}
+              />
+            </label>
+            <button type="submit" disabled={!joinCode.trim()}>
+              Open the code
+            </button>
+          </form>
+          <h3>Or create one</h3>
+          <label>
+            Format
+            <select
+              value={format}
+              onChange={(e) => setFormat((e.target as HTMLSelectElement).value as FormatId)}
+            >
+              {Object.values(FORMATS).map((f) => (
+                <option value={f.id} key={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
       )}
       {!editor && <button onClick={() => go('title')}>Back</button>}
     </>

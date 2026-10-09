@@ -20,7 +20,10 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   (`docs/BALANCE_BASELINE.md` section 7). A2 (alpha guest play, spec 9.6, DD-107) is done: with
   `ALPHA_GUEST_PLAY=on` (the `.dev.vars` example sets it; production leaves it unset) anyone opens
   `#/alpha`, plays as a guest and shares a one-time code for a battle at a chosen level with the whole
-  catalogue at or below it; nothing is recorded. Next run: B3 (the silence scope), then B4–B8.
+  catalogue at or below it; nothing is recorded. A2b adds the way to put it on Cloudflare without a
+  domain or PostgreSQL (`DEPLOY.md` section 0: the `alpha` environment on workers.dev with D1 and
+  R2; a custom domain registered elsewhere moves only its nameservers) and the alpha call to action
+  on the title page. Next run: B3 (the silence scope), then B4–B8.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
   know), Storm, Stone and Frost with 12 abilities, 2 items and Highcairn Pass.
@@ -154,6 +157,12 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
       below that level, `a-<code>` lobby that expires in 30 minutes, single-use code, random colours,
       no XP, rewards, rating, drops, telemetry, chat or spectating; client `#/alpha` screen; server
       unit and Worker tests and one two-browser e2e; DD-107, spec 9.6. Done 2026-10-09 (evidence log).
+- [x] A2b Cloudflare alpha deployment path and the alpha on the title page (designer request
+      2026-10-09): wrangler environment `alpha` (workers.dev, D1, R2, the flag on, `DEPLOY.md`
+      section 0 with the Namecheap nameserver steps), `deploy:check` rows, a manual **Deploy alpha**
+      workflow; the title page carries the pitch, an alpha call to action when the server offers
+      guest play, the menu and three "how it plays" cards; the alpha screen gains a "have a code?"
+      box; screenshots refreshed. Done 2026-10-09 (evidence log).
 - [ ] B3 Silence scope `ONCE_PER_ABILITY` as a PLAYTEST knob (the foil silences each ability on each
       piece type once per battle); Resonance Crystal "not even once" under it; sim run; DD row.
       First add a `--prefer` list to the simulator so the Focused builds carry Pierce or Phalanx and
@@ -201,6 +210,20 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 - Arcane Chess codebase path for step 2.8 (optional).
 
 ## Evidence log
+
+- 2026-10-09 A2b Cloudflare alpha path and title page: `apps/server/wrangler.jsonc` env `alpha`
+  (D1 `chain-theorem-alpha`, R2 `chain-theorem-alpha-battle-logs`, workers.dev origin, flag on),
+  `DEPLOY.md` section 0 (fifteen-minute setup, Namecheap nameservers for a custom domain),
+  `scripts/deploy-check.ts` alpha rows, `.github/workflows/deploy-alpha.yml` (manual, needs
+  `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`); client: `state/alpha.ts` probe, the title page
+  with hero, alpha call to action (only when the Worker reports the flag), menu, three cards and a
+  footer, `codeFromInput` and the "have a code?" box on the alpha screen, the big code display; the
+  Vite dev proxy answers `{ error: 'no_server' }` with status 200 when no Worker runs so the title's
+  probe logs no browser error (the local e2e asserts a clean console). `pnpm check` 1,594 unit tests
+  (alpha helpers 5), `format:check` clean; local e2e title, loadouts and settings specs 8/8;
+  online e2e `alpha.spec.ts` 1 passed (the full suite's re-run is recorded below once it finishes); `docs/screenshots` 01-title, 08-mobile-title, 20-alpha-create, 21-alpha-code and
+  22-alpha-join-mobile refreshed from the running Worker (`e2e-online/screenshots.spec.ts`, on demand
+  with `CT_SCREENSHOTS=1`).
 
 - 2026-10-09 A2 Alpha guest play (spec 9.6, R-FMT-007, DD-107): server `api/alpha.ts` (guest cookie,
   create, info, accept, rejoin ticket), `alpha/guest.ts` (ids, 24-hour tickets, per-address limiter),

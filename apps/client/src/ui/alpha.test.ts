@@ -2,7 +2,7 @@
 import { CAPS, engine } from '@chain-theorem/content';
 import { describe, expect, it } from 'vitest';
 import { ApiError, ticketPath } from '../net/api.ts';
-import { alphaErrorText, alphaLoadout, formatLine } from './alpha.ts';
+import { alphaErrorText, alphaLoadout, formatLine, codeFromInput } from './alpha.ts';
 
 describe('alpha guest play (9.6)', () => {
   it('R-FMT-007 every alpha route error reads as a sentence about codes, guests and levels', () => {
@@ -46,5 +46,18 @@ describe('alpha guest play (9.6)', () => {
     // Not an alpha id (bad shape): the account route, and the id is escaped either way.
     expect(ticketPath('a-')).toBe('/api/battles/a-/ticket');
     expect(ticketPath('a-has space')).toBe('/api/battles/a-has%20space/ticket');
+  });
+});
+
+describe('the "have a code?" box (9.6)', () => {
+  it('R-FMT-007 takes a bare code, a pasted share link or either with spaces, and nothing else', () => {
+    expect(codeFromInput('Ab12Cd34Ef')).toBe('Ab12Cd34Ef');
+    expect(codeFromInput('  Ab12Cd34Ef ')).toBe('Ab12Cd34Ef');
+    expect(codeFromInput('https://play.example/#/alpha?c=Ab12Cd34Ef')).toBe('Ab12Cd34Ef');
+    expect(codeFromInput('https://play.example/#/alpha?x=1&c=Ab12Cd34Ef')).toBe('Ab12Cd34Ef');
+    expect(codeFromInput('Ab12 Cd34 Ef')).toBe('Ab12Cd34Ef');
+    expect(codeFromInput('')).toBeNull();
+    expect(codeFromInput('ab!')).toBeNull();
+    expect(codeFromInput('https://play.example/#/alpha')).toBeNull();
   });
 });

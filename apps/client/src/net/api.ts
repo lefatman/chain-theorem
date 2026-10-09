@@ -84,6 +84,9 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
     );
   }
   if (data === null) throw new ApiError(res.status, 'no_server');
+  // The dev proxy's answer when no Worker is running (vite.config.ts): the server is absent.
+  if (typeof data === 'object' && (data as { error?: string }).error === 'no_server')
+    throw new ApiError(503, 'no_server');
   return data as T;
 }
 

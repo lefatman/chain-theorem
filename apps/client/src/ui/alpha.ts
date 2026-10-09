@@ -42,3 +42,14 @@ export function alphaLoadout(level: number): SavedLoadout {
     loadout: { elements: ['tide'], items: ['dual_adepts_glove'], sets: [['hit_and_run', 'scout']] },
   };
 }
+
+/**
+ * The code in what a person typed or pasted into the "have a code?" box: the bare code, a share link
+ * (`…#/alpha?c=CODE`), or either with spaces around it; null when nothing usable is there.
+ */
+export function codeFromInput(raw: string): string | null {
+  const text = raw.trim();
+  const fromLink = /[?&]c=([A-Za-z0-9]{6,16})/.exec(text)?.[1];
+  const code = fromLink ?? text.replace(/\s+/g, '');
+  return /^[A-Za-z0-9]{6,16}$/.test(code) ? code : null;
+}
