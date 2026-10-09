@@ -448,6 +448,13 @@ fieldset {
 .level-input input[type='number'] {
   width: 4.5em;
 }
+/* A level the editor may not change (alpha guest play, 9.6): shown where the input would be. */
+.fixed-level {
+  display: grid;
+  gap: 0.2em;
+  align-content: start;
+  margin: 0;
+}
 .element-picker {
   display: grid;
   gap: 0.5em;

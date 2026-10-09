@@ -15,7 +15,8 @@ export type RouteName =
   | 'leaderboards'
   | 'guild'
   | 'tournaments'
-  | 'watch';
+  | 'watch'
+  | 'alpha';
 
 export interface Route {
   name: RouteName;

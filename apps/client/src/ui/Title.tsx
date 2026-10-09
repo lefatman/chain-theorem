@@ -30,6 +30,10 @@ export function Title() {
               {account.value.kind === 'signed_in' ? 'Play online' : 'Play online (sign in)'}
             </button>
           )}
+          {/* Alpha guest play (9.6, R-FMT-007): a friend by one-time code, no account needed. */}
+          {account.value.kind !== 'offline' && (
+            <button onClick={() => go('alpha')}>Alpha: play a friend by code</button>
+          )}
           <button onClick={() => go('loadouts')}>Loadouts</button>
           <button onClick={() => go('settings')}>Settings</button>
           {import.meta.env.DEV && <button onClick={() => go('lab')}>Scenario Lab (dev)</button>}

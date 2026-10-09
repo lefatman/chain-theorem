@@ -42,6 +42,10 @@ const TournamentsScreen = lazy(() =>
 const WatchScreen = lazy(() =>
   import('../ui/WatchScreen.tsx').then((m) => ({ default: m.WatchScreen })),
 );
+// Alpha guest play (9.6, R-FMT-007; DD-107): one-time-code battles with no account needed.
+const AlphaScreen = lazy(() =>
+  import('../ui/AlphaScreen.tsx').then((m) => ({ default: m.AlphaScreen })),
+);
 
 // Dev-only Scenario Lab: this branch is removed from production builds (BUILD_PROMPT M3).
 const ScenarioLab = import.meta.env.DEV
@@ -95,6 +99,9 @@ export function App() {
       break;
     case 'watch':
       screen = <WatchScreen />;
+      break;
+    case 'alpha':
+      screen = <AlphaScreen />;
       break;
     case 'lab':
       screen = ScenarioLab ? <ScenarioLab /> : <Title />;

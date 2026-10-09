@@ -62,23 +62,48 @@ const CATEGORIES: Category[] = ['CAPTURING', 'CAPTURES', 'CAPTURED', 'PASSIVE'];
 export interface EditorProps {
   initial: SavedLoadout;
   isNew: boolean;
-  onSave(l: SavedLoadout): string | null;
+  /**
+   * A level the person may not change, set by the battle they are joining (alpha guest play, 9.6,
+   * R-FMT-007): the level input becomes a statement and the loadout is validated at this level.
+   */
+  fixedLevel?: number;
+  /** The save button's label; "Save" by default. */
+  saveLabel?: string;
+  /** The sentence under the heading; by default, the local-play one. */
+  intro?: string;
+  /** Null once saved, else the message for the save bar. May be asynchronous (a server answer). */
+  onSave(l: SavedLoadout): string | null | Promise<string | null>;
   onCancel(): void;
 }
 
-export function LoadoutEditor({ initial, isNew, onSave, onCancel }: EditorProps) {
+export function LoadoutEditor({
+  initial,
+  isNew,
+  fixedLevel,
+  saveLabel,
+  intro,
+  onSave,
+  onCancel,
+}: EditorProps) {
   const [name, setName] = useState(initial.name);
-  const [level, setLevel] = useState(initial.level);
+  const [ownLevel, setLevel] = useState(initial.level);
+  const level = fixedLevel ?? ownLevel;
   const [loadout, setLoadout] = useState<Loadout>(initial.loadout);
   const [active, setActive] = useState(0);
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
   const v = engine.validateLoadout(loadout, { level });
   const shape = shapeOf(loadout.items);
   const clampLevel = (n: number) => Math.max(1, Math.min(CAPS.LEVEL_CAP, Math.round(n) || 1));
 
-  const save = () => {
-    const err = onSave({ id: initial.id, name: name.trim() || 'Loadout', level, loadout });
-    if (err) setMessage(err);
+  const save = async () => {
+    setSaving(true);
+    try {
+      const err = await onSave({ id: initial.id, name: name.trim() || 'Loadout', level, loadout });
+      if (err) setMessage(err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -86,7 +111,8 @@ export function LoadoutEditor({ initial, isNew, onSave, onCancel }: EditorProps)
       <header class="screen-head">
         <h2>{isNew ? 'New loadout' : 'Edit loadout'}</h2>
         <p class="muted">
-          Local play unlocks every card and item; the level sets which ones this loadout may use.
+          {intro ??
+            'Local play unlocks every card and item; the level sets which ones this loadout may use.'}
         </p>
       </header>
 
@@ -99,26 +125,37 @@ export function LoadoutEditor({ initial, isNew, onSave, onCancel }: EditorProps)
             onInput={(e) => setName((e.target as HTMLInputElement).value)}
           />
         </label>
-        <label>
-          Level
-          <span class="level-input">
-            <input
-              type="range"
-              min={1}
-              max={CAPS.LEVEL_CAP}
-              value={level}
-              aria-label="Level slider"
-              onInput={(e) => setLevel(clampLevel(Number((e.target as HTMLInputElement).value)))}
-            />
-            <input
-              type="number"
-              min={1}
-              max={CAPS.LEVEL_CAP}
-              value={level}
-              onInput={(e) => setLevel(clampLevel(Number((e.target as HTMLInputElement).value)))}
-            />
-          </span>
-        </label>
+        {fixedLevel === undefined ? (
+          <label>
+            Level
+            <span class="level-input">
+              <input
+                type="range"
+                min={1}
+                max={CAPS.LEVEL_CAP}
+                value={level}
+                aria-label="Level slider"
+                onInput={(e) => setLevel(clampLevel(Number((e.target as HTMLInputElement).value)))}
+              />
+              <input
+                type="number"
+                min={1}
+                max={CAPS.LEVEL_CAP}
+                value={level}
+                aria-label="Level"
+                onInput={(e) => setLevel(clampLevel(Number((e.target as HTMLInputElement).value)))}
+              />
+            </span>
+          </label>
+        ) : (
+          <p class="fixed-level">
+            <span>Level</span>
+            <strong>{fixedLevel}</strong>
+            <span class="muted small-text">
+              Set by the battle you are joining: this loadout must be legal at level {fixedLevel}.
+            </span>
+          </p>
+        )}
       </section>
 
       <ElementsSection loadout={loadout} onChange={setLoadout} />
@@ -170,11 +207,11 @@ export function LoadoutEditor({ initial, isNew, onSave, onCancel }: EditorProps)
         <button onClick={onCancel}>Cancel</button>
         <button
           class="primary"
-          disabled={!v.ok}
+          disabled={!v.ok || saving}
           title={v.ok ? undefined : 'Fix the problems listed under Check to save'}
-          onClick={save}
+          onClick={() => void save()}
         >
-          Save
+          {saveLabel ?? 'Save'}
         </button>
       </footer>
     </main>
