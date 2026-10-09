@@ -23,7 +23,10 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   catalogue at or below it; nothing is recorded. A2b adds the way to put it on Cloudflare without a
   domain or PostgreSQL (`DEPLOY.md` section 0: the `alpha` environment on workers.dev with D1 and
   R2; a custom domain registered elsewhere moves only its nameservers) and the alpha call to action
-  on the title page. Next run: B3 (the silence scope), then B4–B8.
+  on the title page. B3 (DD-108) adds the `ONCE_PER_ABILITY` silence scope, measurable at last
+  with Pierce in the builds (`--prefer`): it comes closest to the Full Battle target (61.7%) as long
+  as Resonance Crystal does not mean never under it; the default stays `ALL_TRIGGERS` and the
+  Crystal question goes to B5. Next run: B4 (trait numbers), then B5–B8.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
   know), Storm, Stone and Frost with 12 abilities, 2 items and Highcairn Pass.
@@ -163,11 +166,11 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
       workflow; the title page carries the pitch, an alpha call to action when the server offers
       guest play, the menu and three "how it plays" cards; the alpha screen gains a "have a code?"
       box; screenshots refreshed. Done 2026-10-09 (evidence log).
-- [ ] B3 Silence scope `ONCE_PER_ABILITY` as a PLAYTEST knob (the foil silences each ability on each
-      piece type once per battle); Resonance Crystal "not even once" under it; sim run; DD row.
-      First add a `--prefer` list to the simulator so the Focused builds carry Pierce or Phalanx and
-      re-run the `REACTIONS_ONLY` pair (B1 found the knob inert with Scout as the only Capturing
-      card).
+- [x] B3 Silence scope `ONCE_PER_ABILITY` as a PLAYTEST knob (the foil silences each ability on each
+      piece type once per battle); Resonance Crystal "not even once" under it; sim run; DD-108.
+      Simulator `--prefer` and `--without`, fuzzer `--silence`. Done 2026-10-09 (evidence log): the
+      default stays `ALL_TRIGGERS`; `docs/BALANCE_BASELINE.md` section 8 favours `ONCE_PER_ABILITY`
+      provided the Crystal does not mean never under it (a B5 decision).
 - [ ] B4 Trait numbers as config knobs (Flow: at most one allied piece passed per move; Bulwark:
       non-pawns only; Overabundance: +1 charge, not x2; Hot Foot: 4 turns); re-measure Storm vs Stone
       first; one sim run per change; DD row. Identities (6.1) stay COMMITTED.
@@ -176,6 +179,8 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
       Passive abilities per set; Pierce 2 charges; Scout's Lens reveals the whole pawn set; sim run;
       DD rows. B1's baseline backs Obstinate at 2 slots and rule 9 (which also cuts the Stalwart
       king set to two cards); whether Stalwart on a king should cost one slot is a designer question.
+      From B3: Resonance Crystal's reading under `ONCE_PER_ABILITY` (one spared silence per battle
+      as DD-30 had it, or a higher slot cost for "never") and Storm's passive slot.
 - [ ] C6 Three neutral abilities: Cornered (Captured, L4, 1 charge, rim squares), Ricochet (Captures,
       sliders, L8, 2 charges, continue past the capture), Overwhelm (Capturing, L9, 2 charges, negate
       a lower-ranked victim's Captured abilities); primitives logged; golden examples; fuzz; sim.
@@ -210,6 +215,18 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 - Arcane Chess codebase path for step 2.8 (optional).
 
 ## Evidence log
+
+- 2026-10-09 B3 Silence scope (DD-108; R-ELEM-002, R-LOAD-002, R-SEC-001, R-TEST-002): engine
+  `ONCE_PER_ABILITY` with the `silenced` record (hashed, kept through a rewind, projected only where
+  the viewer knows the ability), belief state and Trainer model, Resonance Crystal v2 ("never" under
+  the scope), simulator `--prefer` and `--without`, fuzzer `--silence`. `pnpm check` 1,600 unit
+  tests (elements 2, Crystal 1, AI 1, sim 2 new), `req:coverage` 84/84; `pnpm test:fuzz` 500 games
+  under `ALL_TRIGGERS` and 500 under `ONCE_PER_ABILITY`, replays identical, projection scans clean.
+  `pnpm sim` elements with Pierce in every build (40 games per pairing in First Blood, 30 in Full
+  Battle): advantaged element First Blood 50.6% / 47.5% / 47.9% and Full Battle 66.7% / 53.9% /
+  44.4% for `ALL_TRIGGERS` / `REACTIONS_ONLY` / `ONCE_PER_ABILITY`; without Resonance Crystal
+  55.2% / 53.5% (First Blood) and 71.4% / 61.7% (Full Battle) for `ALL_TRIGGERS` / `ONCE_PER_ABILITY`.
+  Findings in `docs/BALANCE_BASELINE.md` section 8.
 
 - 2026-10-09 A2b Cloudflare alpha path and title page: `apps/server/wrangler.jsonc` env `alpha`
   (D1 `chain-theorem-alpha`, R2 `chain-theorem-alpha-battle-logs`, workers.dev origin, flag on),

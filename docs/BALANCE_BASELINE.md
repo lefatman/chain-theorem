@@ -20,7 +20,9 @@ and 0% with the corrected metric (35% in the First Blood archetype suite), media
 Section 6 lists the findings and what each later item of the plan takes from them. Section 7
 re-measures after the Electric Slide fix (DD-106): the opening trap is gone (Storm's First Blood row
 22–56%), the card alone reads 72% and 75%, and Storm is now the weakest Full Battle element for want
-of Obstinate.
+of Obstinate. Section 8 measures the silence scopes with a Capturing card in play (B3, DD-108): the new
+`ONCE_PER_ABILITY` comes closest to the Full Battle target (61.7%) as long as Resonance Crystal does
+not mean never under it.
 
 ## 1. Method
 
@@ -558,10 +560,87 @@ this item; the slot stays empty) isolate the scope:
 
 **First Blood** — `pnpm sim --suite elements --format first_blood --games 40 --nodes 20000 --prefer pierce --without resonance_crystal` with `--silence ALL_TRIGGERS` and `ONCE_PER_ABILITY`
 
-@@B3_NC_FB@@
+_ALL_TRIGGERS_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 57.5% | 21.3%               | 52.5%               | 85.0%               | 38.8%               | 66.3%               |
+| tide          | 78.8%               | mirror, white 27.5% | 62.5%               | 67.5%               | 76.3%               | 78.8%               |
+| grove         | 47.5%               | 37.5%               | mirror, white 65.0% | 55.0%               | 55.0%               | 61.3%               |
+| storm         | 15.0%               | 32.5%               | 45.0%               | mirror, white 32.5% | 43.8%               | 62.5%               |
+| stone         | 61.3%               | 23.8%               | 45.0%               | 56.3%               | mirror, white 40.0% | 56.3%               |
+| frost         | 33.8%               | 21.3%               | 38.8%               | 37.5%               | 43.8%               | mirror, white 58.8% |
+
+Advantaged element: **55.2%**. White 52.3%, surprise losses 10.9%, median 23 plies. Result reasons: repetition 48, objective 726, checkmate 63, ply_cap 3.
+
+_ONCE_PER_ABILITY_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 57.5% | 21.3%               | 51.2%               | 85.0%               | 38.8%               | 66.3%               |
+| tide          | 78.8%               | mirror, white 27.5% | 66.3%               | 67.5%               | 76.3%               | 78.8%               |
+| grove         | 48.8%               | 33.8%               | mirror, white 65.0% | 55.0%               | 55.0%               | 61.3%               |
+| storm         | 15.0%               | 32.5%               | 45.0%               | mirror, white 32.5% | 43.8%               | 60.0%               |
+| stone         | 61.3%               | 23.8%               | 45.0%               | 56.3%               | mirror, white 40.0% | 58.8%               |
+| frost         | 33.8%               | 21.3%               | 38.8%               | 40.0%               | 41.3%               | mirror, white 58.8% |
+
+Advantaged element: **53.5%**. White 52.3%, surprise losses 10.8%, median 23 plies. Result reasons: repetition 50, objective 725, checkmate 62, ply_cap 3.
 
 **Full Battle** — the same with `--format full --games 30`
 
-@@B3_NC_FULL@@
+_ALL_TRIGGERS_
 
-@@B3_FINDINGS@@
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 40.0% | 16.7%               | 81.7%               | 90.0%               | 36.7%               | 56.7%               |
+| tide          | 83.3%               | mirror, white 46.7% | 20.0%               | 100.0%              | 88.3%               | 90.0%               |
+| grove         | 18.3%               | 80.0%               | mirror, white 58.3% | 86.7%               | 41.7%               | 43.3%               |
+| storm         | 10.0%               | 0.0%                | 13.3%               | mirror, white 33.3% | 5.0%                | 30.0%               |
+| stone         | 63.3%               | 11.7%               | 58.3%               | 95.0%               | mirror, white 50.0% | 41.7%               |
+| frost         | 43.3%               | 10.0%               | 56.7%               | 70.0%               | 58.3%               | mirror, white 45.0% |
+
+Advantaged element: **71.4%**. White 46.9%, surprise losses 2.5%, median 72 plies. Result reasons: checkmate 477, repetition 133, ply_cap 16, stalemate 1, fifty_move 3.
+
+_ONCE_PER_ABILITY_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 40.0% | 20.0%               | 65.0%               | 90.0%               | 36.7%               | 56.7%               |
+| tide          | 80.0%               | mirror, white 46.7% | 45.0%               | 100.0%              | 88.3%               | 90.0%               |
+| grove         | 35.0%               | 55.0%               | mirror, white 58.3% | 86.7%               | 41.7%               | 43.3%               |
+| storm         | 10.0%               | 0.0%                | 13.3%               | mirror, white 33.3% | 6.7%                | 20.0%               |
+| stone         | 63.3%               | 11.7%               | 58.3%               | 93.3%               | mirror, white 50.0% | 43.3%               |
+| frost         | 43.3%               | 10.0%               | 56.7%               | 80.0%               | 56.7%               | mirror, white 45.0% |
+
+Advantaged element: **61.7%**. White 47.0%, surprise losses 2.8%, median 71 plies. Result reasons: checkmate 468, repetition 141, ply_cap 17, fifty_move 4.
+
+**What the data says.**
+
+1. **With a Capturing card that acts, the knob acts.** In First Blood the three scopes are within two
+   points of each other (advantaged element 50.6%, 47.5%, 47.9%): the short format is decided by
+   traits and openings before silence matters. In Full Battle the aggregate moves from 66.7%
+   (`ALL_TRIGGERS`) to 53.9% (`REACTIONS_ONLY`) and 44.4% (`ONCE_PER_ABILITY` with the Crystal in
+   every build), where section 3 had found it inert with Scout as the only Capturing card.
+2. **`REACTIONS_ONLY` moves the lopsided pairs rather than flattening them.** Its 53.9% sits just
+   under the 55–60% target, but the table behind it is not balanced: Grove over Tide falls from
+   65% to 8% because Tide's Pierce, no longer silenced, negates Poisoned Meat on every capture, while
+   Tide over Ember rises from 72% to 83%. Freeing Capturing cards hands the game to whoever carries
+   the negation.
+3. **`ONCE_PER_ABILITY` with Resonance Crystal is `OFF` for anyone who equips it.** Every Focused
+   build carries the Crystal, so the 44.4% is a measurement of no silence at all: the foil's edge is
+   gone and the kits decide, which means Tide (Flow, Hit and Run, Pierce) beats every element at
+   60–100% in Full Battle and Storm loses 0–13% to four of them. Without the Crystal the picture changes: `ONCE_PER_ABILITY` reads 61.7% in Full Battle
+   (`ALL_TRIGGERS` 71.4% on the same builds), the closest any scope comes to the 55–60% target, and
+   53.5% in First Blood (55.2%). Its foil pairs are Tide over Ember 80%, Ember over Grove 65%, Grove
+   over Tide 55%, Frost over Stone 57%, Stone over Storm 93% and Storm over Frost 20%: the last two
+   are Storm's missing Obstinate slot (section 7), not the scope. The Crystal itself, under
+   `ALL_TRIGGERS`, trims the foil's Full Battle edge by five points (71.4% to 66.7%), which is the
+   job its text describes.
+4. **What to ship.** The data favours `ONCE_PER_ABILITY`, on one condition: Resonance Crystal must
+   not mean never under it, or the scope is `OFF` for every Crystal holder and the foil advantage
+   inverts (44.4%). The default stays `ALL_TRIGGERS` in this item, and two things go to B5: the
+   Crystal's reading under `ONCE_PER_ABILITY` (back to one spared silence per battle, as DD-30 had
+   it, or a higher slot cost for "never") and Storm's slot. `REACTIONS_ONLY` is the scope the data
+   argues against: it makes Pierce the best card in the game. The knob is now measurable in an
+   afternoon (`--prefer pierce`, `--without resonance_crystal`), so B4 and B5 can re-run it after
+   each change.
