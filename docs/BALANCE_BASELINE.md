@@ -144,7 +144,27 @@ White 50.3%, surprise losses 6.4%, median 66 plies. Result reasons: repetition 2
 
 Under `REACTIONS_ONLY` (same commands with `--silence REACTIONS_ONLY`):
 
-@@AR_RO@@
+**First Blood**
+
+| Row vs column | maximum | flexible | focused | starter |
+| --- | --- | --- | --- | --- |
+| maximum | — | 60.0% | 57.5% | 63.3% |
+| flexible | 40.0% | — | 47.5% | 70.0% |
+| focused | 42.5% | 52.5% | — | 70.0% |
+| starter | 36.7% | 30.0% | 30.0% | — |
+
+White 46.4%, surprise losses 34.9%, median 13 plies. Result reasons: objective 348, checkmate 8, stalwart_captured 2, repetition 2.
+
+**Full Battle**
+
+| Row vs column | maximum | flexible | focused | starter |
+| --- | --- | --- | --- | --- |
+| maximum | — | 43.8% | 79.2% | 100.0% |
+| flexible | 56.3% | — | 85.4% | 95.8% |
+| focused | 20.8% | 14.6% | — | 89.6% |
+| starter | 0.0% | 4.2% | 10.4% | — |
+
+White 50.3%, surprise losses 7.3%, median 66 plies. Result reasons: repetition 25, stalwart_captured 12, ply_cap 8, checkmate 97, fifty_move 2.
 
 ## 5. One card at a time: the mirror tests
 
