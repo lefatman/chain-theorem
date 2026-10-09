@@ -221,7 +221,7 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
   Vite dev proxy answers `{ error: 'no_server' }` with status 200 when no Worker runs so the title's
   probe logs no browser error (the local e2e asserts a clean console). `pnpm check` 1,594 unit tests
   (alpha helpers 5), `format:check` clean; local e2e title, loadouts and settings specs 8/8;
-  online e2e `alpha.spec.ts` 1 passed (the full suite's re-run is recorded below once it finishes); `docs/screenshots` 01-title, 08-mobile-title, 20-alpha-create, 21-alpha-code and
+  `pnpm test:e2e:online` with the screenshot spec 11 passed (2.0 min); `docs/screenshots` 01-title, 08-mobile-title, 20-alpha-create, 21-alpha-code and
   22-alpha-join-mobile refreshed from the running Worker (`e2e-online/screenshots.spec.ts`, on demand
   with `CT_SCREENSHOTS=1`).
 
