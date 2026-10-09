@@ -75,7 +75,16 @@ Advantaged element: **48.3%**. White 46.9%, surprise losses 6.5%, median 23 plie
 
 **Full Battle** — `pnpm sim --suite elements --format full --games 40 --nodes 20000`
 
-@@EL_FULL@@
+| Row vs column | ember | tide | grove | storm | stone | frost |
+| --- | --- | --- | --- | --- | --- | --- |
+| ember | mirror, white 40.0% | 18.8% | 76.3% | 87.5% | 65.0% | 47.5% |
+| tide | 81.3% | mirror, white 51.2% | 20.0% | 83.8% | 92.5% | 88.8% |
+| grove | 23.8% | 80.0% | mirror, white 55.0% | 95.0% | 47.5% | 81.3% |
+| storm | 12.5% | 16.3% | 5.0% | mirror, white 61.3% | 27.5% | 70.0% |
+| stone | 35.0% | 7.5% | 52.5% | 72.5% | mirror, white 53.8% | 43.8% |
+| frost | 52.5% | 11.3% | 18.8% | 30.0% | 56.3% | mirror, white 53.8% |
+
+Advantaged element: **72.7%**. White 52.0%, surprise losses 0.0%, median 69 plies. Result reasons: checkmate 612, repetition 194, ply_cap 29, stalemate 2, fifty_move 3.
 
 ## 3. The `REACTIONS_ONLY` silence scope
 
