@@ -26,7 +26,10 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   on the title page. B3 (DD-108) adds the `ONCE_PER_ABILITY` silence scope, measurable at last
   with Pierce in the builds (`--prefer`): it comes closest to the Full Battle target (61.7%) as long
   as Resonance Crystal does not mean never under it; the default stays `ALL_TRIGGERS` and the
-  Crystal question goes to B5. Next run: B4 (trait numbers), then B5–B8.
+  Crystal question goes to B5. B3b (DD-109, DD-110) carries out the designer's two answers of
+  2026-10-09: Stalwart on a king costs an item slot (loadout rule 9), and Electric Slide ships the
+  most balanced measured turn (bishops only, at a bishop, rook, queen or king; B2b's rooks-and-bishops
+  rule stays one config line away). Next run: B4 (trait numbers), then B5–B8.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
   know), Storm, Stone and Frost with 12 abilities, 2 items and Highcairn Pass.
@@ -221,6 +224,24 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 - Arcane Chess codebase path for step 2.8 (optional).
 
 ## Evidence log
+
+- 2026-10-09 B3b Designer answers (DD-109, DD-110; R-LOAD-004, R-RULES-003, R-INFO-001, R-INFO-003,
+  R-INFO-004, R-ELEM-003, R-TEST-002): loadout rule 9 (`kingItemSlots`, Stalwart v3) through the
+  validator, the public consumed total, deductions (range walk), previews, the loadout builder
+  (meter, block reasons, dossier), the content validator and the simulator (`--king`, the Stalwart
+  mirror pays Scout's Lens); `CAPS.ELECTRIC_SLIDE` knob (module v4) with simulator and fuzzer
+  `--caps`/`--tag`; bishops-only default; E15 rewritten. `pnpm check` 1,616 unit tests (property
+  checker and arbitraries know rule 9), `req:coverage` 84/84; `pnpm test:fuzz` 500 games clean under
+  the new defaults. Simulator (20,000 nodes, Trainer): Electric Slide variant matrix at 120/80 games
+  and finalists at 300/200 (shipped rule 57.8% First Blood, 64.0% Full Battle; rook turns 68–70%
+  Full, bishops through knights 88% First Blood, leap alone 57.5%/57.5%); Stalwart mirror paying
+  its slot 61.1% / 81.3%; archetypes First Blood 60 and Full Battle 24 games under `--king plain`
+  (Maximum and Flexible over Focused 65–69% in Full Battle, 50/50 between them) and `--king
+stalwart` (81–88% over Focused, `stalwart_captured` 13 of 144); elements First Blood 60 games
+  (advantaged 46.9%, Storm's row 18–42%, surprise losses 10.2%, median 25 plies) and Full Battle 40 games (advantaged 69.4%, Storm's row 0–24%, surprise losses 0.5%, median 68 plies).
+  Findings in `docs/BALANCE_BASELINE.md` section 9. Review of the diff by a separate agent found no
+  R-SEC-001 or R-INFO-003 defect; its three nits (a hint overstating at zero consumed slots, a test
+  name's requirement ID, a stale handoff line) are fixed.
 
 - 2026-10-09 B3 Silence scope (DD-108; R-ELEM-002, R-LOAD-002, R-SEC-001, R-TEST-002): engine
   `ONCE_PER_ABILITY` with the `silenced` record (hashed, kept through a rewind, projected only where

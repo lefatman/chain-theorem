@@ -22,7 +22,10 @@ re-measures after the Electric Slide fix (DD-106): the opening trap is gone (Sto
 22–56%), the card alone reads 72% and 75%, and Storm is now the weakest Full Battle element for want
 of Obstinate. Section 8 measures the silence scopes with a Capturing card in play (B3, DD-108): the new
 `ONCE_PER_ABILITY` comes closest to the Full Battle target (61.7%) as long as Resonance Crystal does
-not mean never under it.
+not mean never under it. Section 9 carries out two designer answers (B3b, DD-109, DD-110): Stalwart
+on a king costs an item slot, which prices the king set without yet making Focused competitive
+against a paid Stalwart king (81–88% in Full Battle, as before), and Electric Slide ships its most
+balanced measured turn (bishops only, at a bishop, rook, queen or king: 58% and 64% on its own).
 
 ## 1. Method
 
@@ -677,12 +680,152 @@ rule (DD-106) is the first row.
 | Rooks                 | a piece that has moved        | 60.4%             | 21           | 65.6%            |
 | Bishops               | a piece that has moved        | 87.9%             | 15           | 53.8%            |
 
-@@CONFIRM@@
+Bishop lines through a developed knight decide First Blood (bishops at any piece 88%, at pieces that
+have moved 88%: the `Bc5-d4-c3` pattern of section 7), rook turns decide Full Battle (68–74%
+whichever corners), and the leap alone is already a solid card (57.5% in both formats, the band the
+other signatures sit in: 42–51% in First Blood and 52–77% in Full Battle, section 5). Four finalists
+were re-run at 300 and 200 games (the same seed base, so the first 120 and 80 games are the rows
+above):
 
-@@SHIPPED@@
+**The finalists** — `--games 300` and `--games 200`
+
+| Turning sliders   | Corners                | First Blood (300) | Median plies | Full Battle (200) |
+| ----------------- | ---------------------- | ----------------- | ------------ | ----------------- |
+| Rooks             | any piece but a pawn   | 55.8%             | 20           | 68.0%             |
+| Rooks             | not a pawn or a knight | 57.2%             | 21           | 68.8%             |
+| Rooks and bishops | not a pawn or a knight | 59.2%             | 21           | 70.0%             |
+| Bishops           | not a pawn or a knight | 57.8%             | 21           | 64.0%             |
+
+**The choice (DD-110).** Bishops turning once at an allied bishop, rook, queen or king is the only
+turning rule that adds no First Blood edge over the leap alone (57.8% against 57.5%) while keeping a
+moderate Full Battle bonus (64.0%, between Cleave's 58% and Poisoned Meat's 77%); every rule that
+lets rooks turn reads 68–70% in Full Battle, and every rule that lets bishops turn at knights reads
+88% in First Blood. It ships as the default of `CAPS.ELECTRIC_SLIDE` (`turners: ['bishop']`,
+`corners: 'no_knights'`); the DD-106 geometry stays one config line away, and the module's tests keep
+exercising it through a caps override. The designer may prefer another row: each is one line.
+
+With the shipped rule in every Storm build, the element and archetype suites of section 7 were
+re-run (same seeds and counts).
+
+**Element matchups, First Blood** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000`
+
+| ember | mirror, white 51.7% | 29.2% | 47.5% | 81.7% | 59.2% | 57.5% |
+| tide | 70.8% | mirror, white 35.0% | 67.5% | 68.3% | 87.5% | 68.3% |
+| grove | 52.5% | 32.5% | mirror, white 30.8% | 63.3% | 63.3% | 45.8% |
+| storm | 18.3% | 31.7% | 36.7% | mirror, white 57.5% | 41.7% | 32.5% |
+| stone | 40.8% | 12.5% | 36.7% | 58.3% | mirror, white 65.0% | 60.0% |
+| frost | 42.5% | 31.7% | 54.2% | 67.5% | 40.0% | mirror, white 51.7% |
+
+Advantaged element: **46.9%**. White 52.1%, surprise losses 10.2%, median 25 plies. Result reasons: repetition 83, objective 1070, checkmate 102, ply_cap 5.
+
+**Element matchups, Full Battle** — `pnpm sim --suite elements --format full --games 40 --nodes 20000`
+
+| ember | mirror, white 40.0% | 18.8% | 76.3% | 92.5% | 65.0% | 47.5% |
+| tide | 81.3% | mirror, white 51.2% | 20.0% | 100.0% | 92.5% | 88.8% |
+| grove | 23.8% | 80.0% | mirror, white 55.0% | 91.3% | 47.5% | 81.3% |
+| storm | 7.5% | 0.0% | 8.8% | mirror, white 53.8% | 1.3% | 23.8% |
+| stone | 35.0% | 7.5% | 52.5% | 98.8% | mirror, white 53.8% | 43.8% |
+| frost | 52.5% | 11.3% | 18.8% | 76.3% | 56.3% | mirror, white 53.8% |
+
+Advantaged element: **69.4%**. White 52.1%, surprise losses 0.5%, median 68 plies. Result reasons: checkmate 610, repetition 196, ply_cap 29, stalemate 2, fifty_move 3.
+
+**What changed.** Storm's First Blood row falls from 22–56% (section 7) to 18–42% and its Full
+Battle row from 0–39% to 0–24%: a bishop turn is worth less than a rook turn over 70 plies, so the
+signature change costs Storm about ten points where it was already weakest, for the reason section 7
+gives (its passive slot holds the signature where every other Focused build holds Obstinate). The
+aggregates barely move: advantaged element 46.9% (48.3%) in First Blood and 69.4% (70.8%) in Full
+Battle, surprise losses 10.2% and 0.5%, medians 25 and 68 plies. Stone over Storm reads 58% in First
+Blood (44% before) and Storm over Frost 33% (55%): the two Storm pairs of the wheel now read like
+their Full Battle counterparts, the slot problem rather than the opening. B5 (Storm's slot,
+Obstinate's cost) is where Storm's row moves next.
 
 ### 9.2 Stalwart on a king costs an item slot (rule 9)
 
-@@STALWART@@
+The designer's answer: yes, Stalwart on a king should cost a slot. An ability slot would cost nothing
+in practice, because a per-type king set has nothing better to hold (Captured cards and Obstinate are
+inert on a king, section 1), while finding 3 showed that king set deciding Full Battle between
+archetypes. So the slot is an item slot (7.4 rule 9, DD-109): `kingItemSlots` is module data
+(Stalwart: 1), added to rule 1's total when the set that applies to the king holds it (the sixth
+per-type set, or the army-wide set). The total stays public under 8.1, deductions treat an unrevealed
+king slot as either an item or the king's cost until Stalwart is seen on the king, and the loadout
+builder shows the slot in its meter.
 
-@@FINDINGS@@
+At level 25 every 7.3 build uses all six item slots, so a Stalwart king now costs Maximum its Blended
+Family (and second element) and Flexible its Resonance Crystal; the simulator plays both answers:
+`--king plain` (the 7.3 item lists, no Stalwart anywhere) and `--king stalwart` (the king set leads
+with Stalwart and the build pays). Focused and Starter never carry it (rule 8 would strip an
+army-wide set of its offensive cards). The mirror test for Stalwart itself pays the slot too: the
+side carrying the card gives up Scout's Lens.
+
+**Stalwart alone, paying its slot** — `pnpm sim --suite cards --cards stalwart --format first_blood --games 36 --nodes 20000` and `--format full --games 24`
+
+| Format      | Card     | Category | Level | Score with the card | Games | Median plies | Note          |
+| ----------- | -------- | -------- | ----- | ------------------- | ----- | ------------ | ------------- |
+| First Blood | Stalwart | PASSIVE  | 16    | 61.1%               | 36    | 11           | **above 60%** |
+| Full Battle | Stalwart | PASSIVE  | 16    | 81.3%               | 24    | 68           | **above 60%** |
+
+**Build archetypes** — the 7.3 item lists first (`--king plain`, the default), then with the Stalwart king paid for (`--king stalwart`: Maximum without Blended Family, Flexible without the Crystal).
+
+**First Blood, the 7.3 item lists, no Stalwart** — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000`
+
+| maximum | — | 68.3% | 49.2% | 58.3% |
+| flexible | 31.7% | — | 44.2% | 60.0% |
+| focused | 50.8% | 55.8% | — | 84.2% |
+| starter | 41.7% | 40.0% | 15.8% | — |
+
+White 50.7%, surprise losses 22.5%, median 19 plies. Result reasons: objective 340, checkmate 11, repetition 8, ply_cap 1.
+
+**First Blood, Stalwart kings paid for** — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000 --king stalwart`
+
+| maximum | — | 66.7% | 58.3% | 58.3% |
+| flexible | 33.3% | — | 53.3% | 66.7% |
+| focused | 41.7% | 46.7% | — | 84.2% |
+| starter | 41.7% | 33.3% | 15.8% | — |
+
+White 49.6%, surprise losses 27.3%, median 18 plies. Result reasons: objective 348, checkmate 6, repetition 5, stalwart_captured 1.
+
+**Full Battle, the 7.3 item lists, no Stalwart** — `pnpm sim --suite archetypes --format full --games 24 --nodes 20000`
+
+| maximum | — | 50.0% | 68.8% | 97.9% |
+| flexible | 50.0% | — | 64.6% | 95.8% |
+| focused | 31.3% | 35.4% | — | 87.5% |
+| starter | 2.1% | 4.2% | 12.5% | — |
+
+White 49.7%, surprise losses 7.2%, median 64 plies. Result reasons: repetition 28, checkmate 111, ply_cap 4, fifty_move 1.
+
+**Full Battle, Stalwart kings paid for** — `pnpm sim --suite archetypes --format full --games 24 --nodes 20000 --king stalwart`
+
+| maximum | — | 41.7% | 81.3% | 91.7% |
+| flexible | 58.3% | — | 87.5% | 93.8% |
+| focused | 18.8% | 12.5% | — | 87.5% |
+| starter | 8.3% | 6.3% | 12.5% | — |
+
+White 51.4%, surprise losses 12.0%, median 70 plies. Result reasons: stalwart_captured 13, ply_cap 8, repetition 26, checkmate 95, fifty_move 2.
+
+### 9.3 What the data says
+
+1. **Storm's signature is in the band.** The shipped Electric Slide reads 57.8% in First Blood and
+   64.0% in Full Battle on its own (section 5 had 100% and 100%, section 7 72% and 75%). Its First
+   Blood score is the leap's: the attuned bishop turn adds nothing there, which is the point. In
+   Full Battle it sits between Cleave and Poisoned Meat. In the element suite Storm pays for the weaker turn where it was already weakest (its Full Battle
+   row 0–24% from 0–39%, its First Blood row 18–42% from 22–56%), which is the passive-slot problem
+   of section 7 and B5's to fix, not the signature's.
+2. **The Stalwart king now has a price, and one item slot is not it.** Paying Scout's Lens for the
+   card moves its mirror score from 69% to 61% in First Blood and leaves Full Battle at 81%: a king
+   that must be caught is worth far more than a utility item over 70 plies. The archetype suite says
+   the same. Without Stalwart (the 7.3 item lists) Maximum and Flexible are level (50% each way in
+   Full Battle, 68% for Maximum in First Blood) and beat Focused 65–69% in Full Battle, down from
+   83–88%; with the king paid for (Maximum without Blended Family, Flexible without the Crystal)
+   they beat Focused 81–88% again, exactly section 7's numbers, and a quarter of those games end in
+   `stalwart_captured`. Rule 9 makes the choice visible and costed; it does not yet make Focused
+   competitive with a Stalwart king. The levers left are B5's: at most two passives per set (rule 10) takes Block Path or Veil off the king, Obstinate at two slots narrows the per-type edge, and
+   the designer can raise the king's cost to two item slots in one line of module data.
+3. **Archetype target.** Maximum against Flexible is inside 45–55% in Full Battle under either king
+   rule (50% and 42–58%); Maximum over Flexible in First Blood stays at 67–68% (section 7: 67%),
+   which is the second element and the fifth selections at work, not the king. Focused against the
+   Schedule builds misses in Full Battle (31–35% without Stalwart, 13–19% against a paid Stalwart
+   king) and is level in First Blood (41–56%).
+4. **What ships.** Rule 9 and the bishops-only Electric Slide, both PLAYTEST: the loadout builder
+   shows the king's slot, the simulator plays both king answers (`--king`) and every Electric Slide
+   variant above is one `--caps` line, so B4 and B5 can re-measure either in minutes. The designer
+   may overrule either decision; DD-109 and DD-110 record the alternatives measured.

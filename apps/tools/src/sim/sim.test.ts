@@ -49,6 +49,10 @@ describe('balance simulator (R-TEST-002)', () => {
       SILENCE_SCOPE: 'OFF',
       TWIN_GROUP_MAX: 2,
     });
+    // A misspelt value would silently measure another rule.
+    expect(() => capsOverrides('{"ELECTRIC_SLIDE":{"corners":"knights"}}')).toThrow(/corners/);
+    expect(() => capsOverrides('{"ELECTRIC_SLIDE":{"turners":["horse"]}}')).toThrow(/turners/);
+    expect(() => capsOverrides('{"NOPE":1}')).toThrow(/unknown cap/);
   });
 
   it('R-TEST-002 the archetype suite plays every element pair with both colour assignments', () => {

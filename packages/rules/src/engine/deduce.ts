@@ -184,14 +184,15 @@ export function deduce(rt: Runtime, pub: PublicState): Deductions {
   }
   // Rule 9 (DD-109): slots the king's set provably uses, and slots it may still be using.
   const abilityName = (id: string) => rt.abilities.get(id)?.name ?? id;
+  // Slots the king may still be using: never more than the consumed total leaves unexplained.
+  const extra = Math.min(royalMax - royalMin, Math.max(0, army.consumedSlots - royalMin));
   if (royalMin > 0) {
     const payers = kingKnown.filter((id) => (rt.abilities.get(id)?.kingItemSlots ?? 0) > 0);
     hints.push(
-      `${payers.map(abilityName).join(' and ')} on the king uses ${royalMin} of the consumed slot${royalMin === 1 ? '' : 's'}, so items use ${upper}.`,
+      `${payers.map(abilityName).join(' and ')} on the king uses ${royalMin} of the consumed slot${royalMin === 1 ? '' : 's'}, so items use ${extra > 0 ? 'at most ' : ''}${upper}.`,
     );
   }
-  if (royalMax > royalMin) {
-    const extra = royalMax - royalMin;
+  if (extra > 0) {
     hints.push(
       `${extra === 1 ? 'One slot' : `Up to ${extra} slots`} may be ${royalMaybe.map((a) => a.name).join(' or ')} on the king rather than an item.`,
     );

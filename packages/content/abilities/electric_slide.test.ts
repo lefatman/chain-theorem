@@ -60,7 +60,7 @@ describe('Electric Slide (5.8, DD-104)', () => {
     expect(abilityById.get('squall')?.attuned).toBeUndefined();
   });
 
-  it('R-ELEM-003 R-LOAD-001 DD-110 the ELECTRIC_SLIDE config knob picks the turning sliders and the corner rule: bishops stop turning without them in `turners`, `no_knights` drops a knight as a corner, `moved` needs a piece off its starting square', () => {
+  it('R-ELEM-003 R-RULES-001 R-TEST-002 DD-110 the ELECTRIC_SLIDE config knob picks the turning sliders and the corner rule: bishops stop turning without them in `turners`, `no_knights` drops a knight as a corner, `moved` needs a piece off its starting square', () => {
     // Bc1 meets the knight e3 and turns NW (a7..d4) or SE (f2, g1) under the DD-106 values; under
     // the shipped ones a knight is no corner.
     const fen = '7k/8/8/8/8/4N3/8/K1B5 w - - 0 1';
