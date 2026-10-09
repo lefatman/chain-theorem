@@ -6,17 +6,21 @@
  * threads; exits 1 on any failure.
  *
  *   tsx apps/tools/src/fuzz/cli.ts --games N [--seed S] [--workers W] [--max-plies P] [--scan-every K]
+ *                                   [--silence ALL_TRIGGERS|REACTIONS_ONLY|ONCE_PER_ABILITY|OFF]
  */
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { engine } from '@chain-theorem/content';
+import { CAPS, engine as defaultEngine, makeEngine } from '@chain-theorem/content';
+import type { SilenceScope } from '@chain-theorem/rules/sdk';
 import { fuzzGame, type FuzzGameResult } from './game.ts';
 
 interface Job {
   seeds: number[];
   maxPlies: number;
   scanEvery: number;
+  /** The silence scope to fuzz under (6.2); the configured default unless `--silence` says otherwise. */
+  silence: SilenceScope;
 }
 
 function arg(name: string, def: number): number {
@@ -27,6 +31,8 @@ function arg(name: string, def: number): number {
 
 if (!isMainThread) {
   const job = workerData as Job;
+  const engine =
+    job.silence === CAPS.SILENCE_SCOPE ? defaultEngine : makeEngine({ SILENCE_SCOPE: job.silence });
   const results: FuzzGameResult[] = [];
   for (const seed of job.seeds) {
     const r = fuzzGame(engine, seed, {
@@ -40,6 +46,8 @@ if (!isMainThread) {
   parentPort?.postMessage({ done: results.map((r) => ({ ...r, failure: r.failure })) });
 } else {
   const games = arg('games', 500);
+  const si = process.argv.indexOf('--silence');
+  const silence = (si >= 0 ? (process.argv[si + 1] ?? '') : CAPS.SILENCE_SCOPE) as SilenceScope;
   const seed0 = arg('seed', 1);
   const maxPlies = arg('max-plies', 300);
   const scanEvery = arg('scan-every', games > 20_000 ? 10 : 1);
@@ -58,7 +66,7 @@ if (!isMainThread) {
       (chunk) =>
         new Promise<void>((resolve, reject) => {
           const w = new Worker(new URL(import.meta.url), {
-            workerData: { seeds: chunk, maxPlies, scanEvery } satisfies Job,
+            workerData: { seeds: chunk, maxPlies, scanEvery, silence } satisfies Job,
             execArgv: [
               ...process.execArgv.filter((a) => a !== '--import' && a !== 'tsx'),
               '--import',
