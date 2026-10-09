@@ -71,7 +71,7 @@ Grove over Tide, Storm over Frost, Frost over Stone, Stone over Storm.
 | stone | 40.8% | 12.5% | 36.7% | 0.0% | mirror, white 65.0% | 60.0% |
 | frost | 42.5% | 31.7% | 54.2% | 0.8% | 40.0% | mirror, white 51.7% |
 
-Advantaged element: **48.3%**. White 46.9%, surprise losses 61.3%, median 23 plies. Result reasons: repetition 74, objective 1120, checkmate 61, ply_cap 5.
+Advantaged element: **48.3%**. White 46.9%, surprise losses 6.5%, median 23 plies. Result reasons: repetition 74, objective 1120, checkmate 61, ply_cap 5.
 
 **Full Battle** — `pnpm sim --suite elements --format full --games 40 --nodes 20000`
 
