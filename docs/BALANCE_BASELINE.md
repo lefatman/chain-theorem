@@ -115,7 +115,14 @@ White 46.4%, surprise losses 34.9%, median 13 plies. Result reasons: objective 3
 
 **Full Battle** — `pnpm sim --suite archetypes --format full --games 24 --nodes 20000`
 
-@@AR_FULL@@
+| Row vs column | maximum | flexible | focused | starter |
+| --- | --- | --- | --- | --- |
+| maximum | — | 43.8% | 79.2% | 100.0% |
+| flexible | 56.3% | — | 85.4% | 95.8% |
+| focused | 20.8% | 14.6% | — | 89.6% |
+| starter | 0.0% | 4.2% | 10.4% | — |
+
+White 50.3%, surprise losses 6.4%, median 66 plies. Result reasons: repetition 26, stalwart_captured 12, ply_cap 7, checkmate 97, fifty_move 2.
 
 Under `REACTIONS_ONLY` (same commands with `--silence REACTIONS_ONLY`):
 
