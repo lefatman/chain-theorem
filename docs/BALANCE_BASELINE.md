@@ -104,7 +104,14 @@ cell is a paired comparison with the table above.
 
 **First Blood** — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000`
 
-@@AR_FB@@
+| Row vs column | maximum | flexible | focused | starter |
+| --- | --- | --- | --- | --- |
+| maximum | — | 60.0% | 57.5% | 63.3% |
+| flexible | 40.0% | — | 47.5% | 70.0% |
+| focused | 42.5% | 52.5% | — | 70.0% |
+| starter | 36.7% | 30.0% | 30.0% | — |
+
+White 46.4%, surprise losses 34.9%, median 13 plies. Result reasons: objective 348, checkmate 8, stalwart_captured 2, repetition 2.
 
 **Full Battle** — `pnpm sim --suite archetypes --format full --games 24 --nodes 20000`
 
