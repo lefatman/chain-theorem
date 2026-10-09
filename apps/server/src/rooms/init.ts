@@ -10,6 +10,11 @@ export interface LobbyInit {
   format: FormatId;
   code: string;
   creator: SeatInit & { playerId: string };
+  /**
+   * An alpha guest lobby (9.6, DD-107): both seats play at `level`, the room records nothing when
+   * the battle ends, and the lobby closes at `expiresAt` if nobody joined.
+   */
+  alpha?: { level: number; expiresAt: number };
 }
 
 /** Colours for two seats: random, from the platform's CSPRNG (White is assigned by the server, 4.2). */

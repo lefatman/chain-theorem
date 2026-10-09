@@ -514,7 +514,7 @@ are dropped and counted.
 ## 6. Server (`apps/server`, 12.2, R-TECH-002)
 
 Worker routes: `/api/auth/*` (magic link, OAuth, sign-out), `/api/me`, `/api/loadouts`, `/api/inventory`,
-`/api/battles` (challenge links, NPC battles), `/api/queue`, `/api/trades`, `/api/guilds`,
+`/api/battles` (challenge links, NPC battles), `/api/alpha` (guest play by one-time code, 9.6), `/api/queue`, `/api/trades`, `/api/guilds`,
 `/api/leaderboards`, `/api/tournaments`, `/api/billing/*` (checkout, webhook), `/api/admin/*`,
 `/ws/zone/:zone`, `/ws/battle/:id`, `/ws/queue/:format`, `/ws/spectate/:id` (WebSocket upgrades need a
 60-second signed token bound to the player and room, R-SEC-006), and static assets.
@@ -539,6 +539,12 @@ REST contract (M4; JSON bodies validated with `@chain-theorem/protocol` schemas;
 | `POST /api/battles`                          | `CreateBattle`          | NPC: `BattleTicket`; challenge: `{ code, url, ticket }`                                  |
 | `GET /api/challenges/:code`                  | —                       | `{ format, from: { name, level }, open }`                                                |
 | `POST /api/challenges/:code/accept`          | `{ loadoutId }`         | `BattleTicket`                                                                           |
+| `GET /api/alpha/me`                          | —                       | `AlphaMe`: whether alpha guest play is on and who the alpha routes see (9.6, DD-107)     |
+| `POST /api/alpha/guest`                      | —                       | `{ me }` plus the 24-hour guest cookie; 429 when an address mints too many               |
+| `POST /api/alpha/battles`                    | `AlphaCreate`           | `AlphaCreated { code, url, ticket }`: an `a-<code>` lobby at the chosen level            |
+| `GET /api/alpha/:code`                       | —                       | `AlphaInfo { format, level, from: { name }, open }`                                      |
+| `POST /api/alpha/:code/accept`               | `AlphaAccept`           | `BattleTicket`; the loadout must be legal at the lobby's level                           |
+| `POST /api/alpha/battles/:id/ticket`         | —                       | `BattleTicket` for a seated guest or player (rejoin)                                     |
 | `POST /api/queue/ticket`                     | `JoinQueue`             | `{ url }` for the queue socket (`/ws/queue/:format?t=`)                                  |
 | `POST /api/battles/:id/ticket`               | —                       | `BattleTicket` (players of that battle only; a fresh 60 s ticket per connect)            |
 | `GET /api/battles/active`                    | —                       | `{ battles: { id, format, opponent }[] }` to rejoin after a reload                       |

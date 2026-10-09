@@ -21,7 +21,7 @@ import type { Env } from '../env.ts';
 import { legalLoadout } from './account.ts';
 import type { Ctx } from './context.ts';
 
-function room(env: Env, battleId: string): DurableObjectStub {
+export function room(env: Env, battleId: string): DurableObjectStub {
   return env.BATTLE_ROOM.get(env.BATTLE_ROOM.idFromName(battleId));
 }
 
@@ -38,13 +38,16 @@ export async function battleTicket(
   };
 }
 
-async function info(env: Env, battleId: string): Promise<RoomInfo> {
+export async function info(env: Env, battleId: string): Promise<RoomInfo> {
   const res = await room(env, battleId).fetch('https://room/info');
   return (await res.json()) as RoomInfo;
 }
 
-/** Challenge codes: 10 base62-ish characters (about 60 bits); the battle id is `c-<code>`. */
-function newCode(): string {
+/**
+ * Challenge codes: 10 base62-ish characters (about 60 bits); the battle id is `c-<code>` (alpha
+ * guest battles use `a-<code>`, api/alpha.ts).
+ */
+export function newCode(): string {
   return randomToken(8).replace(/[-_]/g, 'x').slice(0, 10);
 }
 

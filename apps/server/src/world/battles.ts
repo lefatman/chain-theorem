@@ -42,7 +42,12 @@ export type BattleOrigin =
    * A game of a tournament round (M7 7.1, 10.4 R-WORLD-004): `settleBattle` reports the result to
    * the TournamentRoom (idempotent per battle). PvP only, unrated, never a wager.
    */
-  | { kind: 'tournament'; tournamentId: string; round: number };
+  | { kind: 'tournament'; tournamentId: string; round: number }
+  /**
+   * An alpha guest battle by one-time code (9.6, DD-107): both seats at `level`, often guests
+   * without accounts. Nothing is recorded, rewarded, rated or told to a zone; never listed.
+   */
+  | { kind: 'alpha'; level: number };
 
 /**
  * A battle started outside the zone core (M6 6.4): an item wager, a queue, ranked or challenge-link
@@ -55,7 +60,9 @@ export function outsideZone(origin: BattleOrigin): boolean {
     origin.kind !== 'wild' &&
     origin.kind !== 'trainer' &&
     origin.kind !== 'lesson' &&
-    origin.kind !== 'challenge'
+    origin.kind !== 'challenge' &&
+    // An alpha battle's seats may be guests with no zone presence; it is tracked nowhere (DD-107).
+    origin.kind !== 'alpha'
   );
 }
 

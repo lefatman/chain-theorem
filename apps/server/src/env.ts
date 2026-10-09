@@ -54,4 +54,9 @@ export interface Env {
   FAKE_BILLING?: string;
   /** Signing key for the fake provider; derived from AUTH_SECRET when unset. */
   FAKE_BILLING_SECRET?: string;
+  /**
+   * `on` enables alpha guest play (9.6, DD-107): guest identities and one-time-code battles at a
+   * chosen level under `/api/alpha`. Unset in production.
+   */
+  ALPHA_GUEST_PLAY?: string;
 }

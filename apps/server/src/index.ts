@@ -9,6 +9,8 @@ import { makeCtx, type Ctx } from './api/context.ts';
 import { authRoutes } from './api/auth.ts';
 import { accountRoutes, viewLoadouts } from './api/account.ts';
 import { battleRoutes } from './api/battles.ts';
+import { alphaRoutes } from './api/alpha.ts';
+import { alphaEnabled, isAlphaBattleId, isGuestId } from './alpha/guest.ts';
 import { spectateRoutes } from './api/spectate.ts';
 import { socialRoutes } from './api/social.ts';
 import { worldRoutes, zoneSocket } from './api/world.ts';
@@ -38,6 +40,7 @@ const router = new Router<Ctx>();
 authRoutes(router);
 accountRoutes(router);
 battleRoutes(router);
+alphaRoutes(router);
 spectateRoutes(router);
 socialRoutes(router);
 worldRoutes(router);
@@ -97,8 +100,15 @@ async function socket(req: Request, env: Env): Promise<Response> {
     const battleId = parts[2] as string;
     const player = await verifyTicket(env.AUTH_SECRET, token, `battle:${battleId}`, now);
     if (!player) return json({ error: 'bad_ticket' }, 403);
-    const refused = await refuseSuspended(env, player, now);
-    if (refused) return refused;
+    if (isGuestId(player)) {
+      // An alpha guest (9.6, DD-107) has no account to suspend and may only enter alpha battles,
+      // and only while the mode is on.
+      if (!alphaEnabled(env) || !isAlphaBattleId(battleId))
+        return json({ error: 'bad_ticket' }, 403);
+    } else {
+      const refused = await refuseSuspended(env, player, now);
+      if (refused) return refused;
+    }
     const headers = new Headers(req.headers);
     headers.set('x-player-id', player);
     const stub = env.BATTLE_ROOM.get(env.BATTLE_ROOM.idFromName(battleId));
