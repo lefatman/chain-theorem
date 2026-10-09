@@ -44,6 +44,10 @@ export const CAPS = {
   MAX_EVENTS_PER_ACTION: 512,
   // 5.8 Schrödinger's Joker (DD-101, PLAYTEST): a twin group holds at most this many pieces.
   TWIN_GROUP_MAX: 3,
+  // 5.8 Electric Slide's attuned turn (DD-106, PLAYTEST): which sliders turn once per move and at
+  // which allies ('pieces': any allied piece other than a pawn; 'no_knights'; 'moved': one that
+  // has left its starting square). `pnpm sim --caps` and the fuzzer's `--caps` override it.
+  ELECTRIC_SLIDE: { turners: ['rook', 'bishop'], corners: 'pieces' },
 } as const satisfies Caps;
 
 /**

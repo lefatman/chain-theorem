@@ -65,6 +65,7 @@ const caps: Caps = {
   FORMATS,
   MAX_EVENTS_PER_ACTION: 512,
   TWIN_GROUP_MAX: 3,
+  ELECTRIC_SLIDE: { turners: ['rook', 'bishop'], corners: 'pieces' },
 };
 
 const engine = createEngine(emptyRegistry, caps);

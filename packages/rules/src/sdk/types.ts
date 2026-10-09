@@ -32,6 +32,12 @@ export type Status = 'COMMITTED' | 'PROVISIONAL' | 'PLAYTEST';
  * type once per battle (DD-108), OFF disables the advantage for testing.
  */
 export type SilenceScope = 'ALL_TRIGGERS' | 'REACTIONS_ONLY' | 'ONCE_PER_ABILITY' | 'OFF';
+/**
+ * Which allies a turning slider may use as a corner (Electric Slide, 5.8, PLAYTEST; DD-106, DD-110):
+ * `pieces` any allied piece other than a pawn, `no_knights` any such piece other than a knight,
+ * `moved` any such piece that has left its starting square.
+ */
+export type ElectricSlideCorners = 'pieces' | 'no_knights' | 'moved';
 
 // ---- caps (values live in packages/content/config.ts) --------------------------------------------
 
@@ -58,6 +64,12 @@ export interface Caps {
   MAX_EVENTS_PER_ACTION: number;
   /** Most pieces in one twin group, the original included (Schrödinger's Joker, DD-101). */
   TWIN_GROUP_MAX: number;
+  /**
+   * Electric Slide's attuned turn (5.8, PLAYTEST; DD-106, DD-110): the slider types that turn once
+   * per move and the allies that serve as corners. The module reads it; the simulator and fuzzer
+   * override it with `--caps` to measure variants.
+   */
+  ELECTRIC_SLIDE: { turners: readonly PieceType[]; corners: ElectricSlideCorners };
 }
 
 // ---- effect data (5.2) ----------------------------------------------------------------------------

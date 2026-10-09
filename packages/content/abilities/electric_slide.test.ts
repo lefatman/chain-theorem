@@ -52,6 +52,42 @@ describe('Electric Slide (5.8, DD-104)', () => {
     expect(abilityById.get('squall')?.attuned).toBeUndefined();
   });
 
+  it('R-ELEM-003 R-LOAD-001 DD-110 the ELECTRIC_SLIDE config knob picks the turning sliders and the corner rule: bishops stop turning without them in `turners`, `no_knights` drops a knight as a corner, `moved` needs a piece off its starting square', () => {
+    // Bc1 meets the knight e3 and turns NW (a7..d4) or SE (f2, g1) under the shipped values.
+    const fen = '7k/8/8/8/8/4N3/8/K1B5 w - - 0 1';
+    const plain = ['a3', 'b2', 'd2'];
+    const turned = [...plain, 'a7', 'b6', 'c5', 'd4', 'f2', 'g1'].sort();
+    expect(
+      dests(setup({ fen, white: STORM }).engine, setup({ fen, white: STORM }).state, 'white', 'c1'),
+    ).toEqual(turned);
+    const rooksOnly = setup({
+      fen,
+      white: STORM,
+      caps: { ELECTRIC_SLIDE: { turners: ['rook'], corners: 'pieces' } },
+    });
+    expect(dests(rooksOnly.engine, rooksOnly.state, 'white', 'c1')).toEqual(plain);
+    const noKnights = setup({
+      fen,
+      white: STORM,
+      caps: { ELECTRIC_SLIDE: { turners: ['rook', 'bishop'], corners: 'no_knights' } },
+    });
+    expect(dests(noKnights.engine, noKnights.state, 'white', 'c1')).toEqual(plain);
+    // `moved`: the knight placed on e3 by the FEN stands on its starting square and is no corner;
+    // a knight that arrives there from d1 is one.
+    const movedCaps = {
+      ELECTRIC_SLIDE: { turners: ['rook', 'bishop'], corners: 'moved' },
+    } as const;
+    const unmoved = setup({ fen, white: STORM, caps: movedCaps });
+    expect(dests(unmoved.engine, unmoved.state, 'white', 'c1')).toEqual(plain);
+    const arrived = scenario({
+      fen: '7k/8/8/8/8/8/8/K1BN4 w - - 0 1',
+      white: STORM,
+      caps: movedCaps,
+      moves: ['d1e3', 'h8g8'],
+    });
+    expect(dests(arrived.engine, arrived.state, 'white', 'c1')).toEqual(turned);
+  });
+
   it('R-RULES-001 base: a pawn leaps over one adjacent ally to the empty square beyond, never over an enemy or onto an occupied square', () => {
     // d2 P with N d3 ahead; e2 P with the enemy knight e3 ahead; f2 P with f3 empty.
     const { engine, state } = setup({ fen: '4k3/8/8/8/8/3Nn3/3PPP2/4K3 w - - 0 1', white: PLAIN });

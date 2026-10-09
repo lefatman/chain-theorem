@@ -19,6 +19,7 @@ import {
   setWithout,
 } from './builds.ts';
 import { decisiveAbilities, playSim } from './play.ts';
+import { capsOverrides } from '../lib/caps.ts';
 
 const ELEMENTS = CAPS.ENABLED_ELEMENTS as readonly ElementId[];
 const affinity = new Map(abilities.map((a) => [a.id, a.affinity]));
@@ -32,6 +33,17 @@ afterEach(() => {
 });
 
 describe('balance simulator (R-TEST-002)', () => {
+  it('R-TEST-002 DD-110 --caps overrides merge object-valued caps one level deep onto the defaults', () => {
+    expect(capsOverrides('')).toEqual({});
+    expect(capsOverrides('{"ELECTRIC_SLIDE":{"turners":["rook"]}}')).toEqual({
+      ELECTRIC_SLIDE: { turners: ['rook'], corners: CAPS.ELECTRIC_SLIDE.corners },
+    });
+    expect(capsOverrides('{"SILENCE_SCOPE":"OFF","TWIN_GROUP_MAX":2}')).toEqual({
+      SILENCE_SCOPE: 'OFF',
+      TWIN_GROUP_MAX: 2,
+    });
+  });
+
   it('R-TEST-002 the archetype suite plays every element pair with both colour assignments', () => {
     for (const els of [ELEMENTS, ELEMENTS.slice(0, 3)]) {
       const colours = new Map<string, Set<boolean>>();

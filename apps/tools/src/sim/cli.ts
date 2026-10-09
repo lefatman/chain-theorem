@@ -10,6 +10,8 @@
  *            [--cards id,id,...] (the cards suite only: test these abilities instead of all)
  *            [--prefer id,id,...] (deal these cards ahead of their category's other cards)
  *            [--without id,id,...] (leave these items out of every build)
+ *            [--caps '{"ELECTRIC_SLIDE":{"turners":["rook"]}}'] (CAPS overrides for a variant run;
+ *            object-valued caps merge one level deep) [--tag name] (report file suffix for it)
  *
  * Suites: `elements` plays mono-element Focused builds against each other, `archetypes` the four
  * 7.3 builds, and `cards` a mirror test per ability (the card with the four best other cards of
@@ -20,7 +22,8 @@ import { Worker, isMainThread, parentPort, workerData } from 'node:worker_thread
 import { availableParallelism } from 'node:os';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { CAPS, abilities, makeEngine } from '@chain-theorem/content';
-import type { SilenceScope } from '@chain-theorem/rules/sdk';
+import type { Caps, SilenceScope } from '@chain-theorem/rules/sdk';
+import { capsOverrides } from '../lib/caps.ts';
 import { beats, type ElementId, type FormatId, type Side } from '@chain-theorem/rules';
 import type { Tier } from '@chain-theorem/ai';
 import {
@@ -42,6 +45,8 @@ interface Options {
   pool: Pool;
   prefer: string[];
   without: string[];
+  /** CAPS overrides (`--caps`), object-valued caps merged one level deep onto the defaults. */
+  caps: Partial<Caps>;
 }
 
 interface Job {
@@ -67,7 +72,7 @@ if (!isMainThread) {
   setPool(options.pool);
   setPrefer(options.prefer);
   setWithout(options.without);
-  const engine = makeEngine({ SILENCE_SCOPE: options.silence });
+  const engine = makeEngine({ ...options.caps, SILENCE_SCOPE: options.silence });
   const done: Done[] = [];
   for (const j of jobs) {
     const out = playSim(engine, j.game);
@@ -99,7 +104,9 @@ if (!isMainThread) {
     without: arg('without', '')
       .split(',')
       .filter((x) => x !== ''),
+    caps: capsOverrides(arg('caps', '')),
   };
+  const runTag = arg('tag', '').replace(/[^A-Za-z0-9_.-]+/g, '_');
   setPool(options.pool);
   setPrefer(options.prefer);
   setWithout(options.without);
@@ -244,7 +251,7 @@ if (!isMainThread) {
   const lines: string[] = [];
   lines.push(`# Balance simulator report`, '');
   lines.push(
-    `Format ${format}, tier ${tier}, ${nodes} nodes per move, ${games} games per pairing, seeds from ${seed0}, silenceScope ${options.silence}, ability pool ${options.pool}${options.prefer.length ? `, preferred cards ${options.prefer.join(' ')}` : ''}${options.without.length ? `, without ${options.without.join(' ')}` : ''}. Draws count as half a win.`,
+    `Format ${format}, tier ${tier}, ${nodes} nodes per move, ${games} games per pairing, seeds from ${seed0}, silenceScope ${options.silence}, ability pool ${options.pool}${options.prefer.length ? `, preferred cards ${options.prefer.join(' ')}` : ''}${options.without.length ? `, without ${options.without.join(' ')}` : ''}${Object.keys(options.caps).length ? `, caps ${JSON.stringify(options.caps)}` : ''}. Draws count as half a win.`,
     '',
   );
   const el = results.filter((r) => r.job.suite === 'elements');
@@ -378,7 +385,7 @@ if (!isMainThread) {
   const md = lines.join('\n');
   mkdirSync('reports/sim', { recursive: true });
   const onlyCardsTag = arg('cards', '');
-  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}${only ? `-${els.join('_')}` : ''}${onlyCardsTag ? `-${onlyCardsTag.replace(/,/g, '_')}` : ''}${options.prefer.length ? `-prefer_${options.prefer.join('_')}` : ''}${options.without.length ? `-without_${options.without.join('_')}` : ''}`;
+  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}${only ? `-${els.join('_')}` : ''}${onlyCardsTag ? `-${onlyCardsTag.replace(/,/g, '_')}` : ''}${options.prefer.length ? `-prefer_${options.prefer.join('_')}` : ''}${options.without.length ? `-without_${options.without.join('_')}` : ''}${runTag ? `-${runTag}` : ''}`;
   writeFileSync(`reports/sim/${tag}.md`, md + '\n');
   writeFileSync(
     `reports/sim/${tag}.json`,
