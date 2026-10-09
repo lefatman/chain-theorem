@@ -13,9 +13,11 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   singular focus. B1 (simulator build picker, per-card mirror suite, corrected surprise metric,
   baseline tables) is done: `docs/BALANCE_BASELINE.md`. Its headline findings: Electric Slide's
   attuned turn is a forced First Blood win from the opening, army-wide Obstinate decides Full
-  Battle, the Stalwart king set decides Full Battle between archetypes. The designer moved B2b (the
-  Electric Slide opening fix) ahead of A2; it is in progress (code committed, re-measurement
-  running), then A2 (the alpha one-time-code mode), B3–B8.
+  Battle, the Stalwart king set decides Full Battle between archetypes. B2b (the Electric Slide
+  opening fix, moved ahead by the designer) is done as DD-106: turns only at allied pieces other than
+  pawns, rooks and bishops once, the queen never; the trap is gone (Storm's First Blood row 22–56%
+  from 97–100%) and Storm is now the weakest Full Battle element for want of Obstinate
+  (`docs/BALANCE_BASELINE.md` section 7). Next run: A2 (the alpha one-time-code mode), then B3–B8.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
   know), Storm, Stone and Frost with 12 abilities, 2 items and Highcairn Pass.
@@ -138,11 +140,12 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
       king set only); new `--suite cards` mirror test per ability; surprise losses count only
       abilities that acted; baseline tables for both formats and both silence scopes in
       `docs/BALANCE_BASELINE.md`. Tooling only, no design decision. Done 2026-10-09 (evidence log).
-- [ ] B2b (moved ahead of A2 at the designer's request, 2026-10-09) Electric Slide turns only at an allied piece, never at a pawn (from B1's baseline: the
+- [x] B2b (moved ahead of A2 at the designer's request, 2026-10-09) Electric Slide turns only at an allied piece, never at a pawn (from B1's baseline: the
       attuned turn through the opening pawn wall is a forced First Blood win; the alternative, a
       turn only at an ally that has left its starting square, restores the trap after one pawn
       push). PLAYTEST card from the designer brief, so a DD row and a note for the designer; module,
-      tests, E15 if affected, spec 5.8 text; re-run the two element tables.
+      tests, E15 if affected, spec 5.8 text; re-run the two element tables. Done 2026-10-09 (DD-106): pieces only as corners, rooks and bishops turn once, the
+      queen never; `docs/BALANCE_BASELINE.md` section 7 (evidence log).
 - [ ] A2 Alpha one-time-code match mode for non-logged-in players: guest tokens behind a Worker var
       (off in production), creator picks level 1-30, format and a loadout from everything at or
       below that level, `c-<code>` lobby that expires in 30 minutes, single-use code, random colours,
@@ -195,6 +198,19 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 - Arcane Chess codebase path for step 2.8 (optional).
 
 ## Evidence log
+
+- 2026-10-09 B2b Electric Slide corners (DD-106; R-ELEM-003, R-RULES-001, R-ELEM-006): new SDK hook
+  `moveFilter.redirectCorner` and `MoveRules.conducts` (move generation, attack detection and the
+  turned-attack walk); Electric Slide v3 turns only at allied pieces other than pawns, rooks and
+  bishops once, the queen never. `pnpm check` 1,583 unit tests (electric_slide 16: piece corners,
+  pawn corners, the opening position's twenty moves, checks through a knight but not a pawn),
+  `content:validate` ok, `req:coverage` 83/83; `pnpm test:fuzz` 500 games, replays identical, 0
+  failures. Card mirror for Electric Slide alone: 100% / 100% (pawns as corners, queen twice) →
+  97.2% / 66.7% (pieces only, queen twice) → 86.1% / 66.7% (one turn for all) → 72.2% / 75.0%
+  (shipped). `pnpm sim` re-run (elements 60 / 40, archetypes 60 / 24, 20,000 nodes): Storm's First
+  Blood row 22–56% (was 97–100%), Storm mirror white 36.7% (was 0%), advantaged element 48.3% /
+  70.8%, white 50.8% / 51.3%, surprise losses 9.5% / 0.6%, medians 24 / 69; Storm in Full Battle
+  0–9% against four elements (no Obstinate slot); archetypes unchanged in kind.
 
 - 2026-10-09 B1 Simulator build picker and baseline (R-TEST-002): `pickAbilities` deals the emptiest
   category first after the signature and includes passives (Stalwart on the king set only under

@@ -17,7 +17,10 @@ and decides Full Battle for whoever carries it, which Storm cannot; and the Stal
 Full Battle between archetypes (Maximum and Flexible beat Focused 79–85%). Advantaged element 48% in
 First Blood and 73% in Full Battle against a 55–60% target, White 47% and 52%, surprise losses 6.5%
 and 0% with the corrected metric (35% in the First Blood archetype suite), medians 23 and 69 plies.
-Section 6 lists the findings and what each later item of the plan takes from them.
+Section 6 lists the findings and what each later item of the plan takes from them. Section 7
+re-measures after the Electric Slide fix (DD-106): the opening trap is gone (Storm's First Blood row
+22–56%), the card alone reads 72% and 75%, and Storm is now the weakest Full Battle element for want
+of Obstinate.
 
 ## 1. Method
 
@@ -279,8 +282,8 @@ excludes are left out of both sides (Stalwart: Capturing and Captures, rule 8).
    pawns and the queen's rank neighbours lead into blocked files, so there is no opening shot, while
    mid-game turns at knights, bishops, rooks and the king stay), or (b) a slider turns only at an
    ally that has left its starting square (weaker: one pawn push restores the trap a move later).
-   Queued as part of B5 for a decision record; the designer defined the card, so the choice is
-   flagged for them too.
+   Done as DD-106 at the designer's request (plan item B2b), with the queen also left out after
+   the pieces-only rule alone measured 97%: section 7 has the variants and the re-measurement.
 2. **Obstinate is the backbone of every Full Battle build, and Storm has none.** The picker gives
    every Focused build its top passive, Obstinate, on all pieces, except Storm, whose signature is
    itself a passive and takes the slot. In Full Battle a queen may then capture nothing but queens
@@ -342,9 +345,9 @@ excludes are left out of both sides (Stalwart: Capturing and Captures, rule 8).
 **What the plan's later items take from this.**
 
 - A2 (alpha mode) is independent of these numbers.
-- B2b (new, from this baseline): Electric Slide turns only at an allied piece, never at a pawn
-  (finding 1), with a decision record; the two element tables are re-run, since every later First
-  Blood measurement is otherwise a measurement of the opening trap.
+- B2b (done, DD-106, section 7): Electric Slide turns only at an allied piece, never at a pawn,
+  and only rooks and bishops turn; the element and archetype tables were re-run, since every later
+  First Blood measurement was otherwise a measurement of the opening trap.
 - B3 (silence scope): add a `--prefer` list to the simulator so the Focused builds carry Pierce or
   Phalanx, re-run the `REACTIONS_ONLY` pair, then measure `ONCE_PER_ABILITY` (finding 5).
 - B4 (trait numbers): measure after B2b; the First Blood trait picture of DD-98 (Flow and Bulwark
@@ -379,14 +382,75 @@ The three variants measured on the way to DD-106, same seeds (the first row is t
 
 **Element matchups, First Blood** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000`
 
-@@B2B_EL_FB@@
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 51.7% | 29.2%               | 47.5%               | 78.3%               | 59.2%               | 57.5%               |
+| tide          | 70.8%               | mirror, white 35.0% | 67.5%               | 56.7%               | 87.5%               | 68.3%               |
+| grove         | 52.5%               | 32.5%               | mirror, white 30.8% | 53.3%               | 63.3%               | 45.8%               |
+| storm         | 21.7%               | 43.3%               | 46.7%               | mirror, white 36.7% | 55.8%               | 55.0%               |
+| stone         | 40.8%               | 12.5%               | 36.7%               | 44.2%               | mirror, white 65.0% | 60.0%               |
+| frost         | 42.5%               | 31.7%               | 54.2%               | 45.0%               | 40.0%               | mirror, white 51.7% |
+
+Advantaged element: **48.3%**. White 50.8%, surprise losses 9.5%, median 24 plies. Result reasons: repetition 74, objective 1087, checkmate 94, ply_cap 5.
 
 **Element matchups, Full Battle** — `pnpm sim --suite elements --format full --games 40 --nodes 20000`
 
-@@B2B_EL_FULL@@
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 40.0% | 18.8%               | 76.3%               | 91.3%               | 65.0%               | 47.5%               |
+| tide          | 81.3%               | mirror, white 51.2% | 20.0%               | 100.0%              | 92.5%               | 88.8%               |
+| grove         | 23.8%               | 80.0%               | mirror, white 55.0% | 95.0%               | 47.5%               | 81.3%               |
+| storm         | 8.8%                | 0.0%                | 5.0%                | mirror, white 45.0% | 7.5%                | 38.8%               |
+| stone         | 35.0%               | 7.5%                | 52.5%               | 92.5%               | mirror, white 53.8% | 43.8%               |
+| frost         | 52.5%               | 11.3%               | 18.8%               | 61.3%               | 56.3%               | mirror, white 53.8% |
+
+Advantaged element: **70.8%**. White 51.3%, surprise losses 0.6%, median 69 plies. Result reasons: checkmate 616, repetition 190, stalemate 2, ply_cap 29, fifty_move 3.
 
 **Build archetypes** — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000` and `--format full --games 24`
 
-@@B2B_AR@@
+**First Blood**
 
-@@B2B_FINDINGS@@
+| Row vs column | maximum | flexible | focused | starter |
+| ------------- | ------- | -------- | ------- | ------- |
+| maximum       | —       | 66.7%    | 55.8%   | 56.7%   |
+| flexible      | 33.3%   | —        | 48.3%   | 65.0%   |
+| focused       | 44.2%   | 51.7%    | —       | 76.7%   |
+| starter       | 43.3%   | 35.0%    | 23.3%   | —       |
+
+White 51.0%, surprise losses 31.4%, median 16 plies. Result reasons: objective 347, stalwart_captured 2, checkmate 8, repetition 3.
+
+**Full Battle**
+
+| Row vs column | maximum | flexible | focused | starter |
+| ------------- | ------- | -------- | ------- | ------- |
+| maximum       | —       | 41.7%    | 83.3%   | 100.0%  |
+| flexible      | 58.3%   | —        | 87.5%   | 95.8%   |
+| focused       | 16.7%   | 12.5%    | —       | 89.6%   |
+| starter       | 0.0%    | 4.2%     | 10.4%   | —       |
+
+White 49.7%, surprise losses 10.3%, median 70 plies. Result reasons: stalwart_captured 8, repetition 28, fifty_move 2, checkmate 99, ply_cap 7.
+
+**What changed.** The opening trap is gone. Storm's First Blood row falls from 97–100% against
+four elements to 22–56%, the Storm mirror no longer loses for White by force (37% for White against
+0%), and median length rises from 23 to 24 plies with 33 fewer battles decided by the objective and
+33 more by checkmate. The element suite's advantaged score is unchanged at 48%, but its make-up moved:
+Storm over Frost now reads 55% (inside the 55–60% target) and Stone over Storm 44%, where both were
+decided by the trap before. Electric Slide on its own reads 72% in First Blood and 75% in Full Battle
+(from 100% and 100%), the Stalwart band rather than its own league; its remaining First Blood wins are
+one-turn bishop lines through a knight (`Bc5-d4-c3`, `Bc8-d7-b5` in the replays), which the opponent
+cannot see until the first turn is observed. That is why surprise losses in the element suite rose
+from 6.5% to 9.5%, still under the 15% target. The archetype tables are unchanged in kind: Maximum
+leads First Blood at 56–67%, and the Stalwart king set still decides Full Battle (Maximum and
+Flexible 83–88% over Focused).
+
+**What it exposes.** Storm is now the weakest Full Battle element by a distance: 0–9% against Ember,
+Tide, Grove and Stone and 39% against Frost (section 2 had 5–28% and 70%). The cause is finding 2 of
+section 6, not the fix: every other Focused build spends its passive slot on army-wide Obstinate,
+Storm's signature takes that slot, and a rook or bishop turn is worth little over 70 plies. The
+remedy belongs to B5 (Obstinate at 2 slots and rule 9 narrow the gap for every build) and to the
+designer's view of Storm's signature; a stronger attuned effect for Storm that does not reopen the
+short format is the open design question, flagged with DD-106.
+
+**For the next items.** B3 and B4 measure against the section 7 tables, not sections 2 and 4. The
+`REACTIONS_ONLY` and archetype tables of sections 3 and 4 were not re-run: the fix touches one card,
+and both knobs were inert with these builds.
