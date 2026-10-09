@@ -302,8 +302,8 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     setupText:
       'White (Storm, Electric Slide) bishop c1, rook e1, king a1; Black king b6. The rook goes to e3',
     specText:
-      "The bishop's c1-h6 diagonal now meets its rook on e3 and turns north-west: the king on b6 is in check through the turn (attacks follow the paths), may not step along that diagonal to c5, and Electric Slide is revealed on White's bishops. Unattuned, the same move gives no check (DD-110: bishops turn at a bishop, rook, queen or king; a knight on e3 would block).",
-    note: 'Ids: a1 K=0, c1 B=1, e1 R=2, b6 k=3. No prompt (DD-104, DD-110).',
+      "The bishop's c1-h6 diagonal now meets its rook on e3 and turns north-west: the king on b6 is in check through the turn (attacks follow the paths), may not step along that diagonal to c5, and Electric Slide is revealed on White's bishops. Unattuned, the same move gives no check (DD-111: a rook outranks the bishop, so it is a corner for it; a pawn on e3 would block).",
+    note: 'Ids: a1 K=0, c1 B=1, e1 R=2, b6 k=3. No prompt (DD-104, DD-111).',
     setup: {
       fen: '8/8/1k6/8/8/8/8/K1B1R3 w - - 0 1',
       format: 'full',

@@ -10,7 +10,6 @@ import {
   type BattleEvent,
   type Engine,
   type GameState,
-  type PublicState,
   type RevealLog,
   type Side,
   PIECE_TYPES,
@@ -30,7 +29,6 @@ import {
   scenario,
   setup,
 } from '../src/testing.ts';
-import { registry } from '../index.ts';
 
 const sq = parseSquare;
 const EMPTY_LOG: RevealLog = {
@@ -100,10 +98,7 @@ const WHITE_PLAIN: ArmySpec = {
   items: ['triple_adepts_gloves'],
   abilities: ['scout', 'pierce'],
 };
-/**
- * Maximum-style build: 6 slots, Schedule, Blended Family (tide = group A, ember = group B). The king
- * set holds no Stalwart: on the king it would consume a seventh slot (7.4 rule 9, DD-109).
- */
+/** Maximum-style build: 6 slots, Schedule, Blended Family (tide = group A, ember = group B). */
 const BLACK_A: ArmySpec = {
   level: 25,
   elements: ['tide', 'ember'],
@@ -114,7 +109,7 @@ const BLACK_A: ArmySpec = {
     ['veil', 'poisoned_meat'],
     ['cleave'],
     ['riposte', 'momentum'],
-    ['last_word'],
+    ['stalwart'],
   ],
 };
 /** Same public facts as BLACK_A (level 25, tide/ember, 6 slots) with 4 other items and no Schedule. */
@@ -168,7 +163,7 @@ describe('R-INFO-001 visible before battle', () => {
       bishop: ['veil', 'poisoned_meat'],
       rook: ['cleave'],
       queen: ['riposte', 'momentum'],
-      king: ['last_word'],
+      king: ['stalwart'],
     });
     expect(own.level).toBe(25);
     expect(own.consumedSlots).toBe(6);
@@ -179,30 +174,6 @@ describe('R-INFO-001 visible before battle', () => {
     // ... and never the opponent's.
     expect(s.engine.project(s.state, 'black').armies.white.loadout).toBeUndefined();
     expect(s.engine.project(s.state, 'black').armies.white.sets).toBeUndefined();
-  });
-
-  it('R-INFO-001 R-LOAD-004 DD-109 consumed slots shown to the opponent include the king slot (rule 9) without naming Stalwart', () => {
-    // No items, one army-wide set with Stalwart: the set applies to the king, so 1 slot is consumed.
-    const s = setup({ white: WHITE_PLAIN, black: { level: 30, abilities: ['stalwart'] } });
-    const pub = s.engine.project(s.state, 'white');
-    expect(pub.armies.black.consumedSlots).toBe(1);
-    expect(pub.armies.black.revealed).toEqual(EMPTY_LOG);
-    expect(Object.keys(pub.armies.black).sort()).toEqual(PUBLIC_ARMY_KEYS);
-    expect(wireStrings(pub).has('stalwart')).toBe(false);
-    expect(s.engine.project(s.state, 'black').armies.black.consumedSlots).toBe(1);
-    // With the Schedule, only the king's own set pays: Stalwart on pawns alone costs nothing.
-    const sets = (king: string[], pawn: string[]) =>
-      PIECE_TYPES.map((t) => (t === 'king' ? king : t === 'pawn' ? pawn : []));
-    const onKing = setup({
-      white: WHITE_PLAIN,
-      black: { level: 30, items: ['multitaskers_schedule'], sets: sets(['stalwart'], []) },
-    });
-    expect(onKing.engine.project(onKing.state, 'white').armies.black.consumedSlots).toBe(2);
-    const onPawns = setup({
-      white: WHITE_PLAIN,
-      black: { level: 30, items: ['multitaskers_schedule'], sets: sets([], ['stalwart']) },
-    });
-    expect(onPawns.engine.project(onPawns.state, 'white').armies.black.consumedSlots).toBe(1);
   });
 });
 
@@ -542,95 +513,6 @@ describe('R-INFO-003 Dossier deductions', () => {
     expect(d.schedule).toBe('unknown');
     expect(d.certainItems).toEqual([]);
   });
-
-  it('R-INFO-003 R-LOAD-004 DD-109 deductions stay sound with a hidden Stalwart king: the item total is a range until Stalwart is seen on the king, then exact', () => {
-    // Black: Dual Adept's Glove (1 slot) and an army-wide Stalwart (1 more on the king): 2 consumed.
-    // The white rook a7 attacks e7; the black king may step there only with Stalwart (4.3).
-    const spec: ScenarioSpec = {
-      fen: '4k3/R7/8/8/8/8/8/4K3 b - - 0 1',
-      white: { level: 30 },
-      black: { level: 30, items: ['dual_adepts_glove'], abilities: ['stalwart', 'veil'] },
-    };
-    /** Consistent combinations whose item cost is exactly 1: every 1-slot item but Blended Family
-     * (one displayed element, 8.1), since nothing else about the items is known. */
-    const oneSlotCombos = registry.items.filter(
-      (i) => !i.retired && i.minLevel <= 30 && i.slotCost === 1 && !i.grants?.secondElement,
-    ).length;
-    expect(oneSlotCombos).toBeGreaterThan(1);
-    const withItems = (pub: PublicState, items: string[]): PublicState => ({
-      ...pub,
-      armies: {
-        ...pub.armies,
-        black: {
-          ...pub.armies.black,
-          revealed: { ...pub.armies.black.revealed, items, allItems: true },
-        },
-      },
-    });
-
-    const s = setup(spec);
-    const before = s.engine.project(s.state, 'white');
-    expect(before.armies.black.consumedSlots).toBe(2);
-    expect(before.armies.black.revealed).toEqual(EMPTY_LOG);
-    const d0 = s.engine.deduce(before);
-    // Nothing is provable: the items may cost 1 (Stalwart king) or 2 (ordinary king).
-    expect(d0.truncated).toBe(false);
-    expect(d0.certainItems).toEqual([]);
-    expect(d0.impossibleItems).not.toContain('dual_adepts_glove');
-    expect(d0.impossibleItems).not.toContain('scouts_lens');
-    expect(d0.impossibleItems).not.toContain('triple_adepts_gloves');
-    expect(d0.capacity).toEqual({ min: 1, max: 3 });
-    expect(d0.combinations).toBeGreaterThan(oneSlotCombos);
-    expect(d0.hints[0]).toBe('2 item slots consumed at level 30.');
-    expect(d0.hints.join(' ')).toContain(
-      'One slot may be Stalwart on the king rather than an item.',
-    );
-    // Soundness: a complete item list of cost 1 is consistent with the facts (it is the truth here).
-    const lensOnly = s.engine.deduce(withItems(before, ['scouts_lens']));
-    expect(lensOnly.combinations).toBe(1);
-    expect(lensOnly.certainItems).toEqual(['scouts_lens']);
-    // ... and so is one of cost 2 (an ordinary king).
-    expect(
-      s.engine.deduce(withItems(before, ['scouts_lens', 'resonance_crystal'])).combinations,
-    ).toBe(1);
-
-    // The king steps into the rook's file: Stalwart is observed on the king (DD-32).
-    const r = scenario({ ...spec, moves: ['e8e7'] });
-    expect(eventsOf(r.events, 'Revealed')).toContainEqual(
-      expect.objectContaining({
-        side: 'black',
-        info: { kind: 'ability', pieceType: 'king', ability: 'stalwart' },
-        cause: 'observed',
-      }),
-    );
-    const after = r.engine.project(r.state, 'white');
-    expect(after.armies.black.revealed.abilities.king).toEqual(['stalwart']);
-    expect(after.armies.black.revealed.complete).not.toContain('king');
-    expect(after.armies.black.consumedSlots).toBe(2);
-    const d1 = r.engine.deduce(after);
-    // The item total is now exactly 1: every 2-slot-or-more item is out, every 1-slot item fits.
-    expect(d1.truncated).toBe(false);
-    expect(d1.combinations).toBe(oneSlotCombos);
-    expect(d1.certainItems).toEqual([]);
-    expect(d1.impossibleItems).toEqual(
-      expect.arrayContaining(['triple_adepts_gloves', 'journeymans_medallion', 'headmaster_ring']),
-    );
-    expect(d1.impossibleItems).not.toContain('dual_adepts_glove');
-    expect(d1.impossibleItems).not.toContain('scouts_lens');
-    expect(d1.capacity).toEqual({ min: 1, max: 2 });
-    expect(d1.hints[0]).toBe('2 item slots consumed at level 30.');
-    const hints = d1.hints.join(' ');
-    expect(hints).toContain('Stalwart on the king');
-    expect(hints).toContain('items use 1');
-    expect(hints).not.toContain('rather than an item');
-    // A complete item list of cost 2 no longer fits; one of cost 1 is the only option.
-    expect(
-      r.engine.deduce(withItems(after, ['scouts_lens', 'resonance_crystal'])).combinations,
-    ).toBe(0);
-    expect(r.engine.deduce(withItems(after, ['scouts_lens'])).certainItems).toEqual([
-      'scouts_lens',
-    ]);
-  });
 });
 
 // ---- R-INFO-004 -----------------------------------------------------------------------------------
@@ -733,26 +615,6 @@ describe('R-INFO-004 move previews', () => {
     const without = s.engine.preview(pub, loadoutOf({}), uciToMove('c3d5'));
     expect(without.board[sq('d5')]).toBe(knight);
     expect(without.board[sq('c3')]).toBe(-1);
-  });
-
-  it("R-INFO-004 DD-109 the '?' item marker clears once the consumed slots are accounted for by a revealed Stalwart king", () => {
-    // Black has no items and an army-wide Stalwart: 1 slot consumed, all of it the king's (rule 9).
-    const fen = '4k3/R7/8/8/8/8/8/4K3 w - - 0 1';
-    const black: ArmySpec = { level: 30, abilities: ['stalwart'] };
-    const s = setup({ fen, white: plainWhite, black });
-    const pub0 = s.engine.project(s.state, 'white');
-    expect(pub0.armies.black.consumedSlots).toBe(1);
-    const p0 = s.engine.preview(pub0, loadoutOf(plainWhite), uciToMove('e1d1'));
-    expect(p0.legal).toBe(true);
-    expect(p0.unknowns).toEqual([{ kind: 'opponentItems' }]);
-    // The black king steps into the rook's rank, which reveals Stalwart on the king (DD-32).
-    const r = scenario({ fen, white: plainWhite, black, moves: ['e1d1', 'e8e7'] });
-    expect(r.state.reveals.black.abilities.king).toContain('stalwart');
-    expect(r.state.reveals.black.allItems).toBe(false);
-    const pub = r.engine.project(r.state, 'white');
-    const p = r.engine.preview(pub, loadoutOf(plainWhite), uciToMove('d1e1'));
-    expect(p.legal).toBe(true);
-    expect(p.unknowns).toEqual([]);
   });
 });
 

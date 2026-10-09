@@ -696,7 +696,7 @@ above):
 | Rooks and bishops | not a pawn or a knight | 59.2%             | 21           | 70.0%             |
 | Bishops           | not a pawn or a knight | 57.8%             | 21           | 64.0%             |
 
-**The choice (DD-110).** Bishops turning once at an allied bishop, rook, queen or king is the only
+**The choice (DD-110; superseded the same day by the designer's own rule, DD-111, measured in section 10).** Bishops turning once at an allied bishop, rook, queen or king is the only
 turning rule that adds no First Blood edge over the leap alone (57.8% against 57.5%) while keeping a
 moderate Full Battle bonus (64.0%, between Cleave's 58% and Poisoned Meat's 77%); every rule that
 lets rooks turn reads 68–70% in Full Battle, and every rule that lets bishops turn at knights reads
@@ -740,6 +740,10 @@ their Full Battle counterparts, the slot problem rather than the opening. B5 (St
 Obstinate's cost) is where Storm's row moves next.
 
 ### 9.2 Stalwart on a king costs an item slot (rule 9)
+
+> **Overruled.** The designer reverted rule 9 the same day (B3c, DD-111): Stalwart costs one ability
+> slot and nothing else; it simply means only a direct capture removes the piece. The measurements
+> below stay as the record of what an item-slot price would have done.
 
 The designer's answer: yes, Stalwart on a king should cost a slot. An ability slot would cost nothing
 in practice, because a per-type king set has nothing better to hold (Captured cards and Obstinate are

@@ -27,7 +27,7 @@ export type { Preview, Unknown } from './engine/preview.ts';
 export { applyWithDefaults } from './engine/preview.ts';
 export type { Deductions } from './engine/deduce.ts';
 export { beats, foilOf } from './engine/elements.ts';
-export { expandSets, kingSet, kingSlotCost, loadoutShape } from './engine/loadout.ts';
+export { expandSets, loadoutShape } from './engine/loadout.ts';
 export { eligibleFor } from './engine/action.ts';
 export {
   Pos,

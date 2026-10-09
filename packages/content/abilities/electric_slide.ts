@@ -1,41 +1,34 @@
 /**
- * Electric Slide (5.8, PLAYTEST; designer brief 2026-10-06, DD-104): Passive, Storm (signature),
- * all. Base, on any army: a pawn may move straight over one adjacent allied piece to the empty square
- * beyond (a plain move: the jumped square is occupied, so it never grants en passant; landing on the
- * last rank promotes). Attuned (Storm pieces, or any piece through the Attunement Charm): a bishop
- * that meets an allied bishop, rook, queen or king may continue from that ally's square in a new
- * direction, once per move; it never stops on the ally and never continues straight or back; a pawn
- * or a knight blocks it like any ally, and rooks and the queen never turn (DD-106: with pawns as
- * corners the opening pawn wall was a launch pad and the queen's turns alone won 97% of First Blood
- * mirror tests; DD-110, the designer's "most balanced version": bishop lines through a knight won
- * 88% of First Blood mirror tests and rook turns 68-70% of Full Battle ones, while bishops at the
- * other pieces read 58% and 64%, the leap alone 57% and 57%; `docs/BALANCE_BASELINE.md` section 9).
+ * Electric Slide (5.8, PLAYTEST; designer brief 2026-10-06, DD-104; designer rule 2026-10-09,
+ * DD-111): Passive, Storm (signature), all. Base, on any army: a pawn may move straight over one
+ * adjacent allied piece to the empty square beyond (a plain move: the jumped square is occupied, so
+ * it never grants en passant; landing on the last rank promotes). Attuned (Storm pieces, or any
+ * piece through the Attunement Charm): a rook or bishop that meets an allied piece of equal or
+ * higher rank than itself (5.1, DD-97: pawn < knight = bishop < rook < queen) may continue from that
+ * ally's square in a new direction, once per move; the queen may do so twice, at an allied rook or
+ * bishop; the king is never a corner and nothing turns at a pawn. A slider never stops on the ally
+ * and never continues straight or back; an ally that is not a corner for it blocks it as in chess.
  * Attacks and checks follow the same paths, like Flow (R-ELEM-006). The engine reveals the ability
  * on the piece type the first time a leap or a turn is observable (the move itself, a check, a
- * changed legal move). Which sliders turn and which allies are corners are PLAYTEST values in
- * `CAPS.ELECTRIC_SLIDE` (config, never engine code); the text below describes the shipped values.
+ * changed legal move). DD-106 (pawns never conduct, the queen's turns were cut) and DD-110 (a
+ * bishops-only turn) are the measured history behind the designer's rule.
  */
-import { defineAbility, fx, type ReadCtx, type PieceView } from '@chain-theorem/rules/sdk';
+import { defineAbility, fx, pieceRank, type PieceView } from '@chain-theorem/rules/sdk';
+import type { PieceType } from '@chain-theorem/rules';
 
 const ID = 'electric_slide';
 
-/** May this ally serve as a corner under the configured corner rule (CAPS.ELECTRIC_SLIDE)? */
-function corner(ctx: ReadCtx, ally: PieceView): boolean {
-  if (ally.type === 'pawn') return false;
-  switch (ctx.caps.ELECTRIC_SLIDE.corners) {
-    case 'pieces':
-      return true;
-    case 'no_knights':
-      return ally.type !== 'knight';
-    case 'moved':
-      return ally.square !== ally.start;
-  }
+/** May `ally` serve as a corner for a turning slider of type `slider` (DD-111)? */
+export function slideCorner(ally: PieceView, slider: PieceType): boolean {
+  if (ally.type === 'king' || ally.type === 'pawn') return false;
+  if (slider === 'queen') return ally.type === 'rook' || ally.type === 'bishop';
+  return pieceRank(ally.type) >= pieceRank(slider);
 }
 
 export default defineAbility({
   id: ID,
   name: 'Electric Slide',
-  version: 4,
+  version: 5,
   category: 'PASSIVE',
   affinity: 'storm',
   eligible: 'all',
@@ -48,23 +41,22 @@ export default defineAbility({
   hooks: {
     moveFilter: {
       pawnLeap: (ctx, pawn) => pawn.side === ctx.owner && ctx.hasAbility(pawn, ID),
-      // The configured sliders turn once (DD-110: bishops; rooks and the queen never).
+      // Rooks and bishops turn once, the queen twice (DD-111).
       redirects: (ctx, slider) =>
-        slider.side === ctx.owner &&
-        ctx.caps.ELECTRIC_SLIDE.turners.includes(slider.type) &&
-        ctx.hasAbility(slider, ID) &&
-        ctx.attuned(slider, ID)
-          ? 1
+        slider.side === ctx.owner && ctx.hasAbility(slider, ID) && ctx.attuned(slider, ID)
+          ? slider.type === 'queen'
+            ? 2
+            : 1
           : 0,
-      // Pieces conduct the slide, pawns never (DD-106) and knights not either (DD-110); the corner
-      // rule is a config knob.
-      redirectCorner: (ctx, ally) => ally.side !== ctx.owner || corner(ctx, ally),
+      // Corners by rank: an ally of equal or higher rank than the slider, never the king or a pawn;
+      // the queen's corners are rooks and bishops (DD-111).
+      redirectCorner: (ctx, ally, slider) => ally.side !== ctx.owner || slideCorner(ally, slider),
     },
   },
   text: {
-    short: 'Pawns leap allies; Storm bishops turn at their bishops, rooks, queen and king.',
+    short: 'Pawns leap allies; Storm sliders turn at allies of their rank or higher.',
     rules:
-      'Your pawns may move straight over one adjacent allied piece to the empty square beyond. Attuned: your bishops may change direction once at an allied bishop, rook, queen or king in their path, without stopping on it; their attacks follow the same paths. Pawns and knights block them as in chess; rooks and the queen never turn.',
+      'Your pawns may move straight over one adjacent allied piece to the empty square beyond. Attuned: your rooks and bishops may change direction once at an allied piece of equal or higher rank in their path (a rook at a rook or queen; a bishop at a knight, bishop, rook or queen), and your queen may change direction twice, at allied rooks and bishops; none stops on the ally, nothing turns at a pawn or at the king, and their attacks follow the same paths.',
   },
   status: 'PLAYTEST',
 });

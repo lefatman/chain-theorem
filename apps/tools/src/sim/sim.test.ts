@@ -31,7 +31,7 @@ afterEach(() => {
   setPool('any');
   setPrefer([]);
   setWithout([]);
-  setKing('plain');
+  setKing('stalwart');
 });
 
 /** Every ordered pair of distinct enabled elements. */
@@ -40,18 +40,16 @@ const PAIRS: [ElementId, ElementId][] = ELEMENTS.flatMap((a) =>
 );
 
 describe('balance simulator (R-TEST-002)', () => {
-  it('R-TEST-002 DD-110 --caps overrides merge object-valued caps one level deep onto the defaults', () => {
+  it('R-TEST-002 --caps overrides merge object-valued caps one level deep onto the defaults', () => {
     expect(capsOverrides('')).toEqual({});
-    expect(capsOverrides('{"ELECTRIC_SLIDE":{"turners":["rook"]}}')).toEqual({
-      ELECTRIC_SLIDE: { turners: ['rook'], corners: CAPS.ELECTRIC_SLIDE.corners },
+    expect(capsOverrides('{"TRAITS":{"HOT_FOOT_TURNS":3}}')).toEqual({
+      TRAITS: { ...CAPS.TRAITS, HOT_FOOT_TURNS: 3 },
     });
     expect(capsOverrides('{"SILENCE_SCOPE":"OFF","TWIN_GROUP_MAX":2}')).toEqual({
       SILENCE_SCOPE: 'OFF',
       TWIN_GROUP_MAX: 2,
     });
-    // A misspelt value would silently measure another rule.
-    expect(() => capsOverrides('{"ELECTRIC_SLIDE":{"corners":"knights"}}')).toThrow(/corners/);
-    expect(() => capsOverrides('{"ELECTRIC_SLIDE":{"turners":["horse"]}}')).toThrow(/turners/);
+    // A misspelt cap would silently measure the defaults.
     expect(() => capsOverrides('{"NOPE":1}')).toThrow(/unknown cap/);
   });
 
@@ -116,7 +114,7 @@ describe('balance simulator (R-TEST-002)', () => {
     }
   });
 
-  it('R-TEST-002 DD-102 DD-109 R-RULES-004 with --king stalwart the king set from level 16 is Stalwart and passives: no Captured, Capturing or Captures card and no Obstinate', () => {
+  it('R-TEST-002 DD-102 R-RULES-004 with --king stalwart the king set from level 16 is Stalwart and passives: no Captured, Capturing or Captures card and no Obstinate', () => {
     setKing('stalwart');
     for (const e of ELEMENTS) {
       const king = pickAbilities(e, 5, 25, 'king');
@@ -134,7 +132,8 @@ describe('balance simulator (R-TEST-002)', () => {
     expect(young.some((id) => category.get(id) === 'CAPTURED')).toBe(false);
   });
 
-  it('R-TEST-002 DD-109 with --king plain every archetype build for every element pair is legal at level 25 and no set holds Stalwart', () => {
+  it('R-TEST-002 with --king plain every archetype build for every element pair is legal at level 25 and no set holds Stalwart', () => {
+    setKing('plain');
     for (const [a, b] of PAIRS) {
       for (const arch of ARCHETYPES) {
         const l = buildLoadout(arch, a, b);
@@ -144,51 +143,32 @@ describe('balance simulator (R-TEST-002)', () => {
     }
   });
 
-  it('R-TEST-002 DD-109 7.4 with --king stalwart Maximum pays the king slot with Blended Family and Flexible with the Crystal; both king sets lead with Stalwart; Focused and Starter are unchanged', () => {
-    const plain = PAIRS.map(([a, b]) => ({
-      focused: buildLoadout('focused', a, b),
-      starter: buildLoadout('starter', a, b),
-    }));
-    setKing('stalwart');
-    PAIRS.forEach(([a, b], i) => {
+  it('R-TEST-002 DD-102 with --king stalwart (the default) the Maximum and Flexible king sets lead with Stalwart, the 7.3 item lists are unchanged and the other five sets never hold it', () => {
+    for (const [a, b] of PAIRS) {
       const tag = `${a} ${b}`;
       for (const arch of ARCHETYPES)
         expect(() => assertValid(buildLoadout(arch, a, b), 25), `${arch} ${tag}`).not.toThrow();
       const maximum = buildLoadout('maximum', a, b);
-      expect(maximum.elements, tag).toEqual([a]);
-      expect(maximum.items, tag).toEqual(['headmaster_ring', 'multitaskers_schedule']);
-      expect(maximum.sets, tag).toHaveLength(6);
+      expect(maximum.elements, tag).toEqual([a, b]);
+      expect(maximum.items, tag).toEqual([
+        'headmaster_ring',
+        'multitaskers_schedule',
+        'blended_family',
+      ]);
       expect(maximum.sets[5]?.[0], tag).toBe('stalwart');
-      // Without Blended Family the rook, queen and king play element a's cards (the signature leads).
-      for (const t of [3, 4]) expect(affinity.get(maximum.sets[t]?.[0] ?? ''), tag).toBe(a);
       const flexible = buildLoadout('flexible', a, b);
-      expect(flexible.elements, tag).toEqual([a, b]);
       expect(flexible.items, tag).toEqual([
         'journeymans_medallion',
         'multitaskers_schedule',
         'blended_family',
+        'resonance_crystal',
       ]);
-      expect(flexible.sets, tag).toHaveLength(6);
       expect(flexible.sets[5]?.[0], tag).toBe('stalwart');
-      expect(affinity.get(flexible.sets[3]?.[0] ?? ''), tag).toBe(b);
       for (const l of [maximum, flexible])
         for (const set of l.sets.slice(0, 5)) expect(set, tag).not.toContain('stalwart');
-      expect(buildLoadout('focused', a, b), tag).toEqual(plain[i]?.focused);
-      expect(buildLoadout('starter', a, b), tag).toEqual(plain[i]?.starter);
-    });
-  });
-
-  it('R-TEST-002 DD-109 17.2 the Stalwart mirror build pays the king slot: both sides are legal at level 25 and the side with the card has one item fewer', () => {
-    const { withCard, without } = cardLoadouts('stalwart', 'ember');
-    expect(() => assertValid(withCard, 25)).not.toThrow();
-    expect(() => assertValid(without, 25)).not.toThrow();
-    expect(withCard.sets[0]?.[0]).toBe('stalwart');
-    expect(withCard.items).toHaveLength(without.items.length - 1);
-    expect(without.items).toEqual(['headmaster_ring', 'resonance_crystal', 'scouts_lens']);
-    expect(withCard.items).toEqual(['headmaster_ring', 'resonance_crystal']);
-    // A card without a king item cost keeps every item on both sides.
-    const scout = cardLoadouts('scout', 'ember');
-    expect(scout.withCard.items).toEqual(scout.without.items);
+      for (const arch of ['focused', 'starter'] as const)
+        for (const set of buildLoadout(arch, a, b).sets) expect(set, tag).not.toContain('stalwart');
+    }
   });
 
   it('R-TEST-002 17.2 card mirror builds: for every card both sides are legal at level 25, the card leads one side and is missing from the other, and the other cards match', () => {

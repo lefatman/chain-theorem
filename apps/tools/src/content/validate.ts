@@ -1,10 +1,9 @@
 /**
  * `pnpm content:validate` (13.5): checks every module — unique id matching its file name, minLevel
- * within 1..LEVEL_CAP, slotCost and kingItemSlots within the caps, known tags, affinities and piece
- * types, rules text present, effects that match their tags with at most one bonus action (INV-01),
- * and at least one scenario test next to the module. Also checks the registry is current and the
- * world content (maps, warps, NPCs, lessons, quests, rewards, loadouts; 10.1-10.5) with
- * `validateWorld`.
+ * within 1..LEVEL_CAP, slotCost within the caps, known tags, affinities and piece types, rules text
+ * present, effects that match their tags with at most one bonus action (INV-01), and at least one
+ * scenario test next to the module. Also checks the registry is current and the world content
+ * (maps, warps, NPCs, lessons, quests, rewards, loadouts; 10.1-10.5) with `validateWorld`.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -107,14 +106,6 @@ export function validateContent(): string[] {
       err(w, `minLevel must be 1..${CAPS.LEVEL_CAP}`);
     if (!Number.isInteger(a.slotCost) || a.slotCost < 1 || a.slotCost > CAPS.MAX_ABILITY_CAPACITY) {
       err(w, `slotCost must be 1..${CAPS.MAX_ABILITY_CAPACITY}`);
-    }
-    if (
-      a.kingItemSlots !== undefined &&
-      (!Number.isInteger(a.kingItemSlots) ||
-        a.kingItemSlots < 1 ||
-        a.kingItemSlots > CAPS.MAX_ITEM_SLOTS)
-    ) {
-      err(w, `kingItemSlots must be 1..${CAPS.MAX_ITEM_SLOTS} when set (7.4 rule 9, DD-109)`);
     }
     if (a.limits.perAction !== 1) err(w, 'limits.perAction must be 1 (5.4)');
     if (

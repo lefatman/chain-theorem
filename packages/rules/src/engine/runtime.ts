@@ -38,6 +38,13 @@ import {
   RulesError,
 } from '../types.ts';
 
+/** Slider types that may turn (DD-104) with their `conducts` bits (movegen CORNER_BIT). */
+const CORNER_TYPES: readonly (readonly [PieceType, number])[] = [
+  ['bishop', 1],
+  ['rook', 2],
+  ['queen', 4],
+];
+
 export interface HookEntry {
   kind: 'trait' | 'item' | 'ability';
   id: string;
@@ -351,14 +358,22 @@ export class Runtime {
           }
         }
       }
-      // A corner for its own side's turning sliders unless one of that side's hooks says no
-      // (DD-106). Other sides' hooks never speak for this piece.
-      for (const e of corners) {
-        if (e.owner !== null && e.owner !== p.side) continue;
-        if (e.hooks.moveFilter?.redirectCorner?.(ctxOf(e), v) === false) {
-          rules.conducts[p.id] = 0;
-          break;
+      // A corner for its own side's turning sliders of each type unless one of that side's hooks
+      // says no for that type (DD-106, DD-111). Other sides' hooks never speak for this piece.
+      if (corners.length > 0) {
+        let mask = 0;
+        for (const [slider, bit] of CORNER_TYPES) {
+          let ok = true;
+          for (const e of corners) {
+            if (e.owner !== null && e.owner !== p.side) continue;
+            if (e.hooks.moveFilter?.redirectCorner?.(ctxOf(e), v, slider) === false) {
+              ok = false;
+              break;
+            }
+          }
+          if (ok) mask |= bit;
         }
+        rules.conducts[p.id] = mask;
       }
       if (p.type === 'pawn') {
         for (const e of leaps) {

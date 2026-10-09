@@ -5,7 +5,7 @@
  * loadouts, the fast-check counterpart of the M2 "done when" fuzz (spec 16).
  *
  * Expected behaviour is derived from spec 4.1, 5.3, 5.4, 7.1-7.4, 8.2, 8.5, 15 and the delegated
- * decisions (section 18), not from the engine's current output. The loadout rules 1-9 are re-checked
+ * decisions (section 18), not from the engine's current output. The loadout rules 1-8 are re-checked
  * here by an independent checker written from spec 7.1-7.4 (item costs and capacities from the 7.2
  * table, COMMITTED); only the PLAYTEST level requirements come from module data (DD-05).
  */
@@ -139,24 +139,14 @@ interface CheckOptions {
   itemData?: ReadonlyMap<string, ItemDef>;
 }
 
-/** The set that applies to the king (7.3): the sixth of six per-type sets, else the army-wide set. */
-function specKingSet(loadout: Loadout): readonly string[] {
-  return (loadout.sets.length === 6 ? loadout.sets[5] : loadout.sets[0]) ?? [];
-}
-/** Item slots the king's set adds under rule 9 (7.4, DD-109): Stalwart costs one. */
-function specKingSlots(loadout: Loadout): number {
-  return specKingSet(loadout).includes('stalwart') ? 1 : 0;
-}
-
 /** Rules of 7.4 that `loadout` breaks for `player`, checked from the spec text alone. */
 function specViolations(loadout: Loadout, player: PlayerFacts, opts: CheckOptions = {}): number[] {
   const abilityData = opts.abilityData ?? ABILITY;
   const itemData = opts.itemData ?? ITEM;
   const broken = new Set<number>();
   const level = player.level;
-  // Rule 1: total item slot cost <= unlocked item slots. Rule 9 (DD-109): Stalwart in the set that
-  // applies to the king (the sixth per-type set, or the army-wide set) adds one item slot.
-  const cost = loadout.items.reduce((n, id) => n + specItem(id).cost, 0) + specKingSlots(loadout);
+  // Rule 1: total item slot cost <= unlocked item slots.
+  const cost = loadout.items.reduce((n, id) => n + specItem(id).cost, 0);
   if (cost > specSlots(level)) broken.add(1);
   // Rule 2: every equipped item's and ability's level requirement <= the player's level.
   for (const id of loadout.items) if ((itemData.get(id)?.minLevel ?? 0) > level) broken.add(2);
@@ -268,15 +258,9 @@ function buildArmy(d: ArmyDraw): Army {
   for (let k = 0; k < setCount; k++) {
     const set: string[] = [];
     let cost = 0;
-    const appliesToKing = k === setCount - 1;
     for (const id of d.pools[k] ?? []) {
       const a = abilityOf(id);
       if (a.minLevel > level || cost + a.slotCost > capacity) continue;
-      // Rule 9 (DD-109): Stalwart on the king takes an item slot, so it needs a free one.
-      if (id === 'stalwart' && appliesToKing) {
-        if (used + 1 > slots) continue;
-        used += 1;
-      }
       set.push(id);
       cost += a.slotCost;
     }
@@ -806,7 +790,7 @@ describe('property: loadout validation (R-LOAD-004)', () => {
     }
   });
 
-  it('R-LOAD-004 R-LOAD-001 DD-109 random loadouts that pass validateLoadout satisfy rules 1-9 when checked independently', () => {
+  it('R-LOAD-004 R-LOAD-001 random loadouts that pass validateLoadout satisfy rules 1-8 when checked independently', () => {
     fc.assert(
       fc.property(validArmyArb, ({ level, loadout }) => {
         const v = engine.validateLoadout(loadout, { level });
@@ -817,9 +801,7 @@ describe('property: loadout validation (R-LOAD-004)', () => {
         for (const el of loadout.elements) expect(ENABLED).toContain(el);
         // The reported numbers follow R-LOAD-001 and the 7.2 table.
         expect(v.unlockedSlots).toBe(specSlots(level));
-        expect(v.consumedSlots).toBe(
-          loadout.items.reduce((n, id) => n + specItem(id).cost, 0) + specKingSlots(loadout),
-        );
+        expect(v.consumedSlots).toBe(loadout.items.reduce((n, id) => n + specItem(id).cost, 0));
         expect(v.capacity).toBe(
           Math.max(1, ...loadout.items.map((id) => specItem(id).capacity ?? 1)),
         );
@@ -828,7 +810,7 @@ describe('property: loadout validation (R-LOAD-004)', () => {
     );
   });
 
-  it('R-LOAD-004 DD-109 validateLoadout agrees with an independent rules 1-9 checker on arbitrary loadouts (same verdict, same rule numbers)', () => {
+  it('R-LOAD-004 validateLoadout agrees with an independent rules 1-8 checker on arbitrary loadouts (same verdict, same rule numbers)', () => {
     let invalid = 0;
     let valid = 0;
     const candidateArb = fc.oneof(
@@ -872,9 +854,7 @@ describe('property: loadout validation (R-LOAD-004)', () => {
           let eng: Engine = engine;
           let data: CheckOptions = {};
           const slots = specSlots(level);
-          // Item cost plus the king's slot (rule 9, DD-109): what rule 1 compares with `slots`.
-          const used =
-            loadout.items.reduce((n, id) => n + specItem(id).cost, 0) + specKingSlots(loadout);
+          const used = loadout.items.reduce((n, id) => n + specItem(id).cost, 0);
           const capacity = Math.max(1, ...loadout.items.map((id) => specItem(id).capacity ?? 1));
           const hasCapacityItem = loadout.items.some((id) => specItem(id).capacity !== undefined);
           const setParam = (id: string) => {
@@ -918,17 +898,8 @@ describe('property: loadout validation (R-LOAD-004)', () => {
               // Put an ability the player's level has not unlocked into one set.
               const k = r.int(loadout.sets.length);
               const set = loadout.sets[k] ?? [];
-              // Rule 9 (DD-109): Stalwart in the set that applies to the king needs a free item
-              // slot too, so it is left out when the budget is full (it would break rule 1 as well).
-              const kingFull =
-                k === loadout.sets.length - 1 &&
-                loadout.items.reduce((n, id) => n + specItem(id).cost, 0) + 1 > specSlots(level);
               const locked = ABILITY_IDS.filter(
-                (id) =>
-                  abilityOf(id).minLevel > level &&
-                  !set.includes(id) &&
-                  rule8Ok(set, id) &&
-                  !(kingFull && (abilityOf(id).kingItemSlots ?? 0) > 0),
+                (id) => abilityOf(id).minLevel > level && !set.includes(id) && rule8Ok(set, id),
               );
               if (locked.length === 0) return;
               const id = r.pick(locked);
@@ -996,11 +967,7 @@ describe('property: loadout validation (R-LOAD-004)', () => {
               const counts = schedule ? [0, 2, 3, 4, 5, 7] : [0, 2, 3, 4, 5, 6, 7];
               const n = r.pick(counts);
               const src = loadout.sets;
-              // Copies may move Stalwart into the set that applies to the king; it is left out so
-              // the mutation breaks rule 5 alone (rule 9, DD-109).
-              loadout.sets = Array.from({ length: n }, (_, i) =>
-                [...(src[i % src.length] ?? [])].filter((id) => id !== 'stalwart'),
-              );
+              loadout.sets = Array.from({ length: n }, (_, i) => [...(src[i % src.length] ?? [])]);
               expectedRule = 5;
               break;
             }
@@ -1052,23 +1019,6 @@ describe('property: loadout validation (R-LOAD-004)', () => {
               const k = r.int(loadout.sets.length);
               const set = loadout.sets[k] ?? [];
               const cost = set.reduce((n, a) => n + abilityOf(a).slotCost, 0);
-              // Rule 9 (DD-109): adding Stalwart to the set that applies to the king also needs a
-              // free item slot, or the mutation would break rule 1 as well: a 1-slot utility item
-              // (no capacity, Schedule or Blended Family) is unequipped to pay for it.
-              const itemCost = loadout.items.reduce((n, id) => n + specItem(id).cost, 0);
-              if (
-                !set.includes('stalwart') &&
-                k === loadout.sets.length - 1 &&
-                itemCost + 1 > specSlots(level)
-              ) {
-                const utility = loadout.items.findIndex((id) => {
-                  const it = specItem(id);
-                  return it.cost === 1 && it.capacity === undefined && !it.schedule && !it.blended;
-                });
-                if (utility < 0) return;
-                const [gone] = loadout.items.splice(utility, 1);
-                if (gone && loadout.itemParams) delete loadout.itemParams[gone];
-              }
               const pool = ABILITY_IDS.filter(
                 (id) => offensive(id) && abilityOf(id).minLevel <= level && !set.includes(id),
               );

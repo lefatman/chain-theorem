@@ -1,8 +1,7 @@
 /**
  * Loadout model and validation (M2 step 2.3): R-LOAD-001 item slots by level, R-LOAD-002 item and
  * ability level requirements (DD-05), R-LOAD-003 ability sets and the four builds of spec 7.3,
- * R-LOAD-004 validation rules 1-7, DD-13 loadout-shaping item data, DD-23 (neutral is test-only) and
- * rule 9 (DD-109: Stalwart in the king's set costs an item slot).
+ * R-LOAD-004 validation rules 1-7, DD-13 loadout-shaping item data and DD-23 (neutral is test-only).
  *
  * Expected values come from spec 5.7, 6.4, 7.1-7.4 and the DD rows, not from the engine's output.
  */
@@ -359,8 +358,7 @@ const MAX_SETS = perType({
   bishop: ['riposte', 'reinforce', 'poisoned_meat', 'scout', 'veil'],
   rook: ['cleave', 'momentum', 'hit_and_run', 'pierce', 'antidote'],
   queen: ['scout', 'pierce', 'riposte', 'reinforce', 'last_word'],
-  // No Stalwart: on the king it would cost a seventh item slot (rule 9, DD-109; see below).
-  king: ['backdraft', 'veil', 'last_word', 'poisoned_meat', 'riposte'],
+  king: ['stalwart', 'veil', 'last_word', 'poisoned_meat', 'riposte'],
 });
 
 const BUILDS = [
@@ -888,104 +886,6 @@ describe('R-LOAD-004 loadout validation rules 1-7', () => {
     const wide = makeEngine({ BASE_ABILITY_CAPACITY: 2 }).validateLoadout(pair, { level: 30 });
     expect(wide.errors).toEqual([]);
     expect(wide.capacity).toBe(2);
-  });
-});
-
-// ---- R-LOAD-004 rule 9 (DD-109) -------------------------------------------------------------------
-
-describe('R-LOAD-004 rule 9: Stalwart on the king costs an item slot (DD-109)', () => {
-  const maximum = must(BUILDS[0], 'Maximum').loadout;
-  /** The Maximum build's per-type sets with Stalwart in the set of `type` (rule 8 kept). */
-  const withStalwart = (type: PieceType) =>
-    PIECE_TYPES.map((t, i) => {
-      const set = must(maximum.sets[i], `${t} set`);
-      if (t !== type) return set;
-      // Backdraft makes room within capacity 5; the pawn set's Antidote is Capturing and may not
-      // share a set with Stalwart (rule 8, DD-102), so only rule 9 is in play.
-      return ['stalwart', ...set.filter((id) => id !== 'antidote' && id !== 'backdraft')];
-    });
-
-  it('R-LOAD-004 R-LOAD-001 DD-109 rule 9: the 6-slot Maximum build with Stalwart in the king set exceeds the budget (rule 1 names the king); without Blended Family it fits in 6', () => {
-    const royal: Loadout = { ...maximum, sets: withStalwart('king') };
-    const fail = engine.validateLoadout(royal, { level: 25 });
-    expect(fail.ok).toBe(false);
-    expect(errs(fail)).toEqual([{ rule: 1, code: 'slots_exceeded' }]);
-    expect(fail.consumedSlots).toBe(7);
-    expect(fail.unlockedSlots).toBe(6);
-    const message = must(fail.errors[0], 'rule 1 error').message;
-    expect(message).toContain('Stalwart');
-    expect(message).toContain('king');
-    expect(message).toContain('rule 9');
-    // Dropping Blended Family (and the second element) pays for the king: 5 + 1 = 6.
-    const fits: Loadout = {
-      ...royal,
-      elements: ['tide'],
-      items: royal.items.filter((id) => id !== 'blended_family'),
-    };
-    const ok = engine.validateLoadout(fits, { level: 25 });
-    expect(ok.errors).toEqual([]);
-    expect(ok.ok).toBe(true);
-    expect(ok.consumedSlots).toBe(6);
-    expect(ok.unlockedSlots).toBe(6);
-    // The battle snapshot carries the same public total (8.1).
-    const { state } = engine.newBattle({
-      format: 'full',
-      strict: true,
-      white: { level: 25, loadout: fits },
-      black: { level: 1, loadout: lo({ elements: ['tide'] }) },
-    });
-    expect(state.armies.white.consumedSlots).toBe(6);
-    expect(engine.project(state, 'black').armies.white.consumedSlots).toBe(6);
-  });
-
-  it('R-LOAD-004 DD-109 rule 9: Stalwart only in the pawn set costs nothing: the Maximum build stays at 6 slots', () => {
-    const pawns: Loadout = { ...maximum, sets: withStalwart('pawn') };
-    expect(must(pawns.sets[0], 'pawn set')).toContain('stalwart');
-    expect(must(pawns.sets[5], 'king set')).not.toContain('stalwart');
-    const v = engine.validateLoadout(pawns, { level: 25 });
-    expect(v.errors).toEqual([]);
-    expect(v.ok).toBe(true);
-    expect(v.consumedSlots).toBe(6);
-  });
-
-  it('R-LOAD-004 DD-109 rule 9: an army-wide set applies to the king, so a Focused build with Stalwart pays the slot', () => {
-    // Headmaster Ring with two utilities fills 6 slots; Stalwart in the one set makes 7.
-    const quiet = ['stalwart', 'last_word', 'poisoned_meat', 'riposte', 'veil'];
-    const two = lo({
-      elements: ['tide'],
-      items: ['headmaster_ring', 'wardens_stopwatch', 'resonance_crystal'],
-      sets: [quiet],
-    });
-    const fail = engine.validateLoadout(two, { level: 30 });
-    expect(errs(fail)).toEqual([{ rule: 1, code: 'slots_exceeded' }]);
-    expect(fail.consumedSlots).toBe(7);
-    expect(must(fail.errors[0], 'rule 1 error').message).toContain('king');
-    const one = lo({
-      elements: ['tide'],
-      items: ['headmaster_ring', 'wardens_stopwatch'],
-      sets: [quiet],
-    });
-    const ok = engine.validateLoadout(one, { level: 30 });
-    expect(ok.errors).toEqual([]);
-    expect(ok.consumedSlots).toBe(6);
-  });
-
-  it("R-LOAD-004 R-LOAD-001 DD-109 rule 9: at level 16 a Starter-style loadout with Dual Adept's Glove and an army-wide Stalwart pair consumes 2 of 4 slots", () => {
-    const starter = lo({
-      elements: ['grove'],
-      items: ['dual_adepts_glove'],
-      sets: [['stalwart', 'last_word']],
-    });
-    const v = engine.validateLoadout(starter, { level: 16 });
-    expect(v.errors).toEqual([]);
-    expect(v.ok).toBe(true);
-    expect(v.consumedSlots).toBe(2);
-    expect(v.unlockedSlots).toBe(4);
-    expect(v.capacity).toBe(2);
-    // Without Stalwart the same items consume 1: the extra slot is the king's (rule 9).
-    expect(
-      engine.validateLoadout({ ...starter, sets: [['last_word']] }, { level: 16 }).consumedSlots,
-    ).toBe(1);
   });
 });
 

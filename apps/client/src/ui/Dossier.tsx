@@ -21,12 +21,7 @@ export function Dossier({ pub, formatName }: { pub: PublicState; formatName: str
   const key = JSON.stringify([known, army.level, army.consumedSlots, army.elements]);
   const d = useMemo(() => (hints ? engine.deduce(pub) : null), [hints, key]);
   const knownCost = known.items.reduce((n, id) => n + (itemById.get(id)?.slotCost ?? 0), 0);
-  // Rule 9 (DD-109): an ability seen on the king that uses item slots (Stalwart) explains them too.
-  const knownKing = [...new Set(known.abilities.king ?? [])].reduce(
-    (n, id) => n + (abilityById.get(id)?.kingItemSlots ?? 0),
-    0,
-  );
-  const unexplained = Math.max(0, army.consumedSlots - knownCost - knownKing);
+  const unexplained = Math.max(0, army.consumedSlots - knownCost);
   const aboutMe = pub.armies[pub.viewer].revealed;
   const meSeen = PIECE_TYPES.filter((t) => (aboutMe.abilities[t] ?? []).length > 0);
 

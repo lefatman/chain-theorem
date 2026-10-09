@@ -1,16 +1,14 @@
 /**
  * Loadout builder (M3 step 3.2; R-LOAD-001..004, R-ELEM-004). Elements with the Blended Family A/B
- * groups explained, items with a slot meter (consumed / unlocked by level, including the item slots
- * the king's set uses under rule 9, DD-109), ability sets with a capacity meter, per-type sets with
- * Multitasker's Schedule, drag or button reordering (order = resolution order, 5.4) and live
- * validation using the engine's own R-LOAD-004 errors.
+ * groups explained, items with a slot meter (consumed / unlocked by level), ability sets with a
+ * capacity meter, per-type sets with Multitasker's Schedule, drag or button reordering (order =
+ * resolution order, 5.4) and live validation using the engine's own R-LOAD-004 errors.
  */
 import { useState } from 'preact/hooks';
 import { CAPS, abilities, abilityById, engine, itemById, items } from '@chain-theorem/content';
 import {
   PIECE_TYPES,
   eligibleFor,
-  type AbilityDef,
   type Category,
   type ElementId,
   type ItemDef,
@@ -35,12 +33,9 @@ import {
 } from './labels.ts';
 import {
   abilityBlock,
-  countWord,
   editSet,
   equipItem,
-  isKingSet,
   itemBlock,
-  kingSlotAbilities,
   levelForSlots,
   moveInSet,
   replacedBy,
@@ -330,37 +325,22 @@ function ElementPicker({
 
 // ---- items (7.1, 7.2) ------------------------------------------------------------------------------
 
-/** One cell per consumed slot (items, then the king's set under rule 9), then free and locked ones. */
 function slotCells(loadout: Loadout, level: number): MeterCell[] {
   const unlocked = CAPS.itemSlots(level);
   const cells: MeterCell[] = [];
-  const used = (label: string) =>
-    cells.push({ state: cells.length < unlocked ? 'used' : 'over', label });
   for (const id of loadout.items) {
     const def = itemById.get(id);
     if (!def) continue;
-    for (let k = 0; k < def.slotCost; k++) used(def.name);
+    for (let k = 0; k < def.slotCost; k++) {
+      cells.push({ state: cells.length < unlocked ? 'used' : 'over', label: def.name });
+    }
   }
-  // Rule 9 (DD-109): abilities in the king's set that use item slots (Stalwart on the king).
-  for (const { def, slots } of kingSlotAbilities(loadout))
-    for (let k = 0; k < slots; k++) used(`${def.name} on the king`);
   while (cells.length < unlocked) cells.push({ state: 'free', label: 'Free slot' });
   while (cells.length < CAPS.MAX_ITEM_SLOTS) {
     const at = levelForSlots(cells.length + 1);
     cells.push({ state: 'locked', label: at ? `Unlocks at level ${at}` : 'Locked' });
   }
   return cells;
-}
-
-/** "Stalwart on the king uses one item slot (rule 9)." for the abilities in the king's set. */
-function kingSlotNote(use: readonly { def: AbilityDef; slots: number }[]): string {
-  const names = use.map((u) => u.def.name);
-  const list =
-    names.length <= 2
-      ? names.join(' and ')
-      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-  const n = use.reduce((sum, u) => sum + u.slots, 0);
-  return `${list} on the king ${names.length === 1 ? 'uses' : 'use'} ${countWord(n)} item slot${n === 1 ? '' : 's'} (rule 9).`;
 }
 
 function ItemsSection({
@@ -377,7 +357,6 @@ function ItemsSection({
   const unlocked = CAPS.itemSlots(level);
   const next = levelForSlots(unlocked + 1);
   const cells = slotCells(loadout, level);
-  const kingUse = kingSlotAbilities(loadout);
   return (
     <section class="panel" aria-labelledby="items-h">
       <h3 id="items-h">
@@ -396,7 +375,6 @@ function ItemsSection({
           </>
         }
       />
-      {kingUse.length > 0 && <p class="muted small-text">{kingSlotNote(kingUse)}</p>}
       <p class="muted">
         Capacity items set how many ability slots each set has (without one:{' '}
         {CAPS.BASE_ABILITY_CAPACITY}
@@ -533,6 +511,8 @@ function SetsSection({
 }) {
   const perType = loadout.sets.length === 6;
   const index = perType ? Math.min(active, 5) : 0;
+  const set = loadout.sets[index] ?? [];
+  const type = setType(loadout, index);
   const schedule = items.find((i) => i.grants?.perTypeSets);
   return (
     <section class="panel" aria-labelledby="sets-h">
@@ -585,10 +565,11 @@ function SetsSection({
           onChange={onChange}
         />
         <Library
-          loadout={loadout}
-          index={index}
+          set={set}
+          type={type}
           capacity={capacity}
           level={level}
+          elements={loadout.elements}
           onAdd={(id) => onChange(editSet(loadout, index, (s) => [...s, id]))}
         />
       </div>
@@ -738,27 +719,23 @@ function skippedText(eligible: readonly PieceType[] | 'all'): string {
 }
 
 function Library({
-  loadout,
-  index,
+  set,
+  type,
   capacity,
   level,
+  elements,
   onAdd,
 }: {
-  loadout: Loadout;
-  /** The set being edited (0 for the army-wide set). */
-  index: number;
+  set: readonly string[];
+  type: ReturnType<typeof setType>;
   capacity: number;
   level: number;
+  elements: readonly ElementId[];
   onAdd(id: string): void;
 }) {
   const [cat, setCat] = useState<Category | 'all'>('all');
   const [aff, setAff] = useState<ElementId | 'all'>('all');
   const [hideLocked, setHideLocked] = useState(false);
-  const set = loadout.sets[index] ?? [];
-  const type = setType(loadout, index);
-  const elements = loadout.elements;
-  // Rule 9 (DD-109): in the set that applies to the king, Stalwart also needs a free item slot.
-  const target = { loadout, appliesToKing: isKingSet(loadout, index) };
   const affinities = [...new Set(abilities.map((a) => a.affinity))];
   const shown = abilities
     .filter((a) => !a.retired)
@@ -809,20 +786,14 @@ function Library({
       </div>
       <div class="card-grid">
         {shown.map((a) => {
-          const block = abilityBlock(set, capacity, level, a.id, target);
+          const block = abilityBlock(set, capacity, level, a.id);
           const warn =
             type && !eligibleFor(a, type) ? `Does nothing on ${PIECE_PLURAL[type]}` : null;
-          const kingSlots = a.kingItemSlots ?? 0;
           return (
             <AbilityCard key={a.id} def={a} elements={elements} locked={block ?? warn}>
               <button disabled={block !== null} onClick={() => onAdd(a.id)}>
                 {block === 'Already in this set' ? 'In set' : 'Add to set'}
               </button>
-              {kingSlots > 0 && (
-                <span class="muted small-text">
-                  +{kingSlots} item slot{kingSlots === 1 ? '' : 's'} on the king
-                </span>
-              )}
             </AbilityCard>
           );
         })}

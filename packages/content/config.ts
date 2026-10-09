@@ -44,12 +44,16 @@ export const CAPS = {
   MAX_EVENTS_PER_ACTION: 512,
   // 5.8 Schrödinger's Joker (DD-101, PLAYTEST): a twin group holds at most this many pieces.
   TWIN_GROUP_MAX: 3,
-  // 5.8 Electric Slide's attuned turn (DD-106, DD-110, PLAYTEST): which sliders turn once per move
-  // and at which allies ('pieces': any allied piece other than a pawn; 'no_knights'; 'moved': one
-  // that has left its starting square). Bishops at a bishop, rook, queen or king measured as the
-  // most balanced version (docs/BALANCE_BASELINE.md section 9); `pnpm sim --caps` and the fuzzer's
-  // `--caps` override it.
-  ELECTRIC_SLIDE: { turners: ['bishop'], corners: 'no_knights' },
+  // 6.1 trait numbers (PLAYTEST; designer brief, plan item B4): Flow passes at most one allied
+  // piece per move (0: no limit), Bulwark covers non-pawns only, Overabundance adds one charge
+  // (the launch values were no limit, every piece and double charges), Hot Foot burns for 4
+  // opponent turns (was 3, D-40). `pnpm sim --caps '{"TRAITS":{...}}'` measures other values.
+  TRAITS: {
+    FLOW_PASS_LIMIT: 1,
+    BULWARK_PAWNS: false,
+    OVERABUNDANCE: { mode: 'add', amount: 1 },
+    HOT_FOOT_TURNS: 4,
+  },
 } as const satisfies Caps;
 
 /**

@@ -1,6 +1,6 @@
 # DD-110: Electric Slide's attuned turn ships in its most balanced measured version: only bishops turn, once per move, at an allied bishop, rook, queen or king (never at a pawn or a knight); rooks and the queen never turn; the base pawn leap is unchanged
 
-Status: binding under D-37 (designer may overrule).
+Status: superseded the same day by the designer's own rule (DD-111): rooks and bishops turn once at an ally of equal or higher rank, the queen twice at rooks and bishops, never at the king or a pawn.
 Spec: 5.7, 5.8, 6.3, R-ELEM-003, R-RULES-001, R-TEST-002, DD-104, DD-106
 
 ## Decision

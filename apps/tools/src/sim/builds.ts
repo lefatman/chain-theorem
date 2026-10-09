@@ -13,7 +13,7 @@ import {
   type PieceType,
 } from '@chain-theorem/rules';
 import type { AbilityDef } from '@chain-theorem/rules/sdk';
-import { abilities, engine, itemById } from '@chain-theorem/content';
+import { abilities, engine } from '@chain-theorem/content';
 
 export type Archetype = 'maximum' | 'flexible' | 'focused' | 'starter';
 /** Ability pool for simulator builds: 'any' ranks every ability, 'affinity' keeps each element to its own and neutral abilities. */
@@ -41,14 +41,13 @@ export function setWithout(ids: readonly string[]): void {
 }
 const items = (ids: string[]): string[] => ids.filter((id) => !WITHOUT.has(id));
 /**
- * The king's set (`--king stalwart`): 'plain' deals the king offensive cards like any other type;
- * 'stalwart' puts Stalwart on it from level 16, and the build pays rule 9's item slot (7.4, DD-109):
- * Maximum gives up Blended Family and plays one element, Flexible gives up the Resonance Crystal.
- * Focused and Starter never carry it: Stalwart in an army-wide set strips the offensive cards
- * (rule 8), and Starter plays at level 5.
+ * The king's set (`--king`): 'stalwart' (the default) puts Stalwart on it from level 16 with the
+ * Schedule builds, 'plain' deals the king passives like any other type and never Stalwart. Focused
+ * and Starter never carry it: Stalwart in an army-wide set strips the offensive cards (rule 8), and
+ * Starter plays at level 5.
  */
 export type King = 'plain' | 'stalwart';
-let KING: King = 'plain';
+let KING: King = 'stalwart';
 export function setKing(mode: King): void {
   KING = mode;
 }
@@ -86,8 +85,8 @@ function score(a: AbilityDef, element: ElementId, type: PieceType | 'all'): numb
  * Fill up to `n` slots with abilities for an element and piece type. The best card comes first (the
  * element's own signature when the level allows), then the emptiest category is dealt its best
  * remaining card each time, ties going to the category whose best card scores highest; so a set of
- * four or more spreads over all four categories and carries a Capturing card and a passive. With
- * `--king stalwart` the king's set from level 16 is Stalwart plus passives: a Stalwart set holds no
+ * four or more spreads over all four categories and carries a Capturing card and a passive. Unless
+ * `--king plain`, the king's set from level 16 is Stalwart plus passives: a Stalwart set holds no
  * Capturing or Captures card (loadout rule 8, DD-102), and Captured cards are inert on a king.
  */
 export function pickAbilities(
@@ -142,36 +141,24 @@ export function pickAbilities(
 }
 
 export function buildLoadout(arch: Archetype, a: ElementId, b: ElementId, level = 25): Loadout {
-  // A Stalwart king uses one item slot (rule 9, DD-109); the 7.3 builds use all six at level 25,
-  // so the two that carry it each give up a 1-slot item: Maximum its Blended Family (and so its
-  // second element: the rook, queen and king sets pick for element a too), Flexible its Crystal.
-  const stalwart = KING === 'stalwart';
   const second = (t: PieceType): ElementId =>
     t === 'rook' || t === 'queen' || t === 'king' ? b : a;
   switch (arch) {
     case 'maximum':
       return {
-        elements: stalwart ? [a] : [a, b],
-        items: items(
-          stalwart
-            ? ['headmaster_ring', 'multitaskers_schedule']
-            : ['headmaster_ring', 'multitaskers_schedule', 'blended_family'],
-        ),
-        sets: PIECE_TYPES.map((t) => pickAbilities(stalwart ? a : second(t), 5, level, t)),
+        elements: [a, b],
+        items: items(['headmaster_ring', 'multitaskers_schedule', 'blended_family']),
+        sets: PIECE_TYPES.map((t) => pickAbilities(second(t), 5, level, t)),
       };
     case 'flexible':
       return {
         elements: [a, b],
-        items: items(
-          stalwart
-            ? ['journeymans_medallion', 'multitaskers_schedule', 'blended_family']
-            : [
-                'journeymans_medallion',
-                'multitaskers_schedule',
-                'blended_family',
-                'resonance_crystal',
-              ],
-        ),
+        items: items([
+          'journeymans_medallion',
+          'multitaskers_schedule',
+          'blended_family',
+          'resonance_crystal',
+        ]),
         sets: PIECE_TYPES.map((t) => pickAbilities(second(t), 4, level, t)),
       };
     case 'focused':
@@ -210,10 +197,7 @@ export function elementLoadout(element: ElementId): Loadout {
  * Focused build with the card under test in front of its four best other cards, against those four
  * cards alone. Same element on both sides, so no silence and the same trait: the score measures the
  * card by itself. Cards the tested one excludes (Stalwart: Capturing and Captures, rule 8) are left
- * out of both sides. A card with a king item cost (Stalwart, rule 9, DD-109) is in the king's set
- * here too (the army-wide set applies to the king), so the side carrying it gives up the build's
- * last 1-slot utility item (Scout's Lens): the mirror then measures the card against that item,
- * as the slot currency means it to be.
+ * out of both sides.
  */
 export function cardLoadouts(
   id: string,
@@ -227,15 +211,8 @@ export function cardLoadouts(
     .filter((x) => x !== id)
     .filter((x) => !excluded.has(abilities.find((a) => a.id === x)?.category as Category))
     .slice(0, 4);
-  const utility = (x: string): boolean => {
-    const def = itemById.get(x);
-    return def?.slotCost === 1 && def.capacity === undefined && def.grants === undefined;
-  };
-  const paid = base.items.findLastIndex(utility);
-  const withItems =
-    card.kingItemSlots && paid >= 0 ? base.items.filter((_, i) => i !== paid) : base.items;
   return {
-    withCard: { ...base, items: withItems, sets: [[id, ...rest]] },
+    withCard: { ...base, sets: [[id, ...rest]] },
     without: { ...base, sets: [rest] },
   };
 }

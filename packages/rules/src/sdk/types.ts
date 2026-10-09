@@ -32,12 +32,6 @@ export type Status = 'COMMITTED' | 'PROVISIONAL' | 'PLAYTEST';
  * type once per battle (DD-108), OFF disables the advantage for testing.
  */
 export type SilenceScope = 'ALL_TRIGGERS' | 'REACTIONS_ONLY' | 'ONCE_PER_ABILITY' | 'OFF';
-/**
- * Which allies a turning slider may use as a corner (Electric Slide, 5.8, PLAYTEST; DD-106, DD-110):
- * `pieces` any allied piece other than a pawn, `no_knights` any such piece other than a knight,
- * `moved` any such piece that has left its starting square.
- */
-export type ElectricSlideCorners = 'pieces' | 'no_knights' | 'moved';
 
 // ---- caps (values live in packages/content/config.ts) --------------------------------------------
 
@@ -65,11 +59,19 @@ export interface Caps {
   /** Most pieces in one twin group, the original included (Schrödinger's Joker, DD-101). */
   TWIN_GROUP_MAX: number;
   /**
-   * Electric Slide's attuned turn (5.8, PLAYTEST; DD-106, DD-110): the slider types that turn once
-   * per move and the allies that serve as corners. The module reads it; the simulator and fuzzer
-   * override it with `--caps` to measure variants.
+   * Trait numbers (6.1; the identities are COMMITTED, these values PLAYTEST: designer brief, plan
+   * item B4). The trait modules read them; the simulator and fuzzer override them with `--caps`.
    */
-  ELECTRIC_SLIDE: { turners: readonly PieceType[]; corners: ElectricSlideCorners };
+  TRAITS: {
+    /** Flow: allied pieces a Tide slider or double push may pass in one move; 0 means no limit. */
+    FLOW_PASS_LIMIT: number;
+    /** Bulwark: whether Stone pawns get the first-effect-capture fizzle too. */
+    BULWARK_PAWNS: boolean;
+    /** Overabundance: extra charges per consumable ability on a Grove piece. */
+    OVERABUNDANCE: { mode: 'add' | 'multiply'; amount: number };
+    /** Hot Foot: opponent turns a square burns after it ignites. */
+    HOT_FOOT_TURNS: number;
+  };
 }
 
 // ---- effect data (5.2) ----------------------------------------------------------------------------
@@ -200,11 +202,6 @@ export interface AbilityDef {
   hooks?: Partial<RuleHooks>;
   /** Loadout rule 8 (7.4): no set may hold this ability with one of these categories (DD-102). */
   excludes?: { categories: Category[] };
-  /**
-   * Loadout rule 9 (7.4, DD-109): item slots this ability adds to the item slot total (rule 1)
-   * when the set that applies to the king holds it (Stalwart: 1). The total is public (8.1).
-   */
-  kingItemSlots?: number;
   text: ModuleText;
   status: Status;
   retired?: boolean;
@@ -431,11 +428,13 @@ export interface RuleHooks {
     /** Redirects per move this slider may make at allied squares (0, 1 or 2; Electric Slide). */
     redirects?(ctx: ReadCtx, slider: PieceView): number;
     /**
-     * May this allied piece serve as a corner for its side's turning sliders? Every ally does unless
-     * a hook of its own side answers `false`; a non-corner blocks the slider like any ally (Electric
-     * Slide: never a pawn, DD-106).
+     * May this allied piece serve as a corner for a turning `slider` (bishop, rook or queen) of its
+     * side? Every ally does unless a hook of its own side answers `false`; a non-corner blocks that
+     * slider like any ally. Asked once per ally and slider type when the rules are assembled
+     * (Electric Slide: an ally of equal or higher rank than the slider, never the king; the queen
+     * turns at rooks and bishops; DD-106, DD-111).
      */
-    redirectCorner?(ctx: ReadCtx, ally: PieceView): boolean;
+    redirectCorner?(ctx: ReadCtx, ally: PieceView, slider: PieceType): boolean;
   };
   queueOrder(ctx: ReadCtx, queue: QueuedTrigger[]): QueuedTrigger[];
   triggerFilter(ctx: MutCtx, trigger: TriggerInfo): 'allow' | 'silence' | 'negate';

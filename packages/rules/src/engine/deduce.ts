@@ -3,9 +3,7 @@
  * enumerate every item combination consistent with the opponent's consumed slots, displayed
  * elements, level, revealed items and the abilities seen per piece type, then report what holds in
  * all of them. Example (8.3): 1 slot consumed and two abilities seen on pawns means Dual Adept's Glove
- * and no Schedule. The consumed total also counts abilities in the king's set that cost an item slot
- * (rule 9, DD-109: Stalwart), so the item cost of a consistent combination is a range until the
- * king's set is known.
+ * and no Schedule.
  */
 import { opposite } from '../board.ts';
 import type { ItemDef } from '../sdk/types.ts';
@@ -69,27 +67,7 @@ export function deduce(rt: Runtime, pub: PublicState): Deductions {
   const combos: ItemDef[][] = [];
   let truncated = false;
   const pick: ItemDef[] = [];
-  // The consumed total is the item cost plus the king's set's slots (rule 9, DD-109). What the
-  // king provably costs: `kingItemSlots` of the abilities seen on it. What it may cost on top of
-  // that: every other such ability the level allows, unless the king's set is completely known.
-  const kingKnown = seen.king ?? [];
-  const royalMin = kingKnown.reduce(
-    (sum, id) => sum + (rt.abilities.get(id)?.kingItemSlots ?? 0),
-    0,
-  );
-  const royalMaybe = known.complete.includes('king')
-    ? []
-    : [...rt.abilities.values()].filter(
-        (a) =>
-          !a.retired &&
-          a.minLevel <= level &&
-          (a.kingItemSlots ?? 0) > 0 &&
-          !kingKnown.includes(a.id),
-      );
-  const royalMax = royalMin + royalMaybe.reduce((sum, a) => sum + (a.kingItemSlots ?? 0), 0);
-  // Item totals consistent with the facts (R-INFO-003 soundness).
-  const upper = Math.max(0, army.consumedSlots - royalMin);
-  const lower = Math.max(0, army.consumedSlots - royalMax);
+  const target = army.consumedSlots;
 
   const consistent = (combo: ItemDef[]): boolean => {
     const ids = combo.map((i) => i.id);
@@ -116,14 +94,16 @@ export function deduce(rt: Runtime, pub: PublicState): Deductions {
 
   const walk = (start: number, cost: number, groups: Set<string>): void => {
     if (truncated) return;
-    if (cost >= lower && consistent(pick)) {
-      combos.push([...pick]);
-      if (combos.length >= MAX_COMBINATIONS) truncated = true;
+    if (cost === target) {
+      if (consistent(pick)) {
+        combos.push([...pick]);
+        if (combos.length >= MAX_COMBINATIONS) truncated = true;
+      }
+      return;
     }
-    if (cost >= upper) return;
     for (let i = start; i < candidates.length; i++) {
       const item = candidates[i] as ItemDef;
-      if (cost + item.slotCost > upper) continue;
+      if (cost + item.slotCost > target) continue;
       if (item.exclusiveGroup && groups.has(item.exclusiveGroup)) continue;
       pick.push(item);
       if (item.exclusiveGroup) groups.add(item.exclusiveGroup);
@@ -180,21 +160,6 @@ export function deduce(rt: Runtime, pub: PublicState): Deductions {
   if (observedCapacity > caps.BASE_ABILITY_CAPACITY) {
     hints.push(
       `${observedCapacity} ability slots seen on one piece type, so capacity is at least ${observedCapacity}.`,
-    );
-  }
-  // Rule 9 (DD-109): slots the king's set provably uses, and slots it may still be using.
-  const abilityName = (id: string) => rt.abilities.get(id)?.name ?? id;
-  // Slots the king may still be using: never more than the consumed total leaves unexplained.
-  const extra = Math.min(royalMax - royalMin, Math.max(0, army.consumedSlots - royalMin));
-  if (royalMin > 0) {
-    const payers = kingKnown.filter((id) => (rt.abilities.get(id)?.kingItemSlots ?? 0) > 0);
-    hints.push(
-      `${payers.map(abilityName).join(' and ')} on the king uses ${royalMin} of the consumed slot${royalMin === 1 ? '' : 's'}, so items use ${extra > 0 ? 'at most ' : ''}${upper}.`,
-    );
-  }
-  if (extra > 0) {
-    hints.push(
-      `${extra === 1 ? 'One slot' : `Up to ${extra} slots`} may be ${royalMaybe.map((a) => a.name).join(' or ')} on the king rather than an item.`,
     );
   }
   if (n === 0)

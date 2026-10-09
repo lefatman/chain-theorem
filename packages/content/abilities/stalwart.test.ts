@@ -7,10 +7,8 @@
  * removes it except a venom effect (Poisoned Meat); it ignores soft passive restrictions and burning
  * squares but not Block Path; it shares no set with Capturing or Captures abilities (rule 8).
  *
- * On the king it also uses one item slot (7.4 rule 9, designer decision 2026-10-09, DD-109).
- *
- * Expected behaviour comes from spec 4.1-4.5, 5.1-5.8, 7.3, 7.4, 8.2 and DD-25, DD-32, DD-102,
- * DD-109, not from the engine's current output.
+ * Expected behaviour comes from spec 4.1-4.5, 5.1-5.8, 7.3, 7.4, 8.2 and DD-25, DD-32, DD-102, not
+ * from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -315,16 +313,14 @@ describe('stalwart (R-ABIL-005, R-RULES-003)', () => {
     expect(pieceAt(r.state, 'd5')?.type).toBe('rook');
   });
 
-  it('R-ABIL-005 R-LOAD-004 DD-102 DD-109 module data: version 3, Passive, neutral, all, level 16, one item slot on the king (rule 9), excludes Capturing and Captures, bypass and effectIntercept hooks', () => {
+  it('R-ABIL-005 DD-102 module data: Passive, neutral, all, level 16, excludes Capturing and Captures, bypass and effectIntercept hooks', () => {
     const def = abilityById.get('stalwart');
     expect(def).toMatchObject({
-      version: 3,
       category: 'PASSIVE',
       affinity: 'neutral',
       eligible: 'all',
       minLevel: 16,
       slotCost: 1,
-      kingItemSlots: 1,
       excludes: { categories: ['CAPTURING', 'CAPTURES'] },
     });
     expect(def?.hooks?.moveFilter?.kingMode).toBeTypeOf('function');

@@ -26,10 +26,11 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   on the title page. B3 (DD-108) adds the `ONCE_PER_ABILITY` silence scope, measurable at last
   with Pierce in the builds (`--prefer`): it comes closest to the Full Battle target (61.7%) as long
   as Resonance Crystal does not mean never under it; the default stays `ALL_TRIGGERS` and the
-  Crystal question goes to B5. B3b (DD-109, DD-110) carries out the designer's two answers of
-  2026-10-09: Stalwart on a king costs an item slot (loadout rule 9), and Electric Slide ships the
-  most balanced measured turn (bishops only, at a bishop, rook, queen or king; B2b's rooks-and-bishops
-  rule stays one config line away). Next run: B4 (trait numbers), then B5–B8.
+  Crystal question goes to B5. B3b measured two designer answers (DD-109, DD-110); the designer
+  then overruled both the same day (B3c, DD-111): Stalwart costs one ability slot and nothing else
+  (rule 9 reverted), and Electric Slide follows the designer's own rule (rooks and bishops turn once
+  at an ally of equal or higher rank, the queen twice at rooks and bishops, never the king or a
+  pawn). B4 makes the four trait numbers config knobs. Next run: B5, then C6–B8.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
   know), Storm, Stone and Frost with 12 abilities, 2 items and Highcairn Pass.
@@ -178,18 +179,23 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
       non-pawns only; Overabundance: +1 charge, not x2; Hot Foot: 4 turns); re-measure Storm vs Stone
       first; one sim run per change; DD row. Identities (6.1) stay COMMITTED.
 - [x] B3b Designer answers of 2026-10-09 (DD-109, DD-110): Stalwart on a king costs an item slot
-      (loadout rule 9: `kingItemSlots` module data, public total, sound deductions, editor meter,
-      simulator `--king plain|stalwart`); Storm's signature ships in its most balanced measured
-      version (bishops turn once at a bishop, rook, queen or king; rooks and the queen never; a
-      `CAPS.ELECTRIC_SLIDE` knob with simulator and fuzzer `--caps`). Done 2026-10-09 (evidence
-      log): `docs/BALANCE_BASELINE.md` section 9.
-- [ ] B5 Per-card changes and loadout rule 10: Redo non-pawn; Obstinate ignored by kings, 2 slots;
-      Block Path 2 slots and a king's facing resets to forward after it moves; rule 10 at most two
-      Passive abilities per set (rule 9 is now the Stalwart king's item slot, DD-109); Pierce 2
-      charges; Scout's Lens reveals the whole pawn set; sim run; DD rows. B1's baseline backs
-      Obstinate at 2 slots and the two-passive rule (which also cuts the Stalwart king set to two
-      cards). From B3: Resonance Crystal's reading under `ONCE_PER_ABILITY` (one spared silence per
-      battle as DD-30 had it, or a higher slot cost for "never") and Storm's passive slot.
+      and Storm's signature ships its most balanced measured turn (bishops only). Done and measured
+      2026-10-09 (`docs/BALANCE_BASELINE.md` section 9), then overruled by the designer the same
+      day: see B3c. The simulator keeps `--king stalwart|plain`, `--caps` and `--tag`.
+- [x] B3c Designer rulings of 2026-10-09 (DD-111): rule 9 reverted (Stalwart costs one ability
+      slot; a Stalwart piece is removed only by a direct capture, as DD-102 built it); Electric
+      Slide's attuned turn is the designer's rule: rooks and bishops turn once at an allied piece
+      of equal or higher rank (5.1), the queen twice at allied rooks and bishops, never at the king
+      or a pawn (engine corners are now per slider type). Done 2026-10-09 (evidence log);
+      measurements in `docs/BALANCE_BASELINE.md` section 10.
+- [ ] B5 Per-card changes and loadout rule 9: Redo non-pawn; Obstinate ignored by kings, 2 slots;
+      Block Path 2 slots and a king's facing resets to forward after it moves; rule 9 at most two
+      Passive abilities per set; Pierce 2 charges; Scout's Lens reveals the whole pawn set; sim run;
+      DD rows. B1's baseline backs Obstinate at 2 slots and the two-passive rule (which also cuts
+      the Stalwart king set to two cards; the Stalwart king decides Full Battle between archetypes,
+      section 9.3 of the baseline, and the designer has ruled out pricing it). From B3: Resonance
+      Crystal's reading under `ONCE_PER_ABILITY` (one spared silence per battle as DD-30 had it, or
+      a higher slot cost for "never") and Storm's passive slot.
 - [ ] C6 Three neutral abilities: Cornered (Captured, L4, 1 charge, rim squares), Ricochet (Captures,
       sliders, L8, 2 charges, continue past the capture), Overwhelm (Capturing, L9, 2 charges, negate
       a lower-ranked victim's Captured abilities); primitives logged; golden examples; fuzz; sim.
