@@ -62,7 +62,16 @@ Grove over Tide, Storm over Frost, Frost over Stone, Stone over Storm.
 
 **First Blood** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000`
 
-@@EL_FB@@
+| Row vs column | ember | tide | grove | storm | stone | frost |
+| --- | --- | --- | --- | --- | --- | --- |
+| ember | mirror, white 51.7% | 29.2% | 47.5% | 3.3% | 59.2% | 57.5% |
+| tide | 70.8% | mirror, white 35.0% | 67.5% | 46.7% | 87.5% | 68.3% |
+| grove | 52.5% | 32.5% | mirror, white 30.8% | 0.0% | 63.3% | 45.8% |
+| storm | 96.7% | 53.3% | 100.0% | mirror, white 0.0% | 100.0% | 99.2% |
+| stone | 40.8% | 12.5% | 36.7% | 0.0% | mirror, white 65.0% | 60.0% |
+| frost | 42.5% | 31.7% | 54.2% | 0.8% | 40.0% | mirror, white 51.7% |
+
+Advantaged element: **48.3%**. White 46.9%, surprise losses 61.3%, median 23 plies. Result reasons: repetition 74, objective 1120, checkmate 61, ply_cap 5.
 
 **Full Battle** — `pnpm sim --suite elements --format full --games 40 --nodes 20000`
 

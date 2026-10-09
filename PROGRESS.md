@@ -143,7 +143,10 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 - [ ] B5 Per-card changes and loadout rule 9: Redo non-pawn; Obstinate ignored by kings, 2 slots;
       Block Path 2 slots and a king's facing resets to forward after it moves; rule 9 at most two
       Passive abilities per set; Pierce 2 charges; Scout's Lens reveals the whole pawn set; sim run;
-      DD rows.
+      DD rows. Added by B1's baseline: Electric Slide's attuned turn from the opening (a bishop turns
+      at its own b2 pawn and takes g7 on move 1; Snowdrift then shoves the recapturing bishop away,
+      a forced First Blood win), proposed fix: a slider turns only at an ally that has left its
+      starting square (`docs/BALANCE_BASELINE.md` section 6).
 - [ ] C6 Three neutral abilities: Cornered (Captured, L4, 1 charge, rim squares), Ricochet (Captures,
       sliders, L8, 2 charges, continue past the capture), Overwhelm (Capturing, L9, 2 charges, negate
       a lower-ranked victim's Captured abilities); primitives logged; golden examples; fuzz; sim.

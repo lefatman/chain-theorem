@@ -19,6 +19,35 @@ export interface SimOutcome {
   surprise: boolean;
 }
 
+/**
+ * The abilities of `side` that did something in an action's events: the source of an effect
+ * capture, of a moved, revived or spawned piece or of a rewind, or a passive observed for the first
+ * time (a leap, a turn, a denied capture). An ability that only named itself decided nothing: Scout
+ * revealing the victim's set, a Capturing guard with nothing to guard. Used for 17.2 "surprise
+ * losses": a battle decided by one of these that the loser had never seen.
+ */
+export function decisiveAbilities(events: readonly BattleEvent[], side: Side): Set<string> {
+  const out = new Set<string>();
+  for (const e of events) {
+    if (e.k === 'Revealed') {
+      if (e.side === side && e.cause === 'observed' && e.info.kind === 'ability')
+        out.add(e.info.ability);
+      continue;
+    }
+    if (
+      (e.k === 'Captured' && e.by === 'effect') ||
+      e.k === 'PieceMoved' ||
+      e.k === 'PieceRevived' ||
+      e.k === 'Spawned' ||
+      e.k === 'Rewound'
+    ) {
+      const src = e.source;
+      if (src?.kind === 'ability' && src.side === side) out.add(src.id);
+    }
+  }
+  return out;
+}
+
 export function playSim(engine: Engine, g: SimGame): SimOutcome {
   let { state } = engine.newBattle({
     format: g.format,
@@ -64,16 +93,9 @@ export function playSim(engine: Engine, g: SimGame): SimOutcome {
   const result = state.result;
   let surprise = false;
   if (result?.winner && lastReveals) {
-    const loser: Side = result.winner === 'white' ? 'black' : 'white';
+    // What the loser knew of the winner's abilities before the final action.
     const known = new Set(Object.values(lastReveals[result.winner].abilities).flat());
-    surprise =
-      lastEvents.some(
-        (e) =>
-          e.k === 'AbilityTriggered' &&
-          e.side === result.winner &&
-          e.ability !== null &&
-          !known.has(e.ability),
-      ) && loser !== result.winner;
+    surprise = [...decisiveAbilities(lastEvents, result.winner)].some((id) => !known.has(id));
   }
   return { winner: result?.winner ?? null, reason: result?.reason ?? 'ply_cap', plies, surprise };
 }

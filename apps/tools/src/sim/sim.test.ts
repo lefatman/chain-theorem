@@ -4,7 +4,7 @@
  * is deterministic. The balance numbers themselves are in docs/BALANCE_M7.md.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import type { ElementId } from '@chain-theorem/rules';
+import type { BattleEvent, ElementId } from '@chain-theorem/rules';
 import { CAPS, abilities, engine } from '@chain-theorem/content';
 import {
   ARCHETYPES,
@@ -16,7 +16,7 @@ import {
   pickAbilities,
   setPool,
 } from './builds.ts';
-import { playSim } from './play.ts';
+import { decisiveAbilities, playSim } from './play.ts';
 
 const ELEMENTS = CAPS.ENABLED_ELEMENTS as readonly ElementId[];
 const affinity = new Map(abilities.map((a) => [a.id, a.affinity]));
@@ -124,6 +124,98 @@ describe('balance simulator (R-TEST-002)', () => {
           card.id,
         ).not.toContain(cat);
     }
+  });
+
+  it('R-TEST-002 17.2 a surprise loss needs an unseen ability that acted: Scout naming a set is not one, an effect capture or an observed turn is', () => {
+    const base = { i: 0, depth: 0 } as const;
+    const src = (id: string, side: 'white' | 'black') =>
+      ({ kind: 'ability', id, piece: 1, side }) as const;
+    const scoutOnly = [
+      {
+        ...base,
+        k: 'AbilityTriggered',
+        side: 'white',
+        piece: 1,
+        pieceType: 'bishop',
+        ability: 'scout',
+        category: 'CAPTURING',
+        attuned: false,
+      },
+      {
+        ...base,
+        k: 'Revealed',
+        side: 'white',
+        info: { kind: 'ability', pieceType: 'bishop', ability: 'scout' },
+        cause: 'activated',
+      },
+      {
+        ...base,
+        k: 'Revealed',
+        side: 'black',
+        info: { kind: 'set', pieceType: 'pawn', abilities: ['last_word'] },
+        cause: 'effect',
+        source: src('scout', 'white'),
+      },
+      {
+        ...base,
+        k: 'Captured',
+        victim: 9,
+        victimSide: 'black',
+        victimType: 'knight',
+        square: 30,
+        by: 'move',
+        captor: 1,
+      },
+    ] as unknown as BattleEvent[];
+    expect(decisiveAbilities(scoutOnly, 'white')).toEqual(new Set());
+    const acted = [
+      {
+        ...base,
+        k: 'Revealed',
+        side: 'white',
+        info: { kind: 'ability', pieceType: 'queen', ability: 'electric_slide' },
+        cause: 'observed',
+        source: src('electric_slide', 'white'),
+      },
+      {
+        ...base,
+        k: 'Captured',
+        victim: 9,
+        victimSide: 'black',
+        victimType: 'pawn',
+        square: 30,
+        by: 'effect',
+        captor: 1,
+        source: src('cleave', 'white'),
+      },
+      {
+        ...base,
+        k: 'PieceMoved',
+        piece: 9,
+        side: 'black',
+        from: 61,
+        to: 2,
+        source: src('snowdrift', 'white'),
+      },
+      // The loser's own reaction is not the winner's doing.
+      {
+        ...base,
+        k: 'Captured',
+        victim: 1,
+        victimSide: 'white',
+        victimType: 'bishop',
+        square: 54,
+        by: 'effect',
+        captor: null,
+        source: src('last_word', 'black'),
+      },
+    ] as unknown as BattleEvent[];
+    expect([...decisiveAbilities(acted, 'white')].sort()).toEqual([
+      'cleave',
+      'electric_slide',
+      'snowdrift',
+    ]);
+    expect([...decisiveAbilities(acted, 'black')]).toEqual(['last_word']);
   });
 
   it('R-TEST-002 a simulated battle between new elements is deterministic', () => {
