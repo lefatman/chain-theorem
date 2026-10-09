@@ -99,6 +99,9 @@ export function beliefState(rt: Runtime, pub: PublicState, own: Loadout): GameSt
     slices: {},
     reveals: { white: pub.armies.white.revealed, black: pub.armies.black.revealed },
     objective: { ...pub.objective },
+    ...(pub.silenced
+      ? { silenced: { white: [...pub.silenced.white], black: [...pub.silenced.black] } }
+      : {}),
     captureSeq: Math.max(0, ...pub.pieces.map((p) => p.capturedSeq)),
     repetition: [],
     pending: null,

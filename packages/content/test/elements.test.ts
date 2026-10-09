@@ -209,6 +209,50 @@ describe('elements (R-ELEM-001 to R-ELEM-004)', () => {
     expect(outcome(all.events, 'scout')).toBe('silenced');
   });
 
+  it('R-ELEM-002 DD-108 silenceScope ONCE_PER_ABILITY silences an ability on a piece type once per battle: the second capture lets it fire, and the public record names it', () => {
+    // Tide beats Ember. Two Ember knights with Scout each take a Tide pawn; the first Scout is
+    // silenced (and revealed by it), the second fires.
+    const r = scenario({
+      fen: '4k3/8/8/3pp3/8/2N2N2/8/4K3 w - - 0 1',
+      white: { elements: ['ember'], abilities: ['scout'] },
+      black: { elements: ['tide'] },
+      caps: { SILENCE_SCOPE: 'ONCE_PER_ABILITY' },
+      moves: ['c3d5', 'e8d8', 'f3e5'],
+    });
+    expect(eventsOf(r.events, 'AbilitySilenced').map((e) => e.ability)).toEqual(['scout']);
+    expect(eventsOf(r.events, 'AbilityTriggered').map((e) => e.ability)).toEqual(['scout']);
+    expect(r.state.silenced).toEqual({ white: ['knight:scout'], black: [] });
+    // The silence revealed Scout on knights, so both sides see the entry (R-SEC-001).
+    expect(r.engine.project(r.state, 'black').silenced).toEqual({
+      white: ['knight:scout'],
+      black: [],
+    });
+    expect(r.engine.project(r.state, 'white').silenced?.white).toEqual(['knight:scout']);
+    // Under ALL_TRIGGERS the same two captures are both silenced.
+    const all = scenario({
+      fen: '4k3/8/8/3pp3/8/2N2N2/8/4K3 w - - 0 1',
+      white: { elements: ['ember'], abilities: ['scout'] },
+      black: { elements: ['tide'] },
+      moves: ['c3d5', 'e8d8', 'f3e5'],
+    });
+    expect(eventsOf(all.events, 'AbilitySilenced')).toHaveLength(2);
+    expect(all.state.silenced).toBeUndefined();
+  });
+
+  it('R-SEC-001 DD-108 the once-per-ability record names only abilities the viewer knows: a Veiled silence stays private', () => {
+    const r = scenario({
+      fen: '4k3/8/8/3pp3/8/2N2N2/8/4K3 w - - 0 1',
+      white: { elements: ['ember'], abilities: ['veil', 'scout'] },
+      black: { elements: ['tide'] },
+      caps: { SILENCE_SCOPE: 'ONCE_PER_ABILITY' },
+      moves: ['c3d5'],
+    });
+    expect(r.state.silenced).toEqual({ white: ['knight:scout'], black: [] });
+    expect(r.engine.project(r.state, 'white').silenced?.white).toEqual(['knight:scout']);
+    expect(r.engine.project(r.state, 'black').silenced?.white).toEqual([]);
+    expect(r.engine.projectSpectator(r.state).silenced?.white).toEqual([]);
+  });
+
   it('R-ELEM-002 silenceScope OFF disables the advantage in both directions', () => {
     const caps = { caps: { SILENCE_SCOPE: 'OFF' as const } };
     const r = capture('ember', ['scout', 'hit_and_run'], 'tide', [], caps);

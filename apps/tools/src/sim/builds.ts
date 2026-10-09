@@ -22,6 +22,15 @@ let POOL: Pool = 'any';
 export function setPool(p: Pool): void {
   POOL = p;
 }
+/**
+ * Cards to deal ahead of the other cards of their category (`--prefer pierce,phalanx`): a build
+ * that must carry a particular card, such as a Capturing card with an effect for the silence-scope
+ * runs (DD-98 section 4, `docs/BALANCE_BASELINE.md` finding 5). The signature still leads.
+ */
+let PREFER: ReadonlySet<string> = new Set();
+export function setPrefer(ids: readonly string[]): void {
+  PREFER = new Set(ids);
+}
 export const ARCHETYPES: Archetype[] = ['maximum', 'flexible', 'focused', 'starter'];
 /** Deal order when categories are equally filled and their best cards score alike (M3 3.4). */
 const CATEGORIES: readonly Category[] = ['CAPTURED', 'CAPTURES', 'CAPTURING', 'PASSIVE'];
@@ -47,7 +56,9 @@ function score(a: AbilityDef, element: ElementId, type: PieceType | 'all'): numb
   // on pawns, Afterimage on knights) and a poor one for an army-wide set, where it idles on the
   // other types but still uses the slot (7.3); there it ranks below every army-wide card.
   const fit = a.eligible === 'all' ? 0 : type === 'all' ? -1 : 0.75;
-  return affinity + category + fit - a.minLevel / 100;
+  // A preferred card outranks every other neutral card of its category, never the signature.
+  const prefer = PREFER.has(a.id) ? 5 : 0;
+  return affinity + category + fit + prefer - a.minLevel / 100;
 }
 
 /**

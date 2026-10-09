@@ -8,6 +8,7 @@
  *            [--elements ember,tide,...] (default: every enabled element, CAPS.ENABLED_ELEMENTS)
  *            [--silence ALL_TRIGGERS|REACTIONS_ONLY|OFF] [--pool any|affinity]
  *            [--cards id,id,...] (the cards suite only: test these abilities instead of all)
+ *            [--prefer id,id,...] (deal these cards ahead of their category's other cards)
  *
  * Suites: `elements` plays mono-element Focused builds against each other, `archetypes` the four
  * 7.3 builds, and `cards` a mirror test per ability (the card with the four best other cards of
@@ -29,6 +30,7 @@ import {
   cardLoadouts,
   elementLoadout,
   setPool,
+  setPrefer,
   type Pool,
 } from './builds.ts';
 import { playSim, type SimGame, type SimOutcome } from './play.ts';
@@ -36,6 +38,7 @@ import { playSim, type SimGame, type SimOutcome } from './play.ts';
 interface Options {
   silence: SilenceScope;
   pool: Pool;
+  prefer: string[];
 }
 
 interface Job {
@@ -59,6 +62,7 @@ function arg(name: string, def: string): string {
 if (!isMainThread) {
   const { jobs, options } = workerData as { jobs: Job[]; options: Options };
   setPool(options.pool);
+  setPrefer(options.prefer);
   const engine = makeEngine({ SILENCE_SCOPE: options.silence });
   const done: Done[] = [];
   for (const j of jobs) {
@@ -85,8 +89,12 @@ if (!isMainThread) {
   const options: Options = {
     silence: arg('silence', CAPS.SILENCE_SCOPE) as SilenceScope,
     pool: arg('pool', 'any') as Pool,
+    prefer: arg('prefer', '')
+      .split(',')
+      .filter((x) => x !== ''),
   };
   setPool(options.pool);
+  setPrefer(options.prefer);
   const jobs: Job[] = [];
   let seed = seed0;
   const only = arg('elements', '');
@@ -228,7 +236,7 @@ if (!isMainThread) {
   const lines: string[] = [];
   lines.push(`# Balance simulator report`, '');
   lines.push(
-    `Format ${format}, tier ${tier}, ${nodes} nodes per move, ${games} games per pairing, seeds from ${seed0}, silenceScope ${options.silence}, ability pool ${options.pool}. Draws count as half a win.`,
+    `Format ${format}, tier ${tier}, ${nodes} nodes per move, ${games} games per pairing, seeds from ${seed0}, silenceScope ${options.silence}, ability pool ${options.pool}${options.prefer.length ? `, preferred cards ${options.prefer.join(' ')}` : ''}. Draws count as half a win.`,
     '',
   );
   const el = results.filter((r) => r.job.suite === 'elements');
@@ -362,7 +370,7 @@ if (!isMainThread) {
   const md = lines.join('\n');
   mkdirSync('reports/sim', { recursive: true });
   const onlyCardsTag = arg('cards', '');
-  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}${only ? `-${els.join('_')}` : ''}${onlyCardsTag ? `-${onlyCardsTag.replace(/,/g, '_')}` : ''}`;
+  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}${only ? `-${els.join('_')}` : ''}${onlyCardsTag ? `-${onlyCardsTag.replace(/,/g, '_')}` : ''}${options.prefer.length ? `-prefer_${options.prefer.join('_')}` : ''}`;
   writeFileSync(`reports/sim/${tag}.md`, md + '\n');
   writeFileSync(
     `reports/sim/${tag}.json`,

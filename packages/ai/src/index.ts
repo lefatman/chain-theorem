@@ -114,6 +114,14 @@ function makeCtx(
     abilityAware: tier.abilityAware,
     risk: tier.risk,
     silence: engine.caps.SILENCE_SCOPE,
+    silenceSpent: new Set(
+      (['white', 'black'] as const).flatMap((side) =>
+        (state.silenced?.[side] ?? []).map(
+          (key) =>
+            `${side === 'white' ? 0 : 1}:${PIECE_TYPES.indexOf(key.split(':')[0] as PieceType)}`,
+        ),
+      ),
+    ),
     objectiveNeed: need,
     objective: [state.objective.white, state.objective.black],
     nodes: 0,

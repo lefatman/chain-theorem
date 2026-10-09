@@ -454,3 +454,27 @@ short format is the open design question, flagged with DD-106.
 **For the next items.** B3 and B4 measure against the section 7 tables, not sections 2 and 4. The
 `REACTIONS_ONLY` and archetype tables of sections 3 and 4 were not re-run: the fix touches one card,
 and both knobs were inert with these builds.
+
+## 8. The silence scope (B3, DD-108)
+
+Plan item B3. Three scopes of the 6.2 knob measured on the same builds and seeds, with Pierce dealt
+into every Focused build (`--prefer pierce`, new in this item) so the Capturing category carries a
+card with an effect: `ALL_TRIGGERS` (the default), `REACTIONS_ONLY` and the new `ONCE_PER_ABILITY`
+(each ability on each piece type is silenced once per battle; Resonance Crystal, which every Focused
+build carries, then means never). 40 games per pairing in First Blood (about ±8 points per cell) and
+30 in Full Battle (±9); the advantaged-element score aggregates 480 and 360 games.
+
+The Focused builds with Pierce preferred: Ember Cleave, Last Word, Pierce, Obstinate, Squall; Tide
+Hit and Run, Last Word, Pierce, Obstinate, Squall; Grove Poisoned Meat, Snowdrift, Pierce, Obstinate,
+Last Word; Storm Electric Slide, Last Word, Snowdrift, Pierce, Squall; Stone Stonewall, Snowdrift,
+Pierce, Obstinate, Last Word; Frost Frost Heave, Snowdrift, Pierce, Obstinate, Last Word.
+
+**First Blood** — `pnpm sim --suite elements --format first_blood --games 40 --nodes 20000 --prefer pierce` with `--silence ALL_TRIGGERS`, `REACTIONS_ONLY` and `ONCE_PER_ABILITY`
+
+@@B3_FB@@
+
+**Full Battle** — `pnpm sim --suite elements --format full --games 30 --nodes 20000 --prefer pierce` with the same three scopes
+
+@@B3_FULL@@
+
+@@B3_FINDINGS@@

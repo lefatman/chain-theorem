@@ -107,17 +107,17 @@ The agent checklist from spec 13.5, with the real commands:
 
 `packages/content/config.ts` holds the caps that modules and the validator read:
 
-| Cap                     | Value                                    | Used for                                                  |
-| ----------------------- | ---------------------------------------- | --------------------------------------------------------- |
-| `LEVEL_CAP`             | 30                                       | Upper bound of every `minLevel`                           |
-| `itemSlots(level)`      | `Math.min(6, 1 + Math.floor(level / 5))` | Item slots unlocked by level (R-LOAD-001, COMMITTED)      |
-| `MAX_ITEM_SLOTS`        | 6                                        | Upper bound of an item's slot cost check                  |
-| `BASE_ABILITY_CAPACITY` | 1                                        | Capacity without a capacity item                          |
-| `MAX_ABILITY_CAPACITY`  | 5                                        | Upper bound of an ability's `slotCost` and of `capacity`  |
-| `MAX_CHAIN_DEPTH`       | 3                                        | Hard guard for nested pipelines (DD-12 makes the depth 1) |
-| `SILENCE_SCOPE`         | `'ALL_TRIGGERS'`                         | Silence rule knob (6.2): `REACTIONS_ONLY`, `OFF`          |
-| `ENABLED_ELEMENTS`      | all six elements (M7 7.3)                | Elements a real loadout may use (6.5); never `neutral`    |
-| `MAX_EVENTS_PER_ACTION` | 512                                      | Termination guard; exceeding it throws (unbounded chain)  |
+| Cap                     | Value                                    | Used for                                                                                                                       |
+| ----------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `LEVEL_CAP`             | 30                                       | Upper bound of every `minLevel`                                                                                                |
+| `itemSlots(level)`      | `Math.min(6, 1 + Math.floor(level / 5))` | Item slots unlocked by level (R-LOAD-001, COMMITTED)                                                                           |
+| `MAX_ITEM_SLOTS`        | 6                                        | Upper bound of an item's slot cost check                                                                                       |
+| `BASE_ABILITY_CAPACITY` | 1                                        | Capacity without a capacity item                                                                                               |
+| `MAX_ABILITY_CAPACITY`  | 5                                        | Upper bound of an ability's `slotCost` and of `capacity`                                                                       |
+| `MAX_CHAIN_DEPTH`       | 3                                        | Hard guard for nested pipelines (DD-12 makes the depth 1)                                                                      |
+| `SILENCE_SCOPE`         | `'ALL_TRIGGERS'`                         | Silence rule knob (6.2): `REACTIONS_ONLY`, `ONCE_PER_ABILITY` (each ability on each piece type once per battle, DD-108), `OFF` |
+| `ENABLED_ELEMENTS`      | all six elements (M7 7.3)                | Elements a real loadout may use (6.5); never `neutral`                                                                         |
+| `MAX_EVENTS_PER_ACTION` | 512                                      | Termination guard; exceeding it throws (unbounded chain)                                                                       |
 
 ## 3. Ability modules
 

@@ -17,8 +17,8 @@ import {
   parseSquare,
   uciToMove,
 } from '@chain-theorem/rules';
-import { abilityById, engine } from '../../content/index.ts';
-import { scenario, setup } from '../../content/src/testing.ts';
+import { abilityById, engine, makeEngine } from '../../content/index.ts';
+import { idAt, scenario, setup } from '../../content/src/testing.ts';
 import { type Profile, profileOf, silenced, traitEffects } from './knowledge.ts';
 import { chooseOption, play, searchContext, unplay } from './index.ts';
 
@@ -85,6 +85,26 @@ describe('profiles of the Storm, Stone and Frost abilities (R-FMT-005, R-ABIL-00
       black: { abilities: ['poisoned_meat'] },
     });
     expect(probe(state, 'e4d5', 'white').played.killed).toBe(-1);
+  });
+
+  it('R-FMT-005 R-ELEM-002 DD-108 under ONCE_PER_ABILITY the searcher expects a reaction the foil already silenced once to fire', () => {
+    // Ember beats Grove: the knight's capture of a known Poisoned Meat pawn is silenced the first
+    // time (the captor survives in the model), and fires once the public record names the pair.
+    const once = makeEngine({ SILENCE_SCOPE: 'ONCE_PER_ABILITY' });
+    const { state } = setup({
+      fen: KNIGHT,
+      white: { elements: ['ember'] },
+      black: { elements: ['grove'], abilities: ['poisoned_meat'] },
+      caps: { SILENCE_SCOPE: 'ONCE_PER_ABILITY' },
+    });
+    const first = play(searchContext(once, state, 'white'), encoded(state, 'c3d5'));
+    expect(first.killed).toBe(-1);
+    const spent = { ...state, silenced: { white: [], black: ['pawn:poisoned_meat'] } };
+    const second = play(searchContext(once, spent, 'white'), encoded(spent, 'c3d5'));
+    expect(second.killed).toBe(idAt(state, 'c3'));
+    // A different piece type of the victim's is still silenced.
+    const other = { ...state, silenced: { white: [], black: ['knight:poisoned_meat'] } };
+    expect(play(searchContext(once, other, 'white'), encoded(other, 'c3d5')).killed).toBe(-1);
   });
 
   it('R-FMT-005 R-ELEM-002 silence follows the second triangle too (Storm > Frost > Stone > Storm); cross-triangle pairs are even', () => {

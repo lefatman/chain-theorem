@@ -15,6 +15,7 @@ import {
   elementLoadout,
   pickAbilities,
   setPool,
+  setPrefer,
 } from './builds.ts';
 import { decisiveAbilities, playSim } from './play.ts';
 
@@ -23,7 +24,10 @@ const affinity = new Map(abilities.map((a) => [a.id, a.affinity]));
 const category = new Map(abilities.map((a) => [a.id, a.category]));
 const eligibleFor = new Map(abilities.map((a) => [a.id, a.eligible]));
 
-afterEach(() => setPool('any'));
+afterEach(() => {
+  setPool('any');
+  setPrefer([]);
+});
 
 describe('balance simulator (R-TEST-002)', () => {
   it('R-TEST-002 the archetype suite plays every element pair with both colour assignments', () => {
@@ -216,6 +220,21 @@ describe('balance simulator (R-TEST-002)', () => {
       'snowdrift',
     ]);
     expect([...decisiveAbilities(acted, 'black')]).toEqual(['last_word']);
+  });
+
+  it('R-TEST-002 --prefer deals the listed cards ahead of the rest of their category; the signature still leads', () => {
+    setPrefer(['pierce', 'riposte']);
+    for (const e of ELEMENTS) {
+      const set = elementLoadout(e).sets[0] ?? [];
+      expect(affinity.get(set[0] ?? ''), e).toBe(e);
+      expect(set, e).toContain('pierce');
+      // Riposte takes the Captured slot unless the signature is the element's Captured card and the
+      // second Captured pick goes elsewhere; either way Scout is out, Pierce is in.
+      expect(set, e).not.toContain('scout');
+      expect(() => assertValid(elementLoadout(e), 25), e).not.toThrow();
+    }
+    setPrefer([]);
+    expect(elementLoadout('ember').sets[0]).toContain('scout');
   });
 
   it('R-TEST-002 a simulated battle between new elements is deterministic', () => {

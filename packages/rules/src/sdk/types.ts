@@ -26,7 +26,12 @@ import type {
 /** `venom`: an effect capture that even Stalwart's protection does not stop (DD-102). */
 export type AbilityTag = 'replay' | 'revive' | 'venom';
 export type Status = 'COMMITTED' | 'PROVISIONAL' | 'PLAYTEST';
-export type SilenceScope = 'ALL_TRIGGERS' | 'REACTIONS_ONLY' | 'OFF';
+/**
+ * The silence rule's scope (6.2, PLAYTEST): ALL_TRIGGERS silences every trigger of the weaker piece,
+ * REACTIONS_ONLY spares Capturing abilities, ONCE_PER_ABILITY silences each ability on each piece
+ * type once per battle (DD-108), OFF disables the advantage for testing.
+ */
+export type SilenceScope = 'ALL_TRIGGERS' | 'REACTIONS_ONLY' | 'ONCE_PER_ABILITY' | 'OFF';
 
 // ---- caps (values live in packages/content/config.ts) --------------------------------------------
 

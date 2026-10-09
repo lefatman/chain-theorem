@@ -34,7 +34,8 @@ export const CAPS = {
   BASE_ABILITY_CAPACITY: 1,
   MAX_ABILITY_CAPACITY: 5,
   MAX_CHAIN_DEPTH: 3,
-  // R-ELEM-002 tuning knob: 'ALL_TRIGGERS' (default) | 'REACTIONS_ONLY' | 'OFF'.
+  // R-ELEM-002 tuning knob: 'ALL_TRIGGERS' (default) | 'REACTIONS_ONLY' | 'ONCE_PER_ABILITY'
+  // (each ability on each piece type is silenced once per battle, DD-108) | 'OFF'.
   SILENCE_SCOPE: 'ALL_TRIGGERS',
   // 6.5 (COMMITTED rollout): the MVP shipped Ember, Tide and Grove; M7 7.3 adds Storm, Stone and
   // Frost, each with its accents and emblem and at least four affinity abilities.

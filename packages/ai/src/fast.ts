@@ -72,7 +72,12 @@ export interface SearchCtx {
   abilityAware: boolean;
   /** Fraction of the captor's value charged for capturing a piece with unknown abilities. */
   risk: number;
-  silence: 'ALL_TRIGGERS' | 'REACTIONS_ONLY' | 'OFF';
+  silence: 'ALL_TRIGGERS' | 'REACTIONS_ONLY' | 'ONCE_PER_ABILITY' | 'OFF';
+  /**
+   * Under ONCE_PER_ABILITY (DD-108): `<side>:<type>` pairs (numbers) some ability of which the foil
+   * has already silenced, from the public record; their reactions are taken to fire from then on.
+   */
+  silenceSpent: Set<string>;
   objectiveNeed: number | null;
   objective: [number, number];
   nodes: number;
@@ -159,10 +164,18 @@ export function play(ctx: SearchCtx, m: number): Played {
     const cK = ctx.know[mover as 0 | 1][TYPES[captorType] as PieceType];
     const captorEl = ctx.elem[captor] ?? 'neutral';
     const victimEl = ctx.elem[victim] ?? 'neutral';
-    const sil =
+    const base =
       ctx.silence === 'OFF' ? { victim: false, captor: false } : silenced(captorEl, victimEl);
+    // ONCE_PER_ABILITY (DD-108): a piece type the foil already silenced fires from then on.
+    const sil =
+      ctx.silence === 'ONCE_PER_ABILITY'
+        ? {
+            victim: base.victim && !ctx.silenceSpent.has(`${vSide}:${victimType}`),
+            captor: base.captor && !ctx.silenceSpent.has(`${mover}:${captorType}`),
+          }
+        : base;
     const trait = traitEffects(captorEl, victimEl);
-    const capturingSilenced = sil.captor && ctx.silence === 'ALL_TRIGGERS';
+    const capturingSilenced = sil.captor && ctx.silence !== 'REACTIONS_ONLY';
     const negated = !capturingSilenced && cK.capturing.negatesVictim;
     // Always First (6.1): a Storm captor's own After-capturing guard resolves before retaliation.
     const protectedSelf =
