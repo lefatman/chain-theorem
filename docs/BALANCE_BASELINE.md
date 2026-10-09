@@ -355,3 +355,26 @@ excludes are left out of both sides (Stalwart: Capturing and Captures, rule 8).
 - C6, C7: every new card gets a `--suite cards` row in both formats before its matchup run.
 - The NPC's capture biases for Reinforce, Snowbound, Redo, Momentum and the Joker (finding 7) are a
   `packages/ai` follow-up, not a balance change.
+
+## 7. After the Electric Slide fix (DD-106)
+
+Plan item B2b: a slider turns only at an allied piece other than a pawn (DD-106). Same method and
+seeds as sections 2, 4 and 5, so every cell pairs with the one above it.
+
+**Electric Slide alone** — `pnpm sim --suite cards --format first_blood --games 36 --nodes 20000 --cards electric_slide` and the same with `--format full --games 24`
+
+@@B2B_CARDS@@
+
+**Element matchups, First Blood** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000`
+
+@@B2B_EL_FB@@
+
+**Element matchups, Full Battle** — `pnpm sim --suite elements --format full --games 40 --nodes 20000`
+
+@@B2B_EL_FULL@@
+
+**Build archetypes** — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000` and `--format full --games 24`
+
+@@B2B_AR@@
+
+@@B2B_FINDINGS@@

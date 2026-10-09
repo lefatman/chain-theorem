@@ -13,8 +13,9 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   singular focus. B1 (simulator build picker, per-card mirror suite, corrected surprise metric,
   baseline tables) is done: `docs/BALANCE_BASELINE.md`. Its headline findings: Electric Slide's
   attuned turn is a forced First Blood win from the opening, army-wide Obstinate decides Full
-  Battle, the Stalwart king set decides Full Battle between archetypes. Next run: A2 (the alpha
-  one-time-code mode), then B2b (the Electric Slide opening fix, added from the baseline), B3–B8.
+  Battle, the Stalwart king set decides Full Battle between archetypes. The designer moved B2b (the
+  Electric Slide opening fix) ahead of A2; it is in progress (code committed, re-measurement
+  running), then A2 (the alpha one-time-code mode), B3–B8.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
   know), Storm, Stone and Frost with 12 abilities, 2 items and Highcairn Pass.
@@ -137,16 +138,16 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
       king set only); new `--suite cards` mirror test per ability; surprise losses count only
       abilities that acted; baseline tables for both formats and both silence scopes in
       `docs/BALANCE_BASELINE.md`. Tooling only, no design decision. Done 2026-10-09 (evidence log).
+- [ ] B2b (moved ahead of A2 at the designer's request, 2026-10-09) Electric Slide turns only at an allied piece, never at a pawn (from B1's baseline: the
+      attuned turn through the opening pawn wall is a forced First Blood win; the alternative, a
+      turn only at an ally that has left its starting square, restores the trap after one pawn
+      push). PLAYTEST card from the designer brief, so a DD row and a note for the designer; module,
+      tests, E15 if affected, spec 5.8 text; re-run the two element tables.
 - [ ] A2 Alpha one-time-code match mode for non-logged-in players: guest tokens behind a Worker var
       (off in production), creator picks level 1-30, format and a loadout from everything at or
       below that level, `c-<code>` lobby that expires in 30 minutes, single-use code, random colours,
       no XP, rewards, rating, drops, telemetry, chat or spectating; client `#/alpha` screen; server
       unit tests and one two-browser e2e; DD row.
-- [ ] B2b Electric Slide turns only at an allied piece, never at a pawn (from B1's baseline: the
-      attuned turn through the opening pawn wall is a forced First Blood win; the alternative, a
-      turn only at an ally that has left its starting square, restores the trap after one pawn
-      push). PLAYTEST card from the designer brief, so a DD row and a note for the designer; module,
-      tests, E15 if affected, spec 5.8 text; re-run the two element tables.
 - [ ] B3 Silence scope `ONCE_PER_ABILITY` as a PLAYTEST knob (the foil silences each ability on each
       piece type once per battle); Resonance Crystal "not even once" under it; sim run; DD row.
       First add a `--prefer` list to the simulator so the Focused builds carry Pierce or Phalanx and
