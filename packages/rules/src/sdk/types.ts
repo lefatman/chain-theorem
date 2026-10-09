@@ -408,6 +408,12 @@ export interface RuleHooks {
     pawnLeap?(ctx: ReadCtx, pawn: PieceView): boolean;
     /** Redirects per move this slider may make at allied squares (0, 1 or 2; Electric Slide). */
     redirects?(ctx: ReadCtx, slider: PieceView): number;
+    /**
+     * May this allied piece serve as a corner for its side's turning sliders? Every ally does unless
+     * a hook of its own side answers `false`; a non-corner blocks the slider like any ally (Electric
+     * Slide: never a pawn, DD-106).
+     */
+    redirectCorner?(ctx: ReadCtx, ally: PieceView): boolean;
   };
   queueOrder(ctx: ReadCtx, queue: QueuedTrigger[]): QueuedTrigger[];
   triggerFilter(ctx: MutCtx, trigger: TriggerInfo): 'allow' | 'silence' | 'negate';

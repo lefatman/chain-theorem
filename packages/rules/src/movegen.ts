@@ -14,6 +14,7 @@
  * - leap[id]:        Electric Slide base — a pawn may move straight over one adjacent ally.
  * - redirect[id]:    Electric Slide attuned — a slider may turn at an ally's square this many times
  *                    per move (never stopping on the ally); attacks follow the same paths (DD-104).
+ * - conducts[id]:    0 for an ally a slider is blocked by instead of turning at (DD-106: pawns)
  */
 import {
   BISHOP,
@@ -78,6 +79,12 @@ export interface MoveRules {
   redirect: Uint8Array;
   /** Per side: some piece of that side has a redirect budget (fast path for `attacked`). */
   anyRedirect: [boolean, boolean];
+  /**
+   * 1 for a piece at which its side's sliders may turn (a corner); 0 for one they are blocked by
+   * like any ally. Every piece conducts unless a `redirectCorner` hook says otherwise (Electric
+   * Slide: never a pawn, DD-106).
+   */
+  conducts: Uint8Array;
 }
 
 export function defaultRules(n: number): MoveRules {
@@ -94,6 +101,7 @@ export function defaultRules(n: number): MoveRules {
     leap: new Uint8Array(n),
     redirect: new Uint8Array(n),
     anyRedirect: [false, false],
+    conducts: new Uint8Array(n).fill(1),
   };
 }
 
@@ -332,9 +340,11 @@ export class Pos {
         const t = ptype[id];
         const matches = t === QUEEN || (diag ? t === BISHOP : t === ROOK);
         if (matches && (!allyBlocked || pass[id] === 1) && ok(id, sq)) return true;
-        // A slider that turned at this ally reaches `target` along ray d from here (DD-104).
+        // A slider that turned at this ally reaches `target` along ray d from here (DD-104), if
+        // the ally is a corner at all (DD-106).
         if (
           anyRedirect &&
+          this.rules.conducts[id] === 1 &&
           this.reachesVia(sq, d, by, 1, victim, target, allyBlocked, d < 4 ? 1 : 2)
         )
           return true;
@@ -390,8 +400,13 @@ export class Pos {
           (victim < 0 || this.capOk(id, corner, victim, target))
         )
           return true;
-        // Another ally: one more turn, if any piece has the budget (the queen's second redirect).
-        if (used < 2 && this.reachesVia(sq, d, by, used + 1, victim, target, crossed, geometry))
+        // Another ally that conducts: one more turn, if any piece has the budget (the queen's
+        // second redirect).
+        if (
+          used < 2 &&
+          this.rules.conducts[id] === 1 &&
+          this.reachesVia(sq, d, by, used + 1, victim, target, crossed, geometry)
+        )
           return true;
         if (!anyPass) break;
         crossed = true;
@@ -540,10 +555,10 @@ export class Pos {
   }
 
   /**
-   * Slider moves with Electric Slide redirects (DD-104): on meeting an ally the piece may continue
-   * from the ally's square along any of its rays but the one it came along and its reverse, up to
-   * `budget` times; it never stops on the ally. Destinations are deduplicated, and a capture's
-   * approach square (for Block Path) is the last corner.
+   * Slider moves with Electric Slide redirects (DD-104): on meeting an ally that conducts (DD-106)
+   * the piece may continue from the ally's square along any of its rays but the one it came along
+   * and its reverse, up to `budget` times; it never stops on the ally. Destinations are
+   * deduplicated, and a capture's approach square (for Block Path) is the last corner.
    */
   private slideWithTurns(
     id: number,
@@ -574,7 +589,8 @@ export class Pos {
             continue;
           }
           if (pside[v] === side) {
-            if (left > 0) walk(to, d, left - 1);
+            // A turn needs budget and an ally that conducts (DD-106: never a pawn).
+            if (left > 0 && this.rules.conducts[v] === 1) walk(to, d, left - 1);
             if (canPass) continue;
             break;
           }

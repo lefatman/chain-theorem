@@ -7,6 +7,7 @@
  *            [--nodes K] [--workers W] [--suite elements|archetypes|cards|all] [--seed S]
  *            [--elements ember,tide,...] (default: every enabled element, CAPS.ENABLED_ELEMENTS)
  *            [--silence ALL_TRIGGERS|REACTIONS_ONLY|OFF] [--pool any|affinity]
+ *            [--cards id,id,...] (the cards suite only: test these abilities instead of all)
  *
  * Suites: `elements` plays mono-element Focused builds against each other, `archetypes` the four
  * 7.3 builds, and `cards` a mirror test per ability (the card with the four best other cards of
@@ -151,10 +152,12 @@ if (!isMainThread) {
     // Mirror tests (17.2 "any single ability"): a card against its absence, same element both sides.
     // A neutral card cycles through the elements two games at a time (both colours per element); a
     // signature plays on its own element only.
+    const onlyCards = arg('cards', '');
     const cards = abilities.filter(
       (a) =>
         !a.retired &&
         a.minLevel <= 25 &&
+        (onlyCards === '' || onlyCards.split(',').includes(a.id)) &&
         (a.affinity === 'neutral' || els.includes(a.affinity as ElementId)),
     );
     for (const card of cards) {
@@ -358,7 +361,8 @@ if (!isMainThread) {
   );
   const md = lines.join('\n');
   mkdirSync('reports/sim', { recursive: true });
-  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}${only ? `-${els.join('_')}` : ''}`;
+  const onlyCardsTag = arg('cards', '');
+  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}${only ? `-${els.join('_')}` : ''}${onlyCardsTag ? `-${onlyCardsTag.replace(/,/g, '_')}` : ''}`;
   writeFileSync(`reports/sim/${tag}.md`, md + '\n');
   writeFileSync(
     `reports/sim/${tag}.json`,

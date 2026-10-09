@@ -288,6 +288,7 @@ export class Runtime {
     const bypass: HookEntry[] = [];
     const leaps: HookEntry[] = [];
     const redirects: HookEntry[] = [];
+    const corners: HookEntry[] = [];
     for (const e of entries) {
       const mf = e.hooks.moveFilter;
       if (!mf) continue;
@@ -298,6 +299,7 @@ export class Runtime {
       if (mf.bypass) bypass.push(e);
       if (mf.pawnLeap) leaps.push(e);
       if (mf.redirects) redirects.push(e);
+      if (mf.redirectCorner) corners.push(e);
     }
     const source = (e: HookEntry, v: PieceView, kind: CapSource['kind']) => {
       if (e.owner !== null) capSources?.push({ entry: e, victim: v.id, kind });
@@ -347,6 +349,15 @@ export class Runtime {
             kingSources?.set(p.side, e);
             break;
           }
+        }
+      }
+      // A corner for its own side's turning sliders unless one of that side's hooks says no
+      // (DD-106). Other sides' hooks never speak for this piece.
+      for (const e of corners) {
+        if (e.owner !== null && e.owner !== p.side) continue;
+        if (e.hooks.moveFilter?.redirectCorner?.(ctxOf(e), v) === false) {
+          rules.conducts[p.id] = 0;
+          break;
         }
       }
       if (p.type === 'pawn') {
