@@ -25,7 +25,12 @@ of Obstinate. Section 8 measures the silence scopes with a Capturing card in pla
 not mean never under it. Section 9 carries out two designer answers (B3b, DD-109, DD-110): Stalwart
 on a king costs an item slot, which prices the king set without yet making Focused competitive
 against a paid Stalwart king (81–88% in Full Battle, as before), and Electric Slide ships its most
-balanced measured turn (bishops only, at a bishop, rook, queen or king: 58% and 64% on its own).
+balanced measured turn (bishops only, at a bishop, rook, queen or king: 58% and 64% on its own). Section 10 records the designer's rulings on both (rule 9 reverted; Electric Slide turns by
+rank, DD-111: 82.5% and 62.3% on its own) and the four trait numbers of B4 as config knobs, each
+measured alone: Flow's one-ally cap does not tame Tide (aggregate 52.1% to 50.6% in First Blood,
+69.2% to 72.2% in Full Battle), Bulwark's pawn exclusion and Hot Foot's fourth turn are inert at 40
+and 30 games, and Overabundance's extra charge changes no game because no Focused build carries a
+consumable; at the shipped defaults the advantaged element reads 48.3% and 73.5%.
 
 ## 1. Method
 
@@ -876,6 +881,103 @@ the knight out of a bishop's corners is the measured 57.8% / 64.0% of section 9.
 Each knob was measured alone against the launch values (`--caps` with the other three at their launch
 values), then all four together at the shipped defaults.
 
-@@B4_TABLES@@
+**First Blood: advantaged element and the six foil pairs** (row element over its foil; `--suite elements` at 40 / 30 games per pairing, the shipped row at 60 / 40)
 
-@@B4_FINDINGS@@
+| Run                | Advantaged | tide > ember | ember > grove | grove > tide | storm > frost | frost > stone | stone > storm | White | Surprise | Median |
+| ------------------ | ---------- | ------------ | ------------- | ------------ | ------------- | ------------- | ------------- | ----- | -------- | ------ |
+| launch values      | **52.1%**  | 76.3%        | 56.3%         | 31.3%        | 67.5%         | 43.8%         | 37.5%         | 52.1% | 9.2%     | 22     |
+| Flow passes one    | **50.6%**  | 68.8%        | 56.3%         | 30.0%        | 67.5%         | 43.8%         | 37.5%         | 53.0% | 9.3%     | 22     |
+| Bulwark non-pawns  | **52.1%**  | 76.3%        | 56.3%         | 31.3%        | 67.5%         | 43.8%         | 37.5%         | 52.5% | 9.3%     | 22     |
+| Overabundance +1   | **52.1%**  | 76.3%        | 56.3%         | 31.3%        | 67.5%         | 43.8%         | 37.5%         | 52.1% | 9.2%     | 22     |
+| Hot Foot 4 turns   | **52.1%**  | 76.3%        | 56.3%         | 31.3%        | 67.5%         | 43.8%         | 37.5%         | 52.1% | 9.2%     | 22     |
+| all four (shipped) | **48.3%**  | 68.3%        | 47.5%         | 35.0%        | 60.0%         | 40.0%         | 39.2%         | 54.4% | 9.6%     | 23     |
+
+**Full Battle: advantaged element and the six foil pairs** (row element over its foil; `--suite elements` at 40 / 30 games per pairing, the shipped row at 60 / 40)
+
+| Run                | Advantaged | tide > ember | ember > grove | grove > tide | storm > frost | frost > stone | stone > storm | White | Surprise | Median |
+| ------------------ | ---------- | ------------ | ------------- | ------------ | ------------- | ------------- | ------------- | ----- | -------- | ------ |
+| launch values      | **69.2%**  | 80.0%        | 81.7%         | 73.3%        | 41.7%         | 46.7%         | 91.7%         | 52.8% | 0.8%     | 67     |
+| Flow passes one    | **72.2%**  | 86.7%        | 81.7%         | 85.0%        | 41.7%         | 46.7%         | 91.7%         | 53.3% | 0.8%     | 67     |
+| Bulwark non-pawns  | **69.2%**  | 80.0%        | 81.7%         | 73.3%        | 41.7%         | 46.7%         | 91.7%         | 53.1% | 0.8%     | 67     |
+| Overabundance +1   | **69.2%**  | 80.0%        | 81.7%         | 73.3%        | 41.7%         | 46.7%         | 91.7%         | 52.8% | 0.8%     | 67     |
+| Hot Foot 4 turns   | **68.9%**  | 80.0%        | 80.0%         | 73.3%        | 41.7%         | 46.7%         | 91.7%         | 52.2% | 0.8%     | 67     |
+| all four (shipped) | **73.5%**  | 88.8%        | 77.5%         | 76.3%        | 47.5%         | 56.3%         | 95.0%         | 51.5% | 1.1%     | 66     |
+
+**Element matchups at the shipped defaults, First Blood** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000`
+
+| ember | mirror, white 51.7% | 31.7% | 47.5% | 66.7% | 59.2% | 59.2% |
+| tide | 68.3% | mirror, white 50.0% | 65.0% | 63.3% | 83.3% | 70.8% |
+| grove | 52.5% | 35.0% | mirror, white 30.8% | 35.0% | 64.2% | 45.8% |
+| storm | 33.3% | 36.7% | 65.0% | mirror, white 41.7% | 60.8% | 60.0% |
+| stone | 40.8% | 16.7% | 35.8% | 39.2% | mirror, white 65.0% | 60.0% |
+| frost | 40.8% | 29.2% | 54.2% | 40.0% | 40.0% | mirror, white 51.7% |
+
+Advantaged element: **48.3%**. White 54.4%, surprise losses 9.6%, median 23 plies. Result reasons: repetition 65, objective 1099, checkmate 89, ply_cap 7.
+
+**Element matchups at the shipped defaults, Full Battle** — `pnpm sim --suite elements --format full --games 40 --nodes 20000`
+
+| ember | mirror, white 40.0% | 11.3% | 77.5% | 100.0% | 68.8% | 56.3% |
+| tide | 88.8% | mirror, white 61.3% | 23.8% | 98.8% | 92.5% | 77.5% |
+| grove | 22.5% | 76.3% | mirror, white 55.0% | 88.8% | 70.0% | 81.3% |
+| storm | 0.0% | 1.3% | 11.3% | mirror, white 46.3% | 5.0% | 47.5% |
+| stone | 31.3% | 7.5% | 30.0% | 95.0% | mirror, white 53.8% | 43.8% |
+| frost | 43.8% | 22.5% | 18.8% | 52.5% | 56.3% | mirror, white 53.8% |
+
+Advantaged element: **73.5%**. White 51.5%, surprise losses 1.1%, median 66 plies. Result reasons: checkmate 628, repetition 176, stalemate 4, ply_cap 27, fifty_move 5.
+
+**Build archetypes at the shipped defaults, First Blood** — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000`
+
+| maximum | — | 62.5% | 58.3% | 58.3% |
+| flexible | 37.5% | — | 58.3% | 65.0% |
+| focused | 41.7% | 41.7% | — | 80.0% |
+| starter | 41.7% | 35.0% | 20.0% | — |
+
+White 47.4%, surprise losses 33.2%, median 17 plies. Result reasons: objective 343, stalwart_captured 2, repetition 5, checkmate 10.
+
+**Build archetypes at the shipped defaults, Full Battle** — `pnpm sim --suite archetypes --format full --games 24 --nodes 20000`
+
+| maximum | — | 56.3% | 81.3% | 100.0% |
+| flexible | 43.8% | — | 87.5% | 93.8% |
+| focused | 18.8% | 12.5% | — | 91.7% |
+| starter | 0.0% | 6.3% | 8.3% | — |
+
+White 52.4%, surprise losses 14.4%, median 66 plies. Result reasons: stalwart_captured 13, repetition 24, ply_cap 7, checkmate 98, fifty_move 2.
+
+**What the data says.**
+
+1. **The simulator is deterministic and each knob moves only its own pairings.** Comparing the
+   per-pairing outcome sets of the one-knob runs with the launch run: the Flow knob changes every
+   Tide pairing and nothing else, the Bulwark knob only Grove-Stone and Ember-Stone (the two foils
+   whose Poisoned Meat and Cleave hit Stone pawns), the Hot Foot knob only Ember's pairings, and the
+   Overabundance knob changes no game at all, because no Focused build carries a consumable (the
+   picker's top cards of every element have no charges). Overabundance's new value is therefore
+   unmeasured here; the cards suite (section 5) is where Momentum, Snowbound and the revives show it.
+2. **Flow's cap does not tame Tide.** With one allied piece per move Tide over Ember falls from 76%
+   to 69% in First Blood, but Tide's row otherwise rises (80% over Stone from 73%, 86% over Frost from
+   75%), and in Full Battle Tide over Ember rises to 87% while Grove over Tide, its foil, climbs from
+   73% to 85%. The aggregate moves from 52.1% to 50.6% in First Blood and from 69.2% to 72.2% in Full
+   Battle. Tide's strength is its kit (Hit and Run, Pierce, Obstinate on the Focused build), not the
+   number of allies a slider passes; the cap removes the long double-crossings the NPC used to walk
+   into and otherwise changes little. B5's card changes (Pierce at two charges, Obstinate at two
+   slots) are the Tide lever; the Flow number is now a knob either way.
+3. **Bulwark without pawns and Hot Foot at four turns are inert at this resolution.** Both leave the
+   aggregates where they were (52.1% / 69.2% and 52.1% / 68.9%); Ember over Grove in Full Battle moves
+   from 81.7% to 80.0% with the longer burn and Stone's pairs do not move at all at 40 and 30 games.
+   The changes are kept as the designer's brief asks (they are PLAYTEST numbers behind one knob each),
+   and they do no harm; they are not where the balance lives.
+4. **The shipped defaults.** All four knobs together, at 60 and 40 games (so the tables pair with sections 7 and 9): advantaged
+   element 48.3% in First Blood and 73.5% in Full Battle (sections 7 and 9: 48.3% / 46.9% and 70.8% /
+   69.4%), White 54.4% and 51.5%, surprise losses 9.6% and 1.1%, medians 23 and 66 plies. The wheel
+   points the right way in Full Battle for five pairs (Tide over Ember 89%, Ember over Grove 78%, Grove
+   over Tide 76%, Frost over Stone 56%, Stone over Storm 95%) and Storm over Frost reads 48%; in First
+   Blood only Tide over Ember (68%) and Storm over Frost (60%) do, Stone over Storm reads 39% (the
+   DD-111 bishop turn) and Frost over Stone 40%. Tide's row (63–83% in First Blood, 78–99% in Full
+   Battle except its foil) and Storm's Full Battle row (0–11% against four elements) are unchanged in
+   kind. Archetypes (with Stalwart kings back on the Schedule builds): Maximum over Focused 58.3% and
+   Flexible over Focused 58.3% in First Blood, 81.3% and 87.5% in Full Battle, Maximum against Flexible
+   62.5% and 56.3%: the Stalwart king set still decides Full Battle (section 9.3), which the designer has
+   chosen to keep as it is; the two-passive rule of B5 is the lever left.
+5. **Storm after DD-111.** The designer's Electric Slide rule puts a bishop's turn at a knight back
+   in: Storm over Stone reads 62.5% in First Blood where section 9 (bishops at non-knights) had 42%,
+   and the mirror test reads 82.5% (section 10.1). Storm's Full Battle row stays the weakest (the
+   Obstinate slot, section 7); both are B5's.

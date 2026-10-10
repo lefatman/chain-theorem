@@ -175,9 +175,11 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
       Simulator `--prefer` and `--without`, fuzzer `--silence`. Done 2026-10-09 (evidence log): the
       default stays `ALL_TRIGGERS`; `docs/BALANCE_BASELINE.md` section 8 favours `ONCE_PER_ABILITY`
       provided the Crystal does not mean never under it (a B5 decision).
-- [ ] B4 Trait numbers as config knobs (Flow: at most one allied piece passed per move; Bulwark:
-      non-pawns only; Overabundance: +1 charge, not x2; Hot Foot: 4 turns); re-measure Storm vs Stone
-      first; one sim run per change; DD row. Identities (6.1) stay COMMITTED.
+- [x] B4 Trait numbers as config knobs (`CAPS.TRAITS`: Flow passes at most one allied piece per
+      move, Bulwark covers non-pawns only, Overabundance adds one charge, Hot Foot burns 4 turns);
+      the modules read them, the launch values are one `--caps` line away; DD-112 to DD-115.
+      Identities (6.1) stay COMMITTED. Done 2026-10-10 (evidence log): each knob measured alone
+      against the launch values and all four together, `docs/BALANCE_BASELINE.md` section 10.
 - [x] B3b Designer answers of 2026-10-09 (DD-109, DD-110): Stalwart on a king costs an item slot
       and Storm's signature ships its most balanced measured turn (bishops only). Done and measured
       2026-10-09 (`docs/BALANCE_BASELINE.md` section 9), then overruled by the designer the same
@@ -230,6 +232,23 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 - Arcane Chess codebase path for step 2.8 (optional).
 
 ## Evidence log
+
+- 2026-10-10 B3c and B4 (DD-111 to DD-115; R-LOAD-004, R-RULES-003, R-ELEM-001, R-ELEM-003,
+  R-ELEM-005, R-ELEM-006, R-ELEM-007, R-FMT-005, R-TEST-002): rule 9 reverted to the pre-B3b
+  code (DD-109 overruled); Electric Slide v5 with the designer's rank rule and per-slider-type
+  corners (`MoveRules.conducts` bitmask, `redirectCorner(ctx, ally, slider)`), 17 module tests, E15
+  kept (a bishop at its rook); `CAPS.TRAITS` with Flow v2 (pass limit through the engine's crossing
+  counts, 16 tests), Bulwark v2 (NPC model and Masquerade Mask follow the knob, 11 tests), Overabundance
+  v3 (10 tests), Hot Foot v3 (25 tests, golden E7 re-derived). `pnpm check` 1,616 unit tests,
+  `req:coverage` 84/84; `pnpm test:fuzz` 500 games clean after each commit. Simulator (20,000 nodes,
+  Trainer): Electric Slide under DD-111 alone 82.5% First Blood (300 games, median 12 plies) and 62.3%
+  Full Battle (200); trait knobs, each alone against the launch values (elements suite, 40 games First Blood / 30 Full
+  Battle): Flow one ally moves the aggregate 52.1% to 50.6% and 69.2% to 72.2% (Tide over Ember 76% to
+  69% in First Blood, Grove over Tide 73% to 85% in Full Battle), Bulwark non-pawns and Hot Foot 4
+  turns leave the aggregates at 52.1% / 69.2% and 52.1% / 68.9%, Overabundance +1 changes no game (no
+  Focused build carries a consumable); all four at 60 / 40 games: advantaged 48.3% / 73.5%, White
+  54.4% / 51.5%, surprise 9.6% / 1.1%, medians 23 / 66 plies; archetypes 60 / 24 games: Maximum and
+  Flexible over Focused 58.3% / 58.3% in First Blood and 81.3% / 87.5% in Full Battle. Findings in `docs/BALANCE_BASELINE.md` section 10.
 
 - 2026-10-09 B3b Designer answers (DD-109, DD-110; R-LOAD-004, R-RULES-003, R-INFO-001, R-INFO-003,
   R-INFO-004, R-ELEM-003, R-TEST-002): loadout rule 9 (`kingItemSlots`, Stalwart v3) through the
