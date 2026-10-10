@@ -1,13 +1,13 @@
 /**
- * Hot Foot — Ember trait (R-ELEM-005, D-40, COMMITTED).
+ * Hot Foot — Ember trait (R-ELEM-005, D-40, COMMITTED identity).
  * A move capture by an Ember piece leaves a pending burn on its landing square. When that piece
  * leaves the square for any reason other than being captured, the square ignites: until the igniting
- * player's opponent has taken 3 turns, no non-Ember piece may move to or capture on it. Sliders may
+ * player's opponent has taken `CAPS.TRAITS.HOT_FOOT_TURNS` turns (4; a PLAYTEST number, plan item
+ * B4, DD-115; the launch value was 3), no non-Ember piece may move to or capture on it. Sliders may
  * pass over it. Effects cannot place a non-Ember piece there. Burning squares are public state.
  */
 import { defineTrait } from '@chain-theorem/rules/sdk';
 import type { Side } from '@chain-theorem/rules';
-import { HOT_FOOT_TURNS } from '../config.ts';
 
 export interface Burn {
   sq: number;
@@ -17,7 +17,8 @@ export interface Burn {
   turns: number;
   /**
    * Ignited during the opponent's own turn (a Riposte capture moving the piece off its square):
-   * that partial turn does not count as one of the 3 (DD-42). Cleared when the turn ends.
+   * that partial turn is not one of the `HOT_FOOT_TURNS` opponent turns (DD-42). Cleared when the
+   * turn ends.
    */
   fresh?: true;
 }
@@ -32,7 +33,7 @@ export default defineTrait({
   id: ID,
   name: 'Hot Foot',
   element: 'ember',
-  version: 2,
+  version: 3,
   hooks: {
     stateSlice: {
       id: ID,
@@ -71,14 +72,15 @@ export default defineTrait({
       if (pend && m.from === pend.sq && m.to !== pend.sq) {
         // Leaving the square ignites it; re-igniting a burning square resets its count.
         pending = pending.filter((p) => p !== pend);
-        const burn: Burn = { sq: pend.sq, side: m.piece.side, turns: HOT_FOOT_TURNS };
+        const turns = ctx.caps.TRAITS.HOT_FOOT_TURNS;
+        const burn: Burn = { sq: pend.sq, side: m.piece.side, turns };
         if (m.piece.side !== ctx.state.turn) burn.fresh = true;
         burning = [...burning.filter((b) => b.sq !== pend.sq), burn];
         ctx.emit({
           k: 'SquareIgnited',
           square: pend.sq,
           side: m.piece.side,
-          turns: HOT_FOOT_TURNS,
+          turns,
         });
       }
       if (m.capture && m.piece.element === 'ember' && (m.cause === 'move' || m.cause === 'bonus')) {
@@ -125,7 +127,7 @@ export default defineTrait({
   text: {
     short: 'Squares it captured on burn after it leaves.',
     rules:
-      'After an Ember piece captures with a move, that square burns once the piece moves off it. Until your opponent has taken 3 turns, no non-Ember piece can move to or capture on it. Sliding pieces may pass over it.',
+      'After an Ember piece captures with a move, that square burns once the piece moves off it. Until your opponent has taken 4 turns, no non-Ember piece can move to or capture on it. Sliding pieces may pass over it.',
   },
   status: 'COMMITTED',
 });

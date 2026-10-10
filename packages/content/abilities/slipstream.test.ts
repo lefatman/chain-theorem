@@ -118,7 +118,7 @@ describe('slipstream (R-ABIL-005)', () => {
     ]);
   });
 
-  it('R-ELEM-007 Overabundance doubles the charge on a Grove piece', () => {
+  it('R-ELEM-007 DD-114 Overabundance gives a Grove piece a second charge', () => {
     const r = scenario({ fen: KNIGHT, white: { elements: ['grove'], abilities: ['slipstream'] } });
     expect(r.engine.remainingCharges(r.state, idAt(r.state, 'c3'), 'slipstream')).toBe(2);
   });

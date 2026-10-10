@@ -26,14 +26,14 @@ describe('mainspring (R-LOAD-002)', () => {
     );
   });
 
-  it('R-LOAD-002 R-ELEM-007 consumable replay abilities get one more charge (after Overabundance doubles them)', () => {
+  it('R-LOAD-002 R-ELEM-007 DD-114 consumable replay abilities get one more charge (after Overabundance adds its own)', () => {
     const counts = (elements: Loadout['elements'], ability: string, items: string[]) => {
       const r = scenario({ fen: FEN, white: { elements, abilities: [ability], items } });
       return r.engine.remainingCharges(r.state, idAt(r.state, 'c3'), ability);
     };
     expect(counts(['neutral'], 'momentum', [ID])).toBe(3);
     expect(counts(['neutral'], 'slipstream', [ID])).toBe(2);
-    expect(counts(['grove'], 'momentum', [ID])).toBe(5);
+    expect(counts(['grove'], 'momentum', [ID])).toBe(4);
     expect(counts(['neutral'], 'momentum', [])).toBe(2);
     // Not replay (Rebirth, Rebuild: revive) or not consumable (Squall): unchanged.
     expect(counts(['neutral'], 'rebirth', [ID])).toBe(1);

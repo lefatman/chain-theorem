@@ -833,3 +833,49 @@ White 51.4%, surprise losses 12.0%, median 70 plies. Result reasons: stalwart_ca
    shows the king's slot, the simulator plays both king answers (`--king`) and every Electric Slide
    variant above is one `--caps` line, so B4 and B5 can re-measure either in minutes. The designer
    may overrule either decision; DD-109 and DD-110 record the alternatives measured.
+
+## 10. The designer's rulings and the trait numbers (B3c, B4; DD-111 to DD-115)
+
+The designer answered section 9 on 2026-10-09: rule 9 is reverted (Stalwart simply means only a
+direct capture removes the piece; it costs one ability slot), and Electric Slide gets the designer's
+own turn rule rather than a measured variant. B4 then turns the four trait numbers of the brief into
+config knobs (`CAPS.TRAITS`) and measures each. Same method and seeds as before; the element suites
+use 40 games per pairing in First Blood (about ±8 points per cell) and 30 in Full Battle (±9) for the
+one-knob runs and 60 and 40 for the shipped defaults, so the last tables pair with sections 7 and 9.
+
+### 10.1 Electric Slide, the designer's rule (DD-111)
+
+Rooks and bishops turn once at an allied piece of equal or higher rank than themselves (5.1: a rook at
+a rook or queen; a bishop at a knight, bishop, rook or queen), the queen twice at allied rooks and
+bishops, nothing at the king or at a pawn. The engine's corner flag is now per slider type, so a
+knight conducts a bishop and blocks a rook.
+
+**Electric Slide alone** — `pnpm sim --suite cards --cards electric_slide --format first_blood --games 300 --nodes 20000` and `--format full --games 200`
+
+| Format      | Card           | Category | Level | Score with the card | Games | Median plies | Note          |
+| ----------- | -------------- | -------- | ----- | ------------------- | ----- | ------------ | ------------- |
+| First Blood | Electric Slide | PASSIVE  | 3     | 82.5%               | 300   | 12           | **above 60%** |
+| Full Battle | Electric Slide | PASSIVE  | 3     | 62.3%               | 200   | 63           | **above 60%** |
+
+The Full Battle number sits where the bishops-only variant did (64%); the First Blood number is the
+knight's doing: under the DD-97 rank order a knight equals a bishop, so a bishop turns at a developed
+knight and the `Bc5-d4-c3` lines of section 7 return (bishops at any piece read 88% in section 9.1,
+the leap alone 57.5%). Median length 12 plies, against 20–22 for the rules without that corner. This
+is the designer's rule and ships as given; the one-line variant that keeps everything else and takes
+the knight out of a bishop's corners is the measured 57.8% / 64.0% of section 9.1.
+
+### 10.2 Trait numbers (B4)
+
+| Trait (element)       | Launch value                       | B4 value (`CAPS.TRAITS`)                          |
+| --------------------- | ---------------------------------- | ------------------------------------------------- |
+| Flow (Tide)           | passes any number of allied pieces | passes at most one per move (`FLOW_PASS_LIMIT` 1) |
+| Bulwark (Stone)       | every Stone piece                  | non-pawns only (`BULWARK_PAWNS` false)            |
+| Overabundance (Grove) | double charges                     | one extra charge (`OVERABUNDANCE` add 1)          |
+| Hot Foot (Ember)      | 3 opponent turns                   | 4 opponent turns (`HOT_FOOT_TURNS` 4)             |
+
+Each knob was measured alone against the launch values (`--caps` with the other three at their launch
+values), then all four together at the shipped defaults.
+
+@@B4_TABLES@@
+
+@@B4_FINDINGS@@

@@ -303,7 +303,7 @@ describe('elements (R-ELEM-001 to R-ELEM-004)', () => {
       expect.objectContaining({ square: sq('d5'), side: 'white' }),
     ]);
     expect((ember.state.slices.hot_foot as HotFootState).burning).toEqual([
-      { sq: sq('d5'), side: 'white', turns: 3 },
+      { sq: sq('d5'), side: 'white', turns: 4 },
     ]);
   });
 

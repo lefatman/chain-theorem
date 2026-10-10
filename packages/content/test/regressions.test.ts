@@ -30,7 +30,7 @@ describe('M2 review regressions', () => {
       fen: '8/p7/6k1/4p2R/3P4/8/8/K7 w - - 0 1',
       white: { elements: ['ember', 'tide'], items: ['blended_family'] },
       black: { elements: ['ember'] },
-      moves: ['d4e5', 'a7a6', 'e5e6', 'g6f6', 'a1b1', 'f6e5', 'b1a1'],
+      moves: ['d4e5', 'a7a6', 'e5e6', 'g6f6', 'a1b1', 'a6a5', 'b1a1', 'f6e5', 'a1b1'],
     });
     const burn = (r.state.slices.hot_foot as { burning: { sq: number; turns: number }[] }).burning;
     expect(burn).toEqual([expect.objectContaining({ sq: sq('e5'), turns: 1 })]);
@@ -38,9 +38,9 @@ describe('M2 review regressions', () => {
     const legal = engine.legalMoves(r.state, 'black').map(uci);
     expect(legal.length).toBeGreaterThan(0);
     expect(legal.every((m) => m.startsWith('e5'))).toBe(true);
-    expect(legal).not.toContain('a6a5');
+    expect(legal).not.toContain('a5a4');
     expect(() =>
-      engine.applyAction(r.state, { kind: 'move', side: 'black', move: uciToMove('a6a5') }),
+      engine.applyAction(r.state, { kind: 'move', side: 'black', move: uciToMove('a5a4') }),
     ).toThrow();
   });
 
@@ -146,7 +146,7 @@ describe('M2 review regressions', () => {
     expect(eventsOf(r.events, 'EffectFizzled')).toEqual([]);
   });
 
-  it('#9 DD-42 a square ignited during the opponent’s turn keeps all 3 of that opponent’s turns', () => {
+  it('#9 DD-42 a square ignited during the opponent’s turn keeps all 4 of that opponent’s turns', () => {
     const s = setup({
       fen: 'b6k/8/2P5/4p3/8/3N4/8/K7 w - - 0 1',
       white: { elements: ['ember'], abilities: ['riposte'] },
@@ -158,11 +158,11 @@ describe('M2 review regressions', () => {
         (b) => b.turns,
       );
     // Lit during Black's turn: that partial turn does not count.
-    expect(burns(state)).toEqual([3]);
+    expect(burns(state)).toEqual([4]);
     state = play(engine, state, 'a1b1').state;
-    expect(burns(state)).toEqual([3]);
+    expect(burns(state)).toEqual([4]);
     state = play(engine, state, 'h8g8').state;
-    expect(burns(state)).toEqual([2]);
+    expect(burns(state)).toEqual([3]);
   });
 
   it('#10 #21 R-RULES-003 the repetition hash ignores an en passant square no legal move can use', () => {
@@ -176,13 +176,13 @@ describe('M2 review regressions', () => {
     expect(engine.stateHash(open.state)).not.toBe(engine.stateHash(openPlain.state));
   });
 
-  it('#11 R-ELEM-007 DD-43 a Grove pawn that spent 3 of 4 charges keeps 1 left after promoting to a Tide queen', () => {
+  it('#11 R-ELEM-007 DD-43 DD-114 a Grove pawn that spent 2 of 3 charges keeps 1 left after promoting to a Tide queen', () => {
     const s = setup({
       fen: '7k/4P3/8/8/8/8/8/K7 w - - 0 1',
       white: { elements: ['grove', 'tide'], items: ['blended_family'], abilities: ['momentum'] },
     });
     const pawn = idAt(s.state, 'e7');
-    const state: GameState = { ...s.state, usage: { [`${pawn}:momentum`]: 3 } };
+    const state: GameState = { ...s.state, usage: { [`${pawn}:momentum`]: 2 } };
     const after = play(engine, state, 'e7e8q').state;
     expect(after.pieces[pawn]).toMatchObject({ type: 'queen', element: 'tide' });
     expect(engine.remainingCharges(after, pawn, 'momentum')).toBe(1);

@@ -19,6 +19,7 @@ import {
   parseSquare,
   uciToMove,
 } from '@chain-theorem/rules';
+import { CAPS } from '../index.ts';
 import {
   type ArmySpec,
   type ScenarioSpec,
@@ -766,11 +767,13 @@ describe('R-INFO-005 R-SEC-001 server information contract', () => {
     expect(r.engine.project(r.state, 'black').legal).toEqual([]);
   });
 
-  it('R-INFO-005 DD-19 choice options are filtered by public rules only: Bulwark-protected pawns are offered and the chosen effect fizzles', () => {
+  it('R-INFO-005 DD-19 DD-113 choice options are filtered by public rules only: Bulwark-protected pawns (under BULWARK_PAWNS) are offered and the chosen effect fizzles', () => {
+    // Cleave targets pawns only, and Stone pawns carry Bulwark only under the launch knob (DD-113).
     const s = setup({
       fen: '4k3/8/2p1p3/3p4/8/2N5/8/4K3 w - - 0 1',
       white: { abilities: ['cleave'] },
       black: { elements: ['stone'] },
+      caps: { TRAITS: { ...CAPS.TRAITS, BULWARK_PAWNS: true } },
     });
     const c6 = idAt(s.state, 'c6');
     const e6 = idAt(s.state, 'e6');

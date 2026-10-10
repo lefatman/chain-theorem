@@ -125,7 +125,7 @@ describe('rebirth (R-ABIL-005)', () => {
     expect(pieceAt(open.state, 'f6')?.id).toBe(knight);
     for (const empty of ['b8', 'c8', 'd8', 'f8', 'g8'])
       expect(pieceAt(open.state, empty)).toBeUndefined();
-    // Overabundance still doubles the charge on a Grove piece.
+    // Overabundance still gives a Grove piece its second charge (DD-114).
     expect(eventsOf(open.events, 'ChargeSpent')[0]).toMatchObject({ remaining: 1 });
 
     // 1... Ng8-f6 2. Ne4xf6: the start g8 is the only empty back-rank square; the same result.

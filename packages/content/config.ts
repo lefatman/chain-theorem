@@ -65,8 +65,6 @@ export const PLAYTEST_FLAGS = {
   schrodingers_joker: true,
 } as const;
 
-/** Hot Foot burns for this many turns of the igniting player's opponent (D-40, COMMITTED). */
-export const HOT_FOOT_TURNS = 3;
 /** Saved loadouts per player (7.4, PROVISIONAL). */
 export const MAX_SAVED_LOADOUTS = 5;
 /** Mid-action choice prompt, charged to the chooser's clock (5.4). */

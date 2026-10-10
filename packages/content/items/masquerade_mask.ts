@@ -16,8 +16,9 @@
  * M7 7.3 extends the list to the Storm, Stone and Frost traits (6.1), both when the true trait shows
  * and when a shown trait visibly fails to act:
  * - Bulwark (Stone): an effect capture of the wearer's piece fizzles with `bulwark` while the shown
- *   element is not Stone; or, shown Stone, an effect capture removes a wearer's piece whose Bulwark
- *   was never spent (the spent list is public);
+ *   element is not Stone; or, shown Stone, an effect capture removes a wearer's non-pawn piece whose
+ *   Bulwark was never spent (the spent list is public; a pawn counts only under
+ *   `TRAITS.BULWARK_PAWNS`, DD-113);
  * - Stillness (Frost): an opponent's After-capturing ability is negated by Stillness while the shown
  *   element is not Frost; or, shown Frost, an opponent's After-capturing ability triggers for a
  *   capture of the wearer's piece;
@@ -128,14 +129,15 @@ function exposes(ctx: MutCtx, owner: Side, shown: ElementId, ev: BattleEvent): b
         ctx.piece(ev.target).side === owner &&
         shown !== 'stone'
       );
-    case 'Captured':
-      // Shown Stone, but an effect capture removed a piece whose Bulwark was never spent.
+    case 'Captured': {
+      // Shown Stone, but an effect capture removed a piece whose Bulwark was never spent. A pawn is
+      // covered only under `TRAITS.BULWARK_PAWNS` (DD-113), so by default its loss gives nothing away.
+      if (ev.by !== 'effect' || ev.victimSide !== owner || shown !== 'stone') return false;
+      const victim = ctx.piece(ev.victim);
       return (
-        ev.by === 'effect' &&
-        ev.victimSide === owner &&
-        shown === 'stone' &&
-        ctx.piece(ev.victim).element !== 'stone'
+        victim.element !== 'stone' && (victim.type !== 'pawn' || ctx.caps.TRAITS.BULWARK_PAWNS)
       );
+    }
     case 'AbilityNegated':
       // Stillness (Frost) negated the opponent's After-capturing ability on a wearer's victim.
       return (
@@ -196,7 +198,7 @@ function captureOrder(
 export default defineItem({
   id: ID,
   name: 'Masquerade Mask',
-  version: 4,
+  version: 5,
   slotCost: 1,
   minLevel: 14,
   param: { element: 'required' },

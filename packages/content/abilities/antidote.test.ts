@@ -279,11 +279,12 @@ describe('Antidote', () => {
   });
 
   it('R-ABIL-005 DD-35 R-ELEM-001 a Stone captor: Bulwark intercepts the retaliation before Antidote (fizzle reason bulwark, Bulwark spent, the Antidote guard untouched)', () => {
+    // The knight c3 (id 1) takes the Poisoned Meat pawn; a Stone pawn carries no Bulwark (DD-113).
     const r = scenario({
-      fen: PAWN_FEN,
+      fen: FEN,
       white: { elements: ['stone'], abilities: ['antidote'] },
       black: EMBER_PM,
-      moves: ['e4d5'],
+      moves: ['c3d5'],
     });
     // Stone and Ember are in different triangles: nothing is silenced.
     expect(eventsOf(r.events, 'AbilitySilenced')).toEqual([]);
@@ -299,6 +300,26 @@ describe('Antidote', () => {
     expect(eventsOf(r.events, 'Captured')).toHaveLength(1);
     expect(idAt(r.state, 'd5')).toBe(1);
     expect((r.state.slices['bulwark'] as BulwarkState).spent).toEqual([1]);
+  });
+
+  it('R-ABIL-005 DD-35 R-ELEM-001 DD-113 a Stone pawn captor: no Bulwark by default, so Antidote answers the retaliation (fizzle reason protected, nothing spent)', () => {
+    const r = scenario({
+      fen: PAWN_FEN,
+      white: { elements: ['stone'], abilities: ['antidote'] },
+      black: EMBER_PM,
+      moves: ['e4d5'],
+    });
+    expect(eventsOf(r.events, 'AbilityTriggered').map((e) => e.ability)).toEqual([
+      'antidote',
+      'poisoned_meat',
+    ]);
+    expect(
+      eventsOf(r.events, 'EffectFizzled')
+        .filter((e) => e.target === 1)
+        .map((e) => `${e.ability} ${e.reason}`),
+    ).toEqual(['poisoned_meat protected']);
+    expect(idAt(r.state, 'd5')).toBe(1);
+    expect((r.state.slices['bulwark'] as BulwarkState).spent).toEqual([]);
   });
 
   it('R-ABIL-005 R-ABIL-002 Antidote protects only its bearer: Backdraft still removes a neighbouring pawn', () => {

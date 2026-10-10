@@ -107,6 +107,7 @@ function makeCtx(
     elem: state.pieces.map((p) => p.element),
     start: state.pieces.map((p) => p.start),
     bulwarkSpent,
+    bulwarkPawns: engine.caps.TRAITS.BULWARK_PAWNS,
     know: [
       sideKnowledge(engine, state, 'white', viewer),
       sideKnowledge(engine, state, 'black', viewer),

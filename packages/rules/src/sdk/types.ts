@@ -412,7 +412,14 @@ export interface RuleHooks {
   };
   onBattleStart(ctx: SetupCtx): void;
   moveFilter: {
-    passThrough?(ctx: ReadCtx, piece: PieceView): boolean;
+    /**
+     * May this piece pass through its own side's pieces while sliding, double-pushing or attacking
+     * (Flow)? `true`: no limit; `false` or `0`: none; a positive number: the most allied pieces it
+     * may pass in one move (an Electric Slide turn adds its crossings to the count; the corner
+     * itself is not one). It never ends a move on an ally. When several hooks answer for one
+     * piece, the largest limit stands (DD-112).
+     */
+    passThrough?(ctx: ReadCtx, piece: PieceView): boolean | number;
     blockedSquares?(ctx: ReadCtx, piece: PieceView): readonly Square[] | null;
     kingMode?(ctx: ReadCtx, king: PieceView): 'stalwart' | undefined;
     /**

@@ -380,9 +380,9 @@ describe('M7 7.2 spectator projection: public information only (R-INFO-005, R-SE
     const ignited = must(snaps[3], 'd5b4');
     expect(
       eventsOf(eng.projectSpectatorEvents(ignited.state, ignited.events), 'SquareIgnited'),
-    ).toEqual([expect.objectContaining({ square: 35, side: 'white', turns: 3 })]);
+    ).toEqual([expect.objectContaining({ square: 35, side: 'white', turns: 4 })]);
     const burning = hf(eng.projectSpectator(ignited.state).slices.hot_foot).burning;
-    expect(burning).toEqual([expect.objectContaining({ sq: 35, side: 'white', turns: 3 })]);
+    expect(burning).toEqual([expect.objectContaining({ sq: 35, side: 'white', turns: 4 })]);
     for (const viewer of SIDES)
       expect(hf(eng.project(ignited.state, viewer).slices.hot_foot).burning).toEqual(burning);
     snaps.forEach((s, i) => checkNoMoreThanPlayers(eng, s.state, s.events, `hot foot #${i}`));

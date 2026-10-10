@@ -475,7 +475,7 @@ describe('Hit and Run', () => {
     expect(idAt(state, 'c3')).toBe(1);
     const moved = eventsOf(step.events, 'PieceMoved')[0] as BattleEvent;
     const ignited = eventsOf(step.events, 'SquareIgnited');
-    expect(ignited).toMatchObject([{ square: sq('d5'), side: 'white', turns: 3 }]);
+    expect(ignited).toMatchObject([{ square: sq('d5'), side: 'white', turns: 4 }]);
     expect(step.events.indexOf(moved)).toBeLessThan(step.events.indexOf(ignited[0] as BattleEvent));
     // The non-Ember black knight may no longer move to d5.
     const blackMoves = s0.engine.legalMoves(state, 'black').map(moveToUci);

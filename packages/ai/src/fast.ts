@@ -68,6 +68,8 @@ export interface SearchCtx {
   start: number[];
   /** 1 for a Stone piece whose Bulwark is already spent (public slice, 6.1). */
   bulwarkSpent: Uint8Array;
+  /** Whether Stone pawns carry Bulwark too (`caps.TRAITS.BULWARK_PAWNS`, public config; DD-113). */
+  bulwarkPawns: boolean;
   know: [Record<PieceType, PieceKnowledge>, Record<PieceType, PieceKnowledge>];
   abilityAware: boolean;
   /** Fraction of the captor's value charged for capturing a piece with unknown abilities. */
@@ -174,7 +176,12 @@ export function play(ctx: SearchCtx, m: number): Played {
             captor: base.captor && !ctx.silenceSpent.has(`${mover}:${captorType}`),
           }
         : base;
-    const trait = traitEffects(captorEl, victimEl);
+    const trait = traitEffects(
+      captorEl,
+      victimEl,
+      TYPES[captorType] as PieceType,
+      ctx.bulwarkPawns,
+    );
     const capturingSilenced = sil.captor && ctx.silence !== 'REACTIONS_ONLY';
     const negated = !capturingSilenced && cK.capturing.negatesVictim;
     // Always First (6.1): a Storm captor's own After-capturing guard resolves before retaliation.
@@ -182,7 +189,7 @@ export function play(ctx: SearchCtx, m: number): Played {
       (!capturingSilenced && cK.capturing.protectsSelf) ||
       (trait.stormFirst && !sil.captor && !trait.stillness && cK.captures.protectsSelf);
     const reactions = sil.victim || negated ? null : vK.captured;
-    // Bulwark (6.1): a Stone captor's first effect capture fizzles.
+    // Bulwark (6.1, DD-113): a Stone captor's first effect capture fizzles; pawns need the knob.
     const bulwark = trait.captorBulwark && ctx.bulwarkSpent[captor] !== 1;
     if (reactions?.killsCaptor && captorType !== 5 && !protectedSelf && !bulwark) {
       out.killed = captor;

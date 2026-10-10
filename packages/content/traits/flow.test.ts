@@ -1,8 +1,9 @@
 /**
- * Flow scenario tests (Tide trait, R-ELEM-001, R-ELEM-006, E8, DD-24).
+ * Flow scenario tests (Tide trait, R-ELEM-001, R-ELEM-006, E8, DD-24, DD-112).
  *
- * Expected behaviour comes from spec 6.1 (Flow rules), 5.5 E8, 6.4 and DD-24, not from the
- * engine's current output.
+ * Expected behaviour comes from spec 6.1 (Flow rules; how many allies a Tide piece passes in one
+ * move is the PLAYTEST number `CAPS.TRAITS.FLOW_PASS_LIMIT`: 1 by default, 0 for no limit), 5.5 E8,
+ * 6.4, DD-24 and DD-112, not from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -13,7 +14,18 @@ import {
   moveToUci,
   squareName,
 } from '@chain-theorem/rules';
-import { eventsOf, idAt, parseSquare, pieceAt, play, scenario, setup } from '../src/testing.ts';
+import type { Caps } from '@chain-theorem/rules/sdk';
+import { CAPS } from '../config.ts';
+import {
+  type ArmySpec,
+  eventsOf,
+  idAt,
+  parseSquare,
+  pieceAt,
+  play,
+  scenario,
+  setup,
+} from '../src/testing.ts';
 
 const sq = parseSquare;
 
@@ -32,11 +44,20 @@ function dests(engine: Engine, state: GameState, side: Side, from: string): stri
 
 const sorted = (xs: string[]) => [...xs].sort();
 
-function start(fen: string, white: ElementId[], black: ElementId[] = ['neutral']) {
+/** The launch rule (DD-112): no limit on the allies a Tide piece passes in one move. */
+const NO_LIMIT: Partial<Caps> = { TRAITS: { ...CAPS.TRAITS, FLOW_PASS_LIMIT: 0 } };
+
+function start(
+  fen: string,
+  white: ElementId[],
+  black: ElementId[] = ['neutral'],
+  caps?: Partial<Caps>,
+) {
   return setup({
     fen,
     white: { elements: white, ...(white.length === 2 ? { items: ['blended_family'] } : {}) },
     black: { elements: black },
+    ...(caps ? { caps } : {}),
   });
 }
 
@@ -87,10 +108,37 @@ describe('flow (R-ELEM-006)', () => {
     );
   });
 
-  it('R-ELEM-006 Flow passes several allies in a row but never lands on one', () => {
+  it('R-ELEM-006 DD-112 by default Flow passes exactly one ally per move: a Tide rook passes one own piece and is stopped by the second, for moves and attacks alike', () => {
+    // Rook a1 behind its own pawns a2 and a3 and knight a5 (FLOW_PASS_LIMIT 1): a2 is passed, a3
+    // would be a second crossing, so the file offers nothing and only the open rank remains.
     const s = start('4k3/8/8/N7/8/P7/P6K/R7 w - - 0 1', ['tide']);
     expect(dests(s.engine, s.state, 'white', 'a1')).toEqual(
+      sorted(['b1', 'c1', 'd1', 'e1', 'f1', 'g1', 'h1']),
+    );
+    // Attacks follow movement (R-ELEM-006): behind two own pawns the rook gives no check and the
+    // enemy king may even step to a7; behind one it does (E8).
+    const two = start('k7/8/8/8/8/P7/P6K/R7 b - - 0 1', ['tide']);
+    expect(two.state.inCheck).toBeNull();
+    expect(eventsOf(two.events, 'Check')).toEqual([]);
+    expect(sorted(legal(two.engine, two.state, 'black'))).toEqual(['a8a7', 'a8b7', 'a8b8']);
+    const one = start('k7/8/8/8/8/8/P6K/R7 b - - 0 1', ['tide']);
+    expect(one.state.inCheck).toBe('black');
+    expect(sorted(legal(one.engine, one.state, 'black'))).toEqual(['a8b7', 'a8b8']);
+  });
+
+  it('R-ELEM-006 DD-112 with FLOW_PASS_LIMIT 0 Flow passes any number of allies in a row (the launch rule) but never lands on one', () => {
+    const s = start('4k3/8/8/N7/8/P7/P6K/R7 w - - 0 1', ['tide'], ['neutral'], NO_LIMIT);
+    expect(dests(s.engine, s.state, 'white', 'a1')).toEqual(
       sorted(['a4', 'a6', 'a7', 'a8', 'b1', 'c1', 'd1', 'e1', 'f1', 'g1', 'h1']),
+    );
+    // Attacks too: the king behind two own pawns is in check and may not step to a7.
+    const two = start('k7/8/8/8/8/P7/P6K/R7 b - - 0 1', ['tide'], ['neutral'], NO_LIMIT);
+    expect(two.state.inCheck).toBe('black');
+    expect(sorted(legal(two.engine, two.state, 'black'))).toEqual(['a8b7', 'a8b8']);
+    // Every own piece on the line counts as empty, the king included.
+    const line = start('4k3/8/8/8/8/8/8/3NKB1R w - - 0 1', ['tide'], ['neutral'], NO_LIMIT);
+    expect(dests(line.engine, line.state, 'white', 'h1')).toEqual(
+      sorted(['g1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8', 'c1', 'b1', 'a1']),
     );
   });
 
@@ -125,9 +173,12 @@ describe('flow (R-ELEM-006)', () => {
     );
   });
 
-  it('R-ELEM-006 a Tide army has 50 legal moves in the start position; knights, king and pawns move as usual', () => {
+  it('R-ELEM-006 DD-112 a Tide army has 50 legal moves in the start position; knights, king and pawns move as usual', () => {
     // Pawns 16, knights 4, king 0, rooks 5 + 5 (up to the capture on a7/h7), bishops 5 + 5,
-    // queen 10 (d3-d7, b3, a4, f3, g4, h5): sliders pass their own pieces.
+    // queen 10 (d3-d7, b3, a4, f3, g4, h5): sliders pass their own pieces. Re-counted by hand under
+    // the one-ally limit (DD-112): every slider line out of the start position crosses exactly one
+    // own pawn, and the rooks' rank runs into the knight and then the bishop with no free square
+    // either way, so the count is the same 50 as under the launch rule of no limit.
     const tide = setup({ white: { elements: ['tide'] } });
     const moves = legal(tide.engine, tide.state, 'white');
     expect(moves).toHaveLength(50);
@@ -165,11 +216,12 @@ describe('flow (R-ELEM-006)', () => {
     expect(legal(tide.engine, tide.state, 'white')).not.toContain('e1g1');
   });
 
-  it('R-ELEM-006 a Tide rook slides through every own piece on its line, the king included', () => {
-    // "Squares held by its own side's pieces" count as empty for the slide (6.1 Flow rules).
-    const s = start('4k3/8/8/8/8/8/8/3NKB1R w - - 0 1', ['tide']);
+  it('R-ELEM-006 DD-112 the one own piece a Tide rook passes may be any of them, the king included', () => {
+    // "Squares held by its own side's pieces" count as empty for the slide (6.1 Flow rules): the
+    // rook h1 passes its king e1 to d1, where the knight c1 would be a second crossing.
+    const s = start('4k3/8/8/8/8/8/8/2N1K2R w - - 0 1', ['tide']);
     expect(dests(s.engine, s.state, 'white', 'h1')).toEqual(
-      sorted(['g1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8', 'c1', 'b1', 'a1']),
+      sorted(['g1', 'f1', 'd1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8']),
     );
   });
 
@@ -269,5 +321,40 @@ describe('flow (R-ELEM-006)', () => {
     expect(dests(swapped.engine, swapped.state, 'white', 'a1')).toEqual(
       sorted(['a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'b1', 'd1', 'e1', 'f1', 'g1', 'h1']),
     );
+  });
+
+  it('R-ELEM-006 DD-112 DD-104 crossings add up across an Electric Slide turn: a Tide bishop with the Storm charm passes one ally in total along its turned path, for moves and attacks', () => {
+    const army: ArmySpec = {
+      elements: ['tide'],
+      abilities: ['electric_slide'],
+      items: ['attunement_charm'],
+      itemParams: { attunement_charm: { element: 'storm' } },
+    };
+    // Bishop c1 crosses its pawn d2 (one crossing) and turns at the knight e3 (a corner, not a
+    // crossing): d4, f2 and g1 are reached, but the pawn c5 beyond d4 would be a second crossing,
+    // and so would running straight on through e3 to f4.
+    const fen = '7k/8/8/2P5/8/4N3/3P3K/2B5 w - - 0 1';
+    const one = setup({ fen, white: army });
+    expect(dests(one.engine, one.state, 'white', 'c1')).toEqual(
+      sorted(['a3', 'b2', 'd4', 'f2', 'g1']),
+    );
+    // With no limit the same paths run on: through c5 to b6 and a7, and through e3 to f4, g5, h6.
+    const all = setup({ fen, white: army, caps: NO_LIMIT });
+    expect(dests(all.engine, all.state, 'white', 'c1')).toEqual(
+      sorted(['a3', 'b2', 'd4', 'b6', 'a7', 'f2', 'g1', 'f4', 'g5', 'h6']),
+    );
+    // Attacks agree (R-ELEM-006): the enemy king on a7 behind the pawn c5 is not in check by
+    // default (two crossings plus the turn) and may stay on the diagonal; it is in check with no
+    // limit, and by default once the c5 pawn is gone (one crossing plus the turn).
+    const guarded = '8/k7/8/2P5/8/4N3/3P3K/2B5 b - - 0 1';
+    const safe = setup({ fen: guarded, white: army });
+    expect(safe.state.inCheck).toBeNull();
+    expect(dests(safe.engine, safe.state, 'black', 'a7')).toEqual(sorted(['a6', 'a8', 'b7', 'b8']));
+    expect(setup({ fen: guarded, white: army, caps: NO_LIMIT }).state.inCheck).toBe('black');
+    const open = setup({ fen: '8/k7/8/8/8/4N3/3P3K/2B5 b - - 0 1', white: army });
+    expect(open.state.inCheck).toBe('black');
+    expect(eventsOf(open.events, 'Check')).toEqual([
+      expect.objectContaining({ side: 'black', square: sq('a7') }),
+    ]);
   });
 });

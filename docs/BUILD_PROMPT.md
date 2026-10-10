@@ -117,7 +117,7 @@ Follow spec section 16 exactly: M0, M1, M2, M3, Playtest Gate 1, M4, M5, M6, M7.
    - Sign up locally (the magic link prints in the console) and complete the Chess Academy.
    - Win a wild First Blood encounter and a trainer Full Battle.
    - Run E1 to E9 in the Scenario Lab and compare each with spec 5.5.
-   - Try each trait: Hot Foot burning squares, Flow through allies, Overabundance double charges, Always First ordering, Bulwark and Stillness.
+   - Try each trait: Hot Foot burning squares, Flow through allies, Overabundance extra charges, Always First ordering, Bulwark and Stillness.
    - Build loadouts at levels 1, 10 and 25 and confirm the slot and level limits.
    - Play PvP in two browsers, including a disconnect and reconnect mid-battle.
    - Confirm hidden information: the opponent's loadout never appears in the browser's network panel before it is revealed.

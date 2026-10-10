@@ -99,7 +99,7 @@ describe('reinforce (R-ABIL-005)', () => {
     expect(r.state.pieces[pawn]?.square).toBe(-1);
     expect(pieceAt(r.state, 'e2')).toBeUndefined();
     expect(pieceAt(r.state, 'e4')?.id).toBe(knight);
-    // Overabundance still doubles the charge on a Grove piece; nothing was spent.
+    // Overabundance still gives a Grove piece its second charge (DD-114); nothing was spent.
     expect(r.engine.remainingCharges(r.state, knight, 'reinforce')).toBe(2);
   });
 

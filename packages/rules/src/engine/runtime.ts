@@ -5,7 +5,7 @@
  */
 import { opposite } from '../board.ts';
 import { stateHashOf } from '../hash.ts';
-import { F_EP, type MoveRules, Pos, defaultRules, dirBit } from '../movegen.ts';
+import { F_EP, type MoveRules, PASS_UNLIMITED, Pos, defaultRules, dirBit } from '../movegen.ts';
 import { kingSafeAfter, rulesAfterTurnEnd } from './simulate.ts';
 import type {
   AbilityDef,
@@ -37,6 +37,17 @@ import {
   PIECE_TYPES,
   RulesError,
 } from '../types.ts';
+
+/**
+ * A passThrough hook's answer as a `MoveRules.passThrough` entry: `true` is `PASS_UNLIMITED`, a
+ * positive number the most allies passed in one move (whole, at most `PASS_UNLIMITED`), anything
+ * else none (Flow, DD-112).
+ */
+function passLimit(answer: boolean | number | undefined): number {
+  if (answer === true) return PASS_UNLIMITED;
+  if (typeof answer !== 'number' || !(answer > 0)) return 0;
+  return Math.min(PASS_UNLIMITED, Math.floor(answer));
+}
 
 /** Slider types that may turn (DD-104) with their `conducts` bits (movegen CORNER_BIT). */
 const CORNER_TYPES: readonly (readonly [PieceType, number])[] = [
@@ -326,12 +337,12 @@ export class Runtime {
       const v = this.view(host, p.id);
       views.push(v);
       for (const e of pass) {
-        if (e.hooks.moveFilter?.passThrough?.(ctxOf(e), v)) {
-          rules.passThrough[p.id] = 1;
-          rules.anyPass[p.side === 'white' ? 0 : 1] = true;
-          break;
-        }
+        // Flow (DD-112): `true` is no limit, a number the most allies passed in one move; the
+        // largest answer across hooks stands.
+        const limit = passLimit(e.hooks.moveFilter?.passThrough?.(ctxOf(e), v));
+        if (limit > (rules.passThrough[p.id] as number)) rules.passThrough[p.id] = limit;
       }
+      if ((rules.passThrough[p.id] as number) > 0) rules.anyPass[p.side === 'white' ? 0 : 1] = true;
       for (const e of bypass) {
         if (e.hooks.moveFilter?.bypass?.(ctxOf(e), v)) {
           rules.bypass[p.id] = 1;

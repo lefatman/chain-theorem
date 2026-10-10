@@ -166,7 +166,7 @@ describe('step-through replay frames (R-ART-002)', () => {
   });
 
   it('R-ART-002 DD-100 frames before a Redo rewind are rebuilt by replaying the undone plies forward', () => {
-    // Frost and Stone: no Overabundance doubling the charge, no silence against Ember or Tide.
+    // Frost and Stone: no Overabundance extra charge, no silence against Ember or Tide.
     const redo: Loadout = { elements: ['frost', 'stone'], items: [], sets: [['redo']] };
     const plain: Loadout = { elements: ['ember', 'tide'], items: [], sets: [[]] };
     const d = new Driver(plain, redo, '4k3/7p/8/3n4/8/8/8/R3K3 w - - 0 1');

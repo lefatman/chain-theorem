@@ -32,7 +32,7 @@ describe('snowbound (R-ABIL-005)', () => {
     expect(abilityById.get('snowbound')?.attuned).toBeUndefined();
   });
 
-  it('R-ABIL-005 DD-17 R-ELEM-007 a resolved send-home spends a charge; Overabundance doubles them on a Grove piece', () => {
+  it('R-ABIL-005 DD-17 R-ELEM-007 DD-114 a resolved send-home spends a charge; Overabundance adds one on a Grove piece', () => {
     const r = scenario({ white: { abilities: ['snowbound'] }, moves: [...OPENING, CAPTURE] });
     const pawn = idAt(r.initial, 'd2');
     expect(eventsOf(r.events, 'ChargeSpent')).toEqual([
@@ -40,7 +40,7 @@ describe('snowbound (R-ABIL-005)', () => {
     ]);
     const grove = scenario({ white: { elements: ['grove'], abilities: ['snowbound'] } });
     expect(grove.engine.remainingCharges(grove.state, idAt(grove.state, 'd2'), 'snowbound')).toBe(
-      4,
+      3,
     );
   });
 

@@ -380,7 +380,8 @@ export interface RuleHooks {
   stateSlice: { id: string; init(ctx: ReadCtx): unknown; project?(v: unknown, viewer: Side, ctx: ReadCtx): unknown; spectate?(v: unknown, ctx: ReadCtx): unknown; hash?: boolean };
   onBattleStart(ctx: SetupCtx): void;
   moveFilter: {
-    passThrough?(ctx: ReadCtx, piece: PieceView): boolean;          // Flow
+    passThrough?(ctx: ReadCtx, piece: PieceView): boolean | number; // Flow: true = no limit, n = allies
+                                                                    //   passed per move (DD-112)
     blockedSquares?(ctx: ReadCtx, piece: PieceView): Square[] | null; // Hot Foot: may not move to or
                                                                     //   capture a piece standing on
     kingMode?(ctx: ReadCtx, king: PieceView): 'stalwart' | undefined; // Stalwart
