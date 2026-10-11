@@ -2,11 +2,13 @@
  * Block Path (5.8): Passive, neutral, all. "The piece faces one of eight directions, forward by
  * default. It cannot be move-captured by an attacker approaching from that direction; a diagonal is
  * blocked only when that diagonal is chosen. After moving the piece its owner may choose a new
- * direction (a declinable prompt; declining keeps the old one). Kings included: a king cannot be
- * checked from its blocked direction. Knights approach along their long leg."
+ * direction (a declinable prompt; declining keeps the old one); a king gets no prompt and always
+ * faces forward after it moves. Kings included: a king cannot be checked from its blocked direction.
+ * Knights approach along their long leg. Costs two ability slots."
  *
  * Expected behaviour comes from spec 5.4 (prompts), 5.6, 8.2 (DD-32), DD-99, DD-102 (hard
- * restriction), DD-105 (prompt visibility) and R-SEC-001.
+ * restriction), DD-105 (prompt visibility), R-SEC-001 and the B5 brief (2026-10-11: two slots, the
+ * king faces forward after it moves).
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -35,7 +37,7 @@ const facings = (s: GameState) => (s.slices[FACINGS] as BlockPathState).facing;
 const ROOKS = 'r3k3/8/8/8/7r/8/8/R3K3 w - - 0 1';
 
 describe('Block Path (5.8, DD-99)', () => {
-  it('R-ABIL-005 module data: Passive, neutral, all, level 12, 1 slot; a facings slice, captureFilter and onActionEnd hooks', () => {
+  it('R-ABIL-005 module data: Passive, neutral, all, level 12, 2 slots (B5); a facings slice, captureFilter and onActionEnd hooks', () => {
     const def = abilityById.get('block_path');
     expect(def).toMatchObject({
       category: 'PASSIVE',
@@ -43,7 +45,7 @@ describe('Block Path (5.8, DD-99)', () => {
       eligible: 'all',
       tags: [],
       minLevel: 12,
-      slotCost: 1,
+      slotCost: 2,
     });
     expect(def?.hooks?.stateSlice?.id).toBe(FACINGS);
     expect(def?.hooks?.moveFilter?.captureFilter).toBeTypeOf('function');
@@ -217,6 +219,58 @@ describe('Block Path (5.8, DD-99)', () => {
     const plain = scenario({ fen: '4r2k/8/8/8/8/8/P7/4K3 b - - 0 1', moves: ['h8g8'] });
     expect(eventsOf(plain.events, 'Check')).toHaveLength(1);
     expect(legal(plain.engine, plain.state, 'white')).not.toContain('a2a3');
+  });
+
+  it('R-ABIL-005 DD-99 a king that moves faces forward again without a prompt, so it is checked from the side it had been facing', () => {
+    // White king e1 (Block Path) and pawn a2; black king h8 and rook h7. No prompt can turn a king
+    // any more, so the east facing it carries here is seeded straight into the slice, as a battle
+    // saved under version 1 would carry it.
+    const { engine, state: fresh } = setup({
+      fen: '7k/7r/8/8/8/8/P7/4K3 w - - 0 1',
+      white: { abilities: ['block_path'] },
+    });
+    const king = idAt(fresh, 'e1');
+    const state: GameState = {
+      ...fresh,
+      slices: { ...fresh.slices, [FACINGS]: { facing: { [king]: 'E' } } },
+    };
+    // Control: while the king stands still its east facing holds, and a rook arriving on its rank
+    // from the east gives no check.
+    const still = play(engine, play(engine, state, 'a2a3').state, 'h7h1');
+    expect(eventsOf(still.step.events, 'Check')).toEqual([]);
+    expect(still.state.inCheck).toBeNull();
+    expect(facings(still.state)).toEqual({ [king]: 'E' });
+    // The king moves: no prompt, its facing entry is gone and FacingSet reports the forward facing.
+    const moved = play(engine, state, 'e1e2');
+    expect(moved.step.prompts).toEqual([]);
+    expect(facings(moved.state)).toEqual({});
+    expect(eventsOf(moved.step.events, 'FacingSet')).toEqual([
+      expect.objectContaining({ piece: king, side: 'white', square: sq('e2'), facing: 'N' }),
+    ]);
+    // Facing north again, the king is in check from the rook to its east and must answer it.
+    const checked = play(engine, moved.state, 'h7h2');
+    expect(eventsOf(checked.step.events, 'Check')).toHaveLength(1);
+    expect(checked.state.inCheck).toBe('white');
+    expect(legal(engine, checked.state, 'white')).not.toContain('a2a3');
+  });
+
+  it('R-ABIL-005 DD-99 a king at its default facing moves without a prompt or a FacingSet event; castling still asks for the rook', () => {
+    // White king e1 and rook h1 (both Block Path); castling moves both in one action.
+    const r = scenario({
+      fen: '4k3/8/8/8/8/8/8/4K2R w K - 0 1',
+      white: { abilities: ['block_path'] },
+      moves: ['e1g1'],
+      answers: [0],
+    });
+    const king = idAt(r.initial, 'e1');
+    const rook = idAt(r.initial, 'h1');
+    expect(r.prompts.map((p) => [p.chooser, p.purpose, p.subject])).toEqual([
+      ['white', 'facing', rook],
+    ]);
+    expect(eventsOf(r.events, 'FacingSet')).toEqual([]);
+    expect(facings(r.state)).toEqual({});
+    expect(pieceAt(r.state, 'g1')).toMatchObject({ id: king, type: 'king' });
+    expect(pieceAt(r.state, 'f1')).toMatchObject({ id: rook, type: 'rook' });
   });
 
   it('DD-102 Stalwart does not bypass Block Path: a Stalwart queen is still blocked from the facing', () => {

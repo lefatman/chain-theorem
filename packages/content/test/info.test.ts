@@ -323,20 +323,21 @@ describe('R-INFO-002 reveal rules', () => {
     expect(black.items).toEqual([]);
   });
 
-  it("R-INFO-002 DD-27 Scout's Lens is revealed when it fires at battle start, with the pawn ability it exposed", () => {
+  it("R-INFO-002 DD-27 Scout's Lens is revealed when it fires at battle start, with the whole pawn set it exposed (B5)", () => {
     const s = setup({
       white: { items: ['scouts_lens'] },
       black: { items: ['dual_adepts_glove'], abilities: ['poisoned_meat', 'last_word'] },
     });
     expect(s.state.reveals.white.items).toEqual(['scouts_lens']);
-    expect(s.state.reveals.black.abilities).toEqual({ pawn: ['poisoned_meat'] });
+    expect(s.state.reveals.black.abilities).toEqual({ pawn: ['poisoned_meat', 'last_word'] });
+    expect(s.state.reveals.black.complete).toContain('pawn');
     expect(s.engine.project(s.state, 'black').armies.white.revealed.items).toEqual(['scouts_lens']);
     expect(s.engine.project(s.state, 'white').armies.black.revealed.abilities).toEqual({
-      pawn: ['poisoned_meat'],
+      pawn: ['poisoned_meat', 'last_word'],
     });
     expect(revealedOf(s.events, 'black')).toContainEqual(
       expect.objectContaining({
-        info: { kind: 'ability', pieceType: 'pawn', ability: 'poisoned_meat' },
+        info: { kind: 'set', pieceType: 'pawn', abilities: ['poisoned_meat', 'last_word'] },
       }),
     );
   });

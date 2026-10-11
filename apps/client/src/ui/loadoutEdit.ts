@@ -116,6 +116,14 @@ export function setCost(set: readonly string[]): number {
   return set.reduce((n, id) => n + (abilityById.get(id)?.slotCost ?? 1), 0);
 }
 
+/** Distinct Passive abilities in a set (7.4 rule 9 counts by id). */
+export function passiveCount(set: readonly string[]): number {
+  return new Set(set.filter((id) => abilityById.get(id)?.category === 'PASSIVE')).size;
+}
+
+const COUNT_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six'];
+const countWord = (n: number): string => COUNT_WORDS[n] ?? String(n);
+
 /** Why an ability cannot be added to a set right now, or null. */
 export function abilityBlock(
   set: readonly string[],
@@ -131,6 +139,10 @@ export function abilityBlock(
   const left = capacity - setCost(set);
   if (def.slotCost > left)
     return left <= 0 ? `Set is full (${capacity})` : `Needs ${def.slotCost} free`;
+  // 7.4 rule 9 (R-LOAD-004, plan item B5): at most CAPS.MAX_PASSIVES_PER_SET passives per set.
+  const cap: number = CAPS.MAX_PASSIVES_PER_SET;
+  if (def.category === 'PASSIVE' && passiveCount(set) >= cap)
+    return `Set already holds ${countWord(cap)} passive${cap === 1 ? '' : 's'}`;
   return null;
 }
 

@@ -490,10 +490,11 @@ export type LoadoutErrorCode =
   | 'unknown_ability'
   | 'item_param'
   | 'bad_level'
-  | 'excluded_category';
+  | 'excluded_category'
+  | 'passives_exceeded';
 
 export interface LoadoutError {
-  rule: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  rule: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   code: LoadoutErrorCode;
   message: string;
   ref?: string;

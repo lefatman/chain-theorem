@@ -3,10 +3,12 @@
  * of your pieces would be silenced this battle, it is not: none of that piece's triggers in that
  * capture are silenced, and the Crystal is revealed when it fires. A trigger that is negated
  * (Pierce, Stillness, Stopwatch) is never "silenced" and does not consume it (DD-30). Later
- * silences happen normally.
+ * silences happen normally, under every silenceScope (6.2): the B5 brief (2026-10-11) retires
+ * DD-108's "never" under ONCE_PER_ABILITY, so there the Crystal spares one silence and the spared
+ * ability still gets its one silence later.
  *
- * Expected behaviour comes from spec 5.3, 6.2, 7.2, 8.2 and DD-30, DD-36, not from the engine's
- * current output.
+ * Expected behaviour comes from spec 5.3, 6.2, 7.2, 8.2 and DD-30, DD-36, DD-108 (the scope), not
+ * from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import type { BattleEvent, Loadout } from '@chain-theorem/rules';
@@ -214,24 +216,56 @@ describe('resonance crystal (R-LOAD-002)', () => {
     expect(crystalReveals(third, 'white')).toHaveLength(1);
     expect(pieceAt(r.state, 'a5')?.id).toBe(rook);
   });
-  it('R-LOAD-002 DD-108 under silenceScope ONCE_PER_ABILITY the Crystal spares every silence of its owner: not even once, revealed the first time', () => {
-    // Tide beats Ember: two Ember knights with Scout take Tide pawns; neither Scout is silenced.
+  it('R-LOAD-002 R-ELEM-002 DD-108 under ONCE_PER_ABILITY the Crystal spares one silence and the spared ability is still silenced once later', () => {
+    // Tide beats Ember: two Ember knights with Scout take Tide pawns, then the first knight takes a
+    // third. 1. c3xd5: Scout would be silenced; the Crystal spares it and is revealed. The engine
+    // consults silenceOverride before it records a once-per-ability silence (action.ts,
+    // filterTrigger), so the spared silence writes no record and knight:scout still has its one
+    // silence to come. 2. f3xe5: the Crystal is spent, Scout is silenced (its once) and the public
+    // record names the pair. 3. d5xf6: the once is spent, Scout fires against the foil (DD-108).
     const r = scenario({
-      fen: '4k3/8/8/3pp3/8/2N2N2/8/4K3 w - - 0 1',
+      fen: '4k3/8/5p2/3pp3/8/2N2N2/8/4K3 w - - 0 1',
       white: { elements: ['ember'], abilities: ['scout'], items: [ID] },
       black: { elements: ['tide'] },
       caps: { SILENCE_SCOPE: 'ONCE_PER_ABILITY' },
-      moves: ['c3d5', 'e8d8', 'f3e5'],
+      moves: ['c3d5', 'e8d8', 'f3e5', 'd8e8', 'd5f6'],
     });
-    expect(eventsOf(r.events, 'AbilitySilenced')).toEqual([]);
-    expect(eventsOf(r.events, 'AbilityTriggered').map((e) => e.ability)).toEqual([
-      'scout',
-      'scout',
+    const knightC3 = idAt(r.initial, 'c3');
+    const knightF3 = idAt(r.initial, 'f3');
+    const [first, , second, , third] = r.steps.map((s) => s.events);
+    expect(eventsOf(first ?? [], 'AbilitySilenced')).toEqual([]);
+    expect(eventsOf(first ?? [], 'AbilityTriggered').map((e) => [e.piece, e.ability])).toEqual([
+      [knightC3, 'scout'],
     ]);
-    expect(
-      eventsOf(r.events, 'Revealed').filter((e) => e.info.kind === 'item' && e.info.item === ID),
-    ).toHaveLength(1);
-    // Nothing was silenced, so the once-per-ability record is never written.
-    expect(r.state.silenced).toBeUndefined();
+    expect(crystalReveals(first ?? [], 'white')).toHaveLength(1);
+
+    expect(eventsOf(second ?? [], 'AbilitySilenced').map((e) => [e.piece, e.ability])).toEqual([
+      [knightF3, 'scout'],
+    ]);
+    expect(eventsOf(second ?? [], 'AbilityTriggered')).toEqual([]);
+    expect(crystalReveals(second ?? [], 'white')).toEqual([]);
+
+    expect(eventsOf(third ?? [], 'AbilitySilenced')).toEqual([]);
+    expect(eventsOf(third ?? [], 'AbilityTriggered').map((e) => [e.piece, e.ability])).toEqual([
+      [knightC3, 'scout'],
+    ]);
+    expect(pieceAt(r.state, 'f6')?.id).toBe(knightC3);
+
+    // One spared silence, one silence recorded, the Crystal revealed once.
+    expect(eventsOf(r.events, 'AbilitySilenced')).toHaveLength(1);
+    expect(r.state.silenced).toEqual({ white: ['knight:scout'], black: [] });
+    expect(crystalReveals(r.events, 'white')).toHaveLength(1);
+    expect(r.state.reveals.white.items).toEqual([ID]);
+    // Under ALL_TRIGGERS the same three captures read: spared, silenced, silenced.
+    const all = scenario({
+      fen: '4k3/8/5p2/3pp3/8/2N2N2/8/4K3 w - - 0 1',
+      white: { elements: ['ember'], abilities: ['scout'], items: [ID] },
+      black: { elements: ['tide'] },
+      moves: ['c3d5', 'e8d8', 'f3e5', 'd8e8', 'd5f6'],
+    });
+    expect(all.steps.map((s) => eventsOf(s.events, 'AbilitySilenced').length)).toEqual([
+      0, 0, 1, 0, 1,
+    ]);
+    expect(all.state.silenced).toBeUndefined();
   });
 });

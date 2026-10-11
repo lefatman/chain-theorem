@@ -5,9 +5,10 @@
  * loadouts, the fast-check counterpart of the M2 "done when" fuzz (spec 16).
  *
  * Expected behaviour is derived from spec 4.1, 5.3, 5.4, 7.1-7.4, 8.2, 8.5, 15 and the delegated
- * decisions (section 18), not from the engine's current output. The loadout rules 1-8 are re-checked
+ * decisions (section 18), not from the engine's current output. The loadout rules 1-9 are re-checked
  * here by an independent checker written from spec 7.1-7.4 (item costs and capacities from the 7.2
- * table, COMMITTED); only the PLAYTEST level requirements come from module data (DD-05).
+ * table, COMMITTED); only the PLAYTEST level requirements and the rule 9 passive cap
+ * (`CAPS.MAX_PASSIVES_PER_SET`, plan item B5) come from module data and config (DD-05).
  */
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
@@ -188,6 +189,12 @@ function specViolations(loadout: Loadout, player: PlayerFacts, opts: CheckOption
       if (cat === 'CAPTURING' || cat === 'CAPTURES') broken.add(8);
     }
   }
+  // Rule 9 (plan item B5): a set holds at most CAPS.MAX_PASSIVES_PER_SET Passive abilities,
+  // counted by id (a repeated id is rule 4's).
+  for (const set of loadout.sets) {
+    const passives = new Set(set.filter((id) => abilityData.get(id)?.category === 'PASSIVE'));
+    if (passives.size > CAPS.MAX_PASSIVES_PER_SET) broken.add(9);
+  }
   return [...broken].sort((a, b) => a - b);
 }
 
@@ -258,9 +265,15 @@ function buildArmy(d: ArmyDraw): Army {
   for (let k = 0; k < setCount; k++) {
     const set: string[] = [];
     let cost = 0;
+    let passives = 0;
     for (const id of d.pools[k] ?? []) {
       const a = abilityOf(id);
       if (a.minLevel > level || cost + a.slotCost > capacity) continue;
+      // Rule 9 (B5): the set stops taking passives once it holds the cap.
+      if (a.category === 'PASSIVE') {
+        if (passives >= CAPS.MAX_PASSIVES_PER_SET) continue;
+        passives++;
+      }
       set.push(id);
       cost += a.slotCost;
     }
@@ -790,7 +803,7 @@ describe('property: loadout validation (R-LOAD-004)', () => {
     }
   });
 
-  it('R-LOAD-004 R-LOAD-001 random loadouts that pass validateLoadout satisfy rules 1-8 when checked independently', () => {
+  it('R-LOAD-004 R-LOAD-001 random loadouts that pass validateLoadout satisfy rules 1-9 when checked independently', () => {
     fc.assert(
       fc.property(validArmyArb, ({ level, loadout }) => {
         const v = engine.validateLoadout(loadout, { level });
@@ -810,7 +823,7 @@ describe('property: loadout validation (R-LOAD-004)', () => {
     );
   });
 
-  it('R-LOAD-004 validateLoadout agrees with an independent rules 1-8 checker on arbitrary loadouts (same verdict, same rule numbers)', () => {
+  it('R-LOAD-004 validateLoadout agrees with an independent rules 1-9 checker on arbitrary loadouts (same verdict, same rule numbers)', () => {
     let invalid = 0;
     let valid = 0;
     const candidateArb = fc.oneof(
@@ -834,14 +847,23 @@ describe('property: loadout validation (R-LOAD-004)', () => {
 
   it('R-LOAD-004 DD-23 mutating a valid loadout to break exactly one rule makes validation fail with that rule number', () => {
     const applied: Record<string, number> = {};
-    const kinds = ['1', '2', '3', '4', '5', '6', '7', '7r', '8', 'dd23'] as const;
+    const kinds = ['1', '2', '3', '4', '5', '6', '7', '7r', '8', '9', 'dd23'] as const;
     const offensive = (id: string) => {
       const c = abilityOf(id).category;
       return c === 'CAPTURING' || c === 'CAPTURES';
     };
+    const passive = (id: string) => abilityOf(id).category === 'PASSIVE';
+    /** Distinct passives in a set (rule 9 counts by id). */
+    const passivesIn = (set: readonly string[]) => new Set(set.filter(passive)).size;
     /** Would adding `id` to `set` keep rule 8 (DD-102)? Mutations for other rules must not break it. */
     const rule8Ok = (set: readonly string[], id: string) =>
       id === 'stalwart' ? !set.some(offensive) : !(offensive(id) && set.includes('stalwart'));
+    /** Would adding `id` to `set` keep rule 9 (B5)? */
+    const rule9Ok = (set: readonly string[], id: string) =>
+      !passive(id) || set.includes(id) || passivesIn(set) < CAPS.MAX_PASSIVES_PER_SET;
+    const rulesOk = (set: readonly string[], id: string) => rule8Ok(set, id) && rule9Ok(set, id);
+    /** `set` without its `i`th member. */
+    const without = (set: readonly string[], i: number) => set.filter((_, j) => j !== i);
     fc.assert(
       fc.property(
         validArmyArb,
@@ -899,7 +921,7 @@ describe('property: loadout validation (R-LOAD-004)', () => {
               const k = r.int(loadout.sets.length);
               const set = loadout.sets[k] ?? [];
               const locked = ABILITY_IDS.filter(
-                (id) => abilityOf(id).minLevel > level && !set.includes(id) && rule8Ok(set, id),
+                (id) => abilityOf(id).minLevel > level && !set.includes(id) && rulesOk(set, id),
               );
               if (locked.length === 0) return;
               const id = r.pick(locked);
@@ -908,11 +930,7 @@ describe('property: loadout validation (R-LOAD-004)', () => {
               else {
                 const out = set.findIndex(
                   (a, i) =>
-                    abilityOf(a).slotCost >= abilityOf(id).slotCost &&
-                    rule8Ok(
-                      set.filter((_, j) => j !== i),
-                      id,
-                    ),
+                    abilityOf(a).slotCost >= abilityOf(id).slotCost && rulesOk(without(set, i), id),
                 );
                 if (out < 0) return;
                 set[out] = id;
@@ -946,13 +964,15 @@ describe('property: loadout validation (R-LOAD-004)', () => {
               const set = loadout.sets[k] ?? [];
               if (set.length > 0) set.push(r.pick(set));
               else {
-                // Stalwart stays out of the fill so the overflow breaks rule 4 alone (DD-102).
+                // Stalwart stays out of the fill so the overflow breaks rule 4 alone (DD-102), and
+                // passives stop at the rule 9 cap (B5).
                 const open = ABILITY_IDS.filter(
                   (id) => abilityOf(id).minLevel <= level && !abilityOf(id).excludes,
                 );
                 let cost = 0;
                 for (const id of open) {
                   if (cost > capacity) break;
+                  if (!rule9Ok(set, id)) continue;
                   set.push(id);
                   cost += abilityOf(id).slotCost;
                 }
@@ -1013,8 +1033,8 @@ describe('property: loadout validation (R-LOAD-004)', () => {
               break;
             }
             case '8': {
-              // Rule 8 (DD-102): Stalwart next to a Capturing or Captures ability, within capacity
-              // and the player's level.
+              // Rule 8 (DD-102): Stalwart next to a Capturing or Captures ability, within capacity,
+              // the player's level and the rule 9 passive cap (B5).
               if (abilityOf('stalwart').minLevel > level) return;
               const k = r.int(loadout.sets.length);
               const set = loadout.sets[k] ?? [];
@@ -1031,22 +1051,111 @@ describe('property: loadout validation (R-LOAD-004)', () => {
                   replace(set.indexOf('stalwart') === 0 ? 1 : 0, r.pick(pool));
                 else return;
               } else if (set.some(offensive)) {
-                const quiet = set.findIndex((id) => !offensive(id));
-                if (cost + 1 <= capacity) set.push('stalwart');
+                // A Captured card or a passive makes way when the set is full or at the passive cap.
+                const quiet = set.findIndex(
+                  (id, i) => !offensive(id) && rule9Ok(without(set, i), 'stalwart'),
+                );
+                if (cost + 1 <= capacity && rule9Ok(set, 'stalwart')) set.push('stalwart');
                 else if (quiet >= 0) replace(quiet, 'stalwart');
                 else return;
               } else {
                 if (pool.length === 0) return;
-                if (cost + 2 <= capacity) set.push('stalwart', r.pick(pool));
+                if (cost + 2 <= capacity && rule9Ok(set, 'stalwart'))
+                  set.push('stalwart', r.pick(pool));
                 else if (set.length >= 2) {
-                  replace(0, 'stalwart');
-                  replace(1, r.pick(pool));
+                  // Stalwart takes a passive's place when the set is at the cap (rule 9), else the
+                  // first member's; the offensive card takes another member's.
+                  const si = Math.max(0, rule9Ok(set, 'stalwart') ? 0 : set.findIndex(passive));
+                  replace(si, 'stalwart');
+                  replace(si === 0 ? 1 : 0, r.pick(pool));
                 } else if (set.length === 1 && capacity >= 2) {
                   replace(0, 'stalwart');
                   set.push(r.pick(pool));
                 } else return;
               }
               expectedRule = 8;
+              break;
+            }
+            case '9': {
+              // Rule 9 (B5): more passives in one set than CAPS.MAX_PASSIVES_PER_SET allows, within
+              // the player's level, capacity and rule 8 (Stalwart never joins an offensive set).
+              // The set needs room for cap + 1 passives: when the capacity item is too small, the
+              // smallest bigger one the level and the slot budget allow replaces it (a plain
+              // utility item makes way when slots are short), so rules 1-3 hold. Then a passive is
+              // pushed while the set has room, else it replaces a non-passive member of at least
+              // its slot cost. The mutation returns when none of this fits.
+              const k = r.int(loadout.sets.length);
+              const set = loadout.sets[k] ?? [];
+              const pool = ABILITY_IDS.filter(
+                (id) => passive(id) && abilityOf(id).minLevel <= level && !set.includes(id),
+              );
+              const want = CAPS.MAX_PASSIVES_PER_SET + 1;
+              const cheapest = [...set.filter(passive), ...pool]
+                .map((id) => abilityOf(id).slotCost)
+                .sort((a, b) => a - b);
+              if (cheapest.length < want) return;
+              const need = cheapest.slice(0, want).reduce((n, c) => n + c, 0);
+              let room = capacity;
+              if (need > room) {
+                const current = loadout.items.find((id) => specItem(id).capacity !== undefined);
+                const plain = loadout.items.filter((id) => {
+                  const s = specItem(id);
+                  return s.capacity === undefined && !s.schedule && !s.blended;
+                });
+                const upgrades = ITEM_IDS.filter(
+                  (id) => (specItem(id).capacity ?? 0) >= need && itemOf(id).minLevel <= level,
+                ).sort((a, b) => (specItem(a).capacity ?? 0) - (specItem(b).capacity ?? 0));
+                let upgraded = false;
+                for (const up of upgrades) {
+                  let budget = used - (current ? specItem(current).cost : 0) + specItem(up).cost;
+                  const drop: string[] = [];
+                  for (const id of plain) {
+                    if (budget <= slots) break;
+                    drop.push(id);
+                    budget -= specItem(id).cost;
+                  }
+                  if (budget > slots) continue;
+                  loadout.items = [
+                    ...loadout.items.filter((id) => id !== current && !drop.includes(id)),
+                    up,
+                  ];
+                  for (const id of drop) delete loadout.itemParams?.[id];
+                  room = specItem(up).capacity ?? room;
+                  upgraded = true;
+                  break;
+                }
+                if (!upgraded) return;
+              }
+              let cost = set.reduce((n, a) => n + abilityOf(a).slotCost, 0);
+              while (passivesIn(set) <= CAPS.MAX_PASSIVES_PER_SET) {
+                const fitting = pool.filter(
+                  (id) =>
+                    !set.includes(id) && cost + abilityOf(id).slotCost <= room && rule8Ok(set, id),
+                );
+                if (fitting.length > 0) {
+                  const id = r.pick(fitting);
+                  set.push(id);
+                  cost += abilityOf(id).slotCost;
+                  continue;
+                }
+                const swaps = set.flatMap((member, i) =>
+                  passive(member)
+                    ? []
+                    : pool
+                        .filter(
+                          (id) =>
+                            !set.includes(id) &&
+                            abilityOf(id).slotCost <= abilityOf(member).slotCost &&
+                            rule8Ok(without(set, i), id),
+                        )
+                        .map((id) => ({ i, id })),
+                );
+                if (swaps.length === 0) return;
+                const { i, id } = r.pick(swaps);
+                cost += abilityOf(id).slotCost - abilityOf(set[i] ?? id).slotCost;
+                set.splice(i, 1, id);
+              }
+              expectedRule = 9;
               break;
             }
             case 'dd23': {
@@ -1071,7 +1180,11 @@ describe('property: loadout validation (R-LOAD-004)', () => {
           applied[kind] = (applied[kind] ?? 0) + 1;
         },
       ),
-      { numRuns: 400 * SCALE },
+      // Eleven mutation kinds share the runs and each must land more than three times; the rarer
+      // ones (a second capacity item, Stalwart from level 16, three passives from level 12) land
+      // about 10 times in 400 runs, so 800 keeps the floor out of reach of an unlucky seed. This
+      // test plays no battles, so the extra runs cost milliseconds.
+      { numRuns: 800 * SCALE },
     );
     for (const kind of kinds) expect(applied[kind] ?? 0, `mutation ${kind}`).toBeGreaterThan(3);
   });

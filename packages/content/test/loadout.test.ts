@@ -1,7 +1,8 @@
 /**
  * Loadout model and validation (M2 step 2.3): R-LOAD-001 item slots by level, R-LOAD-002 item and
  * ability level requirements (DD-05), R-LOAD-003 ability sets and the four builds of spec 7.3,
- * R-LOAD-004 validation rules 1-7, DD-13 loadout-shaping item data and DD-23 (neutral is test-only).
+ * R-LOAD-004 validation rules 1-9 (rule 9, at most `CAPS.MAX_PASSIVES_PER_SET` Passive abilities per
+ * set, is plan item B5), DD-13 loadout-shaping item data and DD-23 (neutral is test-only).
  *
  * Expected values come from spec 5.7, 6.4, 7.1-7.4 and the DD rows, not from the engine's output.
  */
@@ -134,18 +135,25 @@ const ABILITIES_M7: { id: string; minLevel: number; affinity: ElementId }[] = [
 ];
 /**
  * Spec 5.8 abilities from the designer's 2026-10-06 brief (PLAYTEST, DD-97, DD-103): neutral, each
- * costs 1 ability slot; levels sit in the 11-15 band between Reinforce and Stalwart.
+ * costs 1 ability slot except Obstinate and Block Path, 2 slots since the designer's B5 per-card
+ * changes (docs/BALANCE_BASELINE.md section 11); levels sit in the 11-15 band between Reinforce and
+ * Stalwart.
  */
-const ABILITIES_5_8: { id: string; minLevel: number }[] = [
+const ABILITIES_5_8: { id: string; minLevel: number; slotCost?: number }[] = [
   { id: 'electric_slide', minLevel: 3 },
-  { id: 'obstinate', minLevel: 9 },
+  { id: 'obstinate', minLevel: 9, slotCost: 2 },
   { id: 'necromancer', minLevel: 11 },
-  { id: 'block_path', minLevel: 12 },
+  { id: 'block_path', minLevel: 12, slotCost: 2 },
   { id: 'quantum_kill', minLevel: 13 },
   { id: 'redo', minLevel: 15 },
   { id: 'schrodingers_joker', minLevel: 20 },
 ];
-const ALL_ABILITIES = [...ABILITIES_5_7, ...ABILITIES_M7, ...ABILITIES_5_8];
+/** Every ability with its PLAYTEST level and slot cost (1 unless the row says otherwise). */
+const ALL_ABILITIES: { id: string; minLevel: number; slotCost?: number }[] = [
+  ...ABILITIES_5_7,
+  ...ABILITIES_M7,
+  ...ABILITIES_5_8,
+];
 
 /** A loadout holding only `id`, with what the item needs to be valid (6.4, DD-29). */
 function itemLoadout(id: string): Loadout {
@@ -270,15 +278,16 @@ describe('R-LOAD-002 item catalogue and level requirements (DD-05)', () => {
     },
   );
 
-  it('R-LOAD-002 R-ABIL-005 the 14 starter abilities have the spec 5.7 level requirements and cost 1 ability slot', () => {
+  it('R-LOAD-002 R-ABIL-005 the 14 starter abilities have the spec 5.7 level requirements and cost 1 ability slot; Obstinate and Block Path cost 2 (B5)', () => {
     expect(registry.abilities.map((a) => a.id).sort()).toEqual(
       ALL_ABILITIES.map((a) => a.id).sort(),
     );
     for (const row of ALL_ABILITIES) {
       const def = must(abilityById.get(row.id), row.id);
       expect(def.minLevel, row.id).toBe(row.minLevel);
-      expect(def.slotCost, row.id).toBe(1);
+      expect(def.slotCost, row.id).toBe(row.slotCost ?? 1);
     }
+    for (const row of ABILITIES_5_7) expect(must(abilityById.get(row.id), row.id).slotCost).toBe(1);
   });
 
   it('R-LOAD-002 R-ABIL-005 R-ELEM-001 R-ELEM-003 6.5 DD-98: every element has exactly one signature ability with an attuned version; every other ability is neutral without one', () => {
@@ -313,8 +322,9 @@ describe('R-LOAD-002 item catalogue and level requirements (DD-05)', () => {
 
   it.each(ALL_ABILITIES)(
     'R-LOAD-002 R-LOAD-004 DD-05 ability $id validates at level $minLevel and is rejected one level below (rule 2)',
-    ({ id, minLevel }) => {
-      const loadout = lo({ sets: [[id]] });
+    ({ id, minLevel, slotCost }) => {
+      // A 2-slot card needs a capacity item; the level-1 Glove (capacity 2) keeps rule 4 out of it.
+      const loadout = lo({ items: (slotCost ?? 1) > 1 ? ['dual_adepts_glove'] : [], sets: [[id]] });
       const at = engine.validateLoadout(loadout, { level: minLevel });
       expect(at.errors).toEqual([]);
       if (minLevel <= 1) return;
@@ -886,6 +896,110 @@ describe('R-LOAD-004 loadout validation rules 1-7', () => {
     const wide = makeEngine({ BASE_ABILITY_CAPACITY: 2 }).validateLoadout(pair, { level: 30 });
     expect(wide.errors).toEqual([]);
     expect(wide.capacity).toBe(2);
+  });
+});
+
+// ---- R-LOAD-004 rule 9 (plan item B5) -------------------------------------------------------------
+
+describe('R-LOAD-004 rule 9: at most two Passive abilities per set (B5)', () => {
+  /** Level 25 with the Schedule and the Ring (capacity 5, 5 of 6 slots): only the king set varies. */
+  const kingSet = (king: string[]) =>
+    lo({ items: ['headmaster_ring', 'multitaskers_schedule'], sets: perType({ king }) });
+  /** One army-wide set with the Ring (capacity 5). */
+  const wide = (set: string[]) => lo({ items: ['headmaster_ring'], sets: [set] });
+  const passivesOf = (set: string[]) =>
+    set.filter((id) => must(abilityById.get(id), id).category === 'PASSIVE');
+
+  it('R-LOAD-004 rule 9: the cap is 2 (PLAYTEST, config) and Stalwart, Block Path, Veil, Obstinate and Electric Slide are the Passive cards', () => {
+    expect(CAPS.MAX_PASSIVES_PER_SET).toBe(2);
+    for (const id of ['stalwart', 'block_path', 'veil', 'obstinate', 'electric_slide'])
+      expect(must(abilityById.get(id), id).category, id).toBe('PASSIVE');
+  });
+
+  it('R-LOAD-004 rule 9: a king set of Stalwart, Block Path and Veil is rejected with passives_exceeded naming the third passive', () => {
+    const three = ['stalwart', 'block_path', 'veil'];
+    expect(passivesOf(three)).toHaveLength(3);
+    const v = engine.validateLoadout(kingSet(three), { level: 25 });
+    expect(v.ok).toBe(false);
+    expect(errs(v)).toEqual([{ rule: 9, code: 'passives_exceeded' }]);
+    expect(v.errors[0]?.ref).toBe('veil');
+    expect(v.errors[0]?.message).toBe(
+      'the king set holds 3 passive abilities; at most 2 may share a set',
+    );
+    // The order within the set decides which card is "over": the third passive seen.
+    const reordered = engine.validateLoadout(kingSet(['veil', 'stalwart', 'block_path']), {
+      level: 25,
+    });
+    expect(errs(reordered)).toEqual([{ rule: 9, code: 'passives_exceeded' }]);
+    expect(reordered.errors[0]?.ref).toBe('block_path');
+  });
+
+  it('R-LOAD-004 rule 9: a king set of Stalwart and Block Path passes, with Captured cards beside them', () => {
+    expect(
+      engine.validateLoadout(kingSet(['stalwart', 'block_path']), { level: 25 }).errors,
+    ).toEqual([]);
+    expect(
+      engine.validateLoadout(kingSet(['stalwart', 'veil', 'last_word', 'poisoned_meat']), {
+        level: 25,
+      }).errors,
+    ).toEqual([]);
+  });
+
+  it('R-LOAD-004 rule 9: an army-wide set of Obstinate, Veil and Electric Slide is rejected; Obstinate and Veil pass', () => {
+    const three = ['obstinate', 'veil', 'electric_slide'];
+    expect(passivesOf(three)).toHaveLength(3);
+    const v = engine.validateLoadout(wide(three), { level: 25 });
+    expect(errs(v)).toEqual([{ rule: 9, code: 'passives_exceeded' }]);
+    expect(v.errors[0]?.ref).toBe('electric_slide');
+    expect(v.errors[0]?.message).toBe(
+      'the ability set holds 3 passive abilities; at most 2 may share a set',
+    );
+    expect(engine.validateLoadout(wide(['obstinate', 'veil']), { level: 25 }).errors).toEqual([]);
+    // The cap is per set: three passives spread over per-type sets are fine.
+    const spread = lo({
+      items: ['headmaster_ring', 'multitaskers_schedule'],
+      sets: perType({ pawn: ['obstinate', 'veil'], rook: ['electric_slide', 'block_path'] }),
+    });
+    expect(engine.validateLoadout(spread, { level: 25 }).errors).toEqual([]);
+  });
+
+  it('R-LOAD-004 rule 9: passives are counted by id, so a repeated passive is only rule 4, and rule 9 follows rule 8 in the error list', () => {
+    const dup = engine.validateLoadout(wide(['stalwart', 'veil', 'veil']), { level: 25 });
+    expect(errs(dup)).toEqual([{ rule: 4, code: 'duplicate_ability' }]);
+    const both = engine.validateLoadout(wide(['stalwart', 'cleave', 'veil', 'block_path']), {
+      level: 25,
+    });
+    expect(errs(both)).toEqual([
+      { rule: 8, code: 'excluded_category' },
+      { rule: 9, code: 'passives_exceeded' },
+    ]);
+  });
+
+  it('R-LOAD-004 rule 9: the cap comes from the caps config (MAX_PASSIVES_PER_SET), not from the engine', () => {
+    const three = ['stalwart', 'block_path', 'veil'];
+    const roomy = makeEngine({ MAX_PASSIVES_PER_SET: 3 }).validateLoadout(kingSet(three), {
+      level: 25,
+    });
+    expect(roomy.errors).toEqual([]);
+    expect(roomy.ok).toBe(true);
+    const tight = makeEngine({ MAX_PASSIVES_PER_SET: 1 }).validateLoadout(
+      kingSet(['stalwart', 'block_path']),
+      { level: 25 },
+    );
+    expect(errs(tight)).toEqual([{ rule: 9, code: 'passives_exceeded' }]);
+    expect(tight.errors[0]?.ref).toBe('block_path');
+    expect(tight.errors[0]?.message).toBe(
+      'the king set holds 2 passive abilities; at most 1 may share a set',
+    );
+  });
+
+  it('R-LOAD-004 R-LOAD-003 rule 9: the spec 7.3 builds hold at most two passives per set and the Maximum king set is Stalwart plus Veil', () => {
+    for (const b of BUILDS)
+      for (const set of b.loadout.sets)
+        expect(passivesOf(set).length, `${b.name} ${set.join(',')}`).toBeLessThanOrEqual(
+          CAPS.MAX_PASSIVES_PER_SET,
+        );
+    expect(passivesOf(must(MAX_SETS[5], 'king set'))).toEqual(['stalwart', 'veil']);
   });
 });
 

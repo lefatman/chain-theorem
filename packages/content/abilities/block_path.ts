@@ -1,12 +1,15 @@
 /**
- * Block Path (5.8, PLAYTEST; designer brief 2026-10-06, DD-99): Passive, neutral, all. The piece
- * faces one of eight compass directions and cannot be move-captured by an attacker standing in that
- * direction: sliders, kings and pawns along the shared line, knights along their long leg. A
- * diagonal is blocked only when that diagonal is chosen. Kings included: a king is not in check from
- * its facing. Effect captures ignore it, and so does nothing else: even Stalwart attackers respect
- * it (a hard restriction, DD-102). The default facing is the owner's forward direction (N for White,
- * S for Black) until the piece moves; after any move of the piece its owner may face it anew through
- * a declinable prompt (declining keeps the old facing). A revived piece faces forward again.
+ * Block Path (5.8, PLAYTEST; designer brief 2026-10-06, DD-99; B5 brief 2026-10-11): Passive,
+ * neutral, all. The piece faces one of eight compass directions and cannot be move-captured by an
+ * attacker standing in that direction: sliders, kings and pawns along the shared line, knights along
+ * their long leg. A diagonal is blocked only when that diagonal is chosen. Kings included: a king is
+ * not in check from its facing. Effect captures ignore it, and so does nothing else: even Stalwart
+ * attackers respect it (a hard restriction, DD-102). The default facing is the owner's forward
+ * direction (N for White, S for Black) until the piece moves; after any move of the piece its owner
+ * may face it anew through a declinable prompt (declining keeps the old facing). The king is the
+ * exception (B5): it always faces forward after it moves and is never asked, so a king is guarded
+ * from the front only. A revived piece faces forward again. Costs two ability slots (B5: 73% on its
+ * own in Full Battle and part of the Stalwart king set, docs/BALANCE_BASELINE.md sections 5 and 6).
  *
  * Facings are owner-private state until the ability is revealed on that piece type; the engine
  * reveals it the first time a facing changes which moves are legal or whether a king is in check.
@@ -55,13 +58,13 @@ function visibleFacings(
 export default defineAbility({
   id: ID,
   name: 'Block Path',
-  version: 1,
+  version: 2,
   category: 'PASSIVE',
   affinity: 'neutral',
   eligible: 'all',
   tags: [],
   minLevel: 12,
-  slotCost: 1,
+  slotCost: 2,
   limits: { perAction: 1 },
   effects: [fx.modifyRule(ID)],
   hooks: {
@@ -92,20 +95,29 @@ export default defineAbility({
         const piece = ctx.piece(m.piece.id);
         if (piece.square < 0 || !ctx.hasAbility(piece, ID)) continue;
         const state = ctx.slice<BlockPathState>(FACINGS);
+        const key = String(piece.id);
+        if (piece.type === 'king') {
+          // A king always faces forward after it moves (B5): no prompt. A facing the king still
+          // carries (a battle saved before this version) is cleared, and the reset is reported
+          // only when the facing actually changes.
+          if (!(key in state.facing)) continue;
+          const { [key]: before, ...facing } = state.facing;
+          ctx.setSlice<BlockPathState>({ facing });
+          const forward = defaultFacing(owner);
+          if (before === forward) continue;
+          ctx.emit({
+            k: 'FacingSet',
+            piece: piece.id,
+            side: owner,
+            square: piece.square,
+            facing: forward,
+            source: { kind: 'ability', id: ID, piece: piece.id, side: owner },
+          });
+          continue;
+        }
         const current = facingOf(state, piece);
         // Each option is the adjacent square in a direction (5.4 square order from the owner's side).
-        // A king may not turn its guard away from an attacker (INV-03): such facings are not offered.
         const options = COMPASS.filter((c) => c !== current)
-          .filter(
-            (c) =>
-              piece.type !== 'king' ||
-              ctx.kingSafeAfter(owner, (draft) =>
-                draft.setSlice<BlockPathState>(
-                  { facing: { ...state.facing, [String(piece.id)]: c } },
-                  FACINGS,
-                ),
-              ),
-          )
           .map((c) => stepTowards(piece.square, c))
           .filter((sq) => sq >= 0)
           .sort((a, b) => relOrder(owner, a) - relOrder(owner, b))
@@ -121,7 +133,7 @@ export default defineAbility({
         const facing = compassFrom(piece.square, answer.square);
         if (!facing) continue;
         const s = ctx.slice<BlockPathState>(FACINGS);
-        ctx.setSlice<BlockPathState>({ facing: { ...s.facing, [String(piece.id)]: facing } });
+        ctx.setSlice<BlockPathState>({ facing: { ...s.facing, [key]: facing } });
         ctx.emit({
           k: 'FacingSet',
           piece: piece.id,
@@ -145,7 +157,7 @@ export default defineAbility({
   text: {
     short: 'Faces one way; nothing takes it from there.',
     rules:
-      'This piece faces one of eight directions (forward by default). It cannot be captured by a move from a piece standing in that direction: along the line for sliders, kings and pawns, along the long leg for knights. A king is not in check from its facing. After this piece moves you may turn it to face a new direction. Effect captures ignore the facing.',
+      'This piece faces one of eight directions (forward by default). It cannot be captured by a move from a piece standing in that direction: along the line for sliders, kings and pawns, along the long leg for knights. A king is not in check from its facing. After this piece moves you may turn it to face a new direction; the king always faces forward after it moves. Effect captures ignore the facing.',
   },
   status: 'PLAYTEST',
 });

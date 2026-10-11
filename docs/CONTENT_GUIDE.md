@@ -120,6 +120,7 @@ The agent checklist from spec 13.5, with the real commands:
 | `ENABLED_ELEMENTS`      | all six elements (M7 7.3)                | Elements a real loadout may use (6.5); never `neutral`                                                                                                              |
 | `MAX_EVENTS_PER_ACTION` | 512                                      | Termination guard; exceeding it throws (unbounded chain)                                                                                                            |
 | `TWIN_GROUP_MAX`        | 3                                        | Most pieces in one Schrödinger's Joker twin group (DD-101)                                                                                                          |
+| `MAX_PASSIVES_PER_SET`  | 2                                        | Most Passive abilities one set may hold (7.4 rule 9, `passives_exceeded`; PLAYTEST, plan item B5)                                                                   |
 | `TRAITS`                | see `config.ts`                          | Trait numbers (6.1, PLAYTEST; plan item B4): Flow's pass limit, Bulwark on pawns, Overabundance's extra charges, Hot Foot's turns; `pnpm sim --caps` overrides them |
 
 ## 3. Ability modules
@@ -838,6 +839,8 @@ CAPS and module data:
 | 5    | `set_count`                                                                |
 | 6    | `elements_count`, `elements_same`, `element_disabled`                      |
 | 7    | `not_owned`, `retired`, `unknown_item`, `unknown_ability`, `item_param`    |
+| 8    | `excluded_category` (an ability that excludes categories, DD-102)          |
+| 9    | `passives_exceeded` (more than `CAPS.MAX_PASSIVES_PER_SET` passives, B5)   |
 
 ### 5.3 Loadout-shaping items
 

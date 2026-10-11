@@ -1,9 +1,11 @@
 /**
- * Obstinate (5.8): Passive, neutral, all. "Cannot be move-captured by a piece of higher rank. Effect
- * captures are unaffected. Revealed the first time it changes which captures are legal."
+ * Obstinate (5.8): Passive, neutral, all. "Cannot be move-captured by a piece of higher rank; kings
+ * ignore it. Effect captures are unaffected. Costs two ability slots. Revealed the first time it
+ * changes which captures are legal."
  *
  * Expected behaviour comes from spec 5.1 (rank, DD-97), 5.6 (captureFilter), 8.2 (passive reveal,
- * DD-32, DD-99), DD-102 (Stalwart bypass) and R-RULES-004.
+ * DD-32, DD-99), DD-102 (Stalwart bypass), R-RULES-004 and the B5 brief (2026-10-11: two slots,
+ * kings ignore it).
  */
 import { describe, expect, it } from 'vitest';
 import { type Engine, type GameState, type Side, moveToUci } from '@chain-theorem/rules';
@@ -15,7 +17,7 @@ const legal = (engine: Engine, state: GameState, side: Side): string[] =>
   engine.legalMoves(state, side).map(moveToUci);
 
 describe('Obstinate (5.8, DD-97, DD-99)', () => {
-  it('R-ABIL-005 module data: Passive, neutral, all, level 9, 1 slot, a captureFilter hook', () => {
+  it('R-ABIL-005 module data: Passive, neutral, all, level 9, 2 slots (B5), a captureFilter hook', () => {
     const def = abilityById.get('obstinate');
     expect(def).toMatchObject({
       category: 'PASSIVE',
@@ -23,7 +25,7 @@ describe('Obstinate (5.8, DD-97, DD-99)', () => {
       eligible: 'all',
       tags: [],
       minLevel: 9,
-      slotCost: 1,
+      slotCost: 2,
     });
     expect(def?.hooks?.moveFilter?.captureFilter).toBeTypeOf('function');
     expect(def?.attuned).toBeUndefined();
@@ -45,6 +47,19 @@ describe('Obstinate (5.8, DD-97, DD-99)', () => {
       black: { elements: ['neutral'] },
     });
     expect(legal(plain.engine, plain.state, 'white')).toContain('d1d5');
+  });
+
+  it('R-RULES-001 DD-97 a king may capture an Obstinate piece: the king is not among the restricted attackers, a queen still is', () => {
+    // d1 Q, e1 K; black: d2 n (Obstinate, adjacent to both), e8 k. The knight attacks neither.
+    const fen = '4k3/8/8/8/8/8/3n4/3QK3 w - - 0 1';
+    const { engine, state } = setup({ fen, black: { abilities: ['obstinate'] } });
+    const moves = legal(engine, state, 'white');
+    expect(moves).toContain('e1d2');
+    expect(moves).not.toContain('d1d2');
+    // Control: without Obstinate both take.
+    const plain = legal(setup({ fen }).engine, setup({ fen }).state, 'white');
+    expect(plain).toContain('e1d2');
+    expect(plain).toContain('d1d2');
   });
 
   it('DD-97 equal rank is not higher: a bishop may take an Obstinate knight, a rook may not', () => {

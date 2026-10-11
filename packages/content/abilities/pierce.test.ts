@@ -1,11 +1,13 @@
 /**
- * Pierce (5.7): Capturing, neutral, all. "Negate the victim's Captured abilities for this capture."
- * Neutral since DD-98: the former Tide Attuned bonus (also reveal all abilities of the victim's piece
- * type) is dropped; no bearer is attuned and Pierce has no explicit reveal of its own.
+ * Pierce (5.7): Capturing, neutral, all, 2 charges. "Negate the victim's Captured abilities for this
+ * capture." Neutral since DD-98: the former Tide Attuned bonus (also reveal all abilities of the
+ * victim's piece type) is dropped; no bearer is attuned and Pierce has no explicit reveal of its own.
+ * Two charges since the B5 brief (2026-10-11): a piece pierces twice, then its captures let the
+ * victim's Captured abilities resolve; a charge is spent whenever Pierce fires (DD-17).
  *
  * Expected behaviour comes from spec 5.1-5.7, 6.2 (and its design note on Pierce vs Grove), 6.3, 8.2,
- * DD-17 to DD-40 (DD-28 explicit reveals, DD-36 negation beats silence) and DD-98, not from the
- * engine.
+ * DD-17 to DD-40 (DD-17 charges, DD-28 explicit reveals, DD-36 negation beats silence) and DD-98,
+ * not from the engine.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -79,7 +81,7 @@ const PAWN = 2;
 const PIERCE_SOURCE = { kind: 'ability', id: 'pierce', piece: BISHOP, side: 'white' } as const;
 
 describe('Pierce', () => {
-  it('R-ABIL-005 R-ABIL-001 DD-98 module data matches the 5.7 catalogue row (Capturing, neutral, all, level 3, 1 slot)', () => {
+  it('R-ABIL-005 R-ABIL-001 DD-98 module data matches the 5.7 catalogue row (Capturing, neutral, all, level 3, 1 slot, 2 charges)', () => {
     const def = abilityById.get('pierce');
     expect(def?.category).toBe('CAPTURING');
     expect(def?.affinity).toBe('neutral');
@@ -88,7 +90,58 @@ describe('Pierce', () => {
     expect(def?.tags).toEqual([]);
     expect(def?.minLevel).toBe(3);
     expect(def?.slotCost).toBe(1);
-    expect(def?.limits).toEqual({ perAction: 1 });
+    expect(def?.limits).toEqual({ perAction: 1, charges: 2 });
+  });
+
+  it("R-ABIL-003 Pierce negates twice, then its third capture lets the victim's Captured ability resolve", () => {
+    // The rook takes three Poisoned Meat pawns up the a-file: the first two negations each spend a
+    // charge (public once Pierce is revealed), the third capture finds Pierce spent, so Poisoned Meat
+    // resolves and the rook falls.
+    const r = scenario({
+      fen: '4k3/p7/8/p7/8/p7/8/R3K3 w - - 0 1',
+      white: { elements: ['neutral'], abilities: ['pierce'] },
+      black: { elements: ['neutral'], abilities: ['poisoned_meat'] },
+      moves: ['a1a3', 'e8d8', 'a3a5', 'd8e8', 'a5a7'],
+    });
+    const rook = idAt(r.initial, 'a1');
+    const [first, , second, , third] = r.steps.map((s) => s.events);
+    expect(trace(first ?? [])).toEqual([
+      'Triggered white pierce',
+      'Captured black pawn#' + idAt(r.initial, 'a3') + ' by move',
+      'MoveMade white rook#' + rook + ' a1-a3',
+      'Negated black poisoned_meat',
+      'TurnPassed black',
+    ]);
+    expect(eventsOf(first ?? [], 'ChargeSpent')).toEqual([
+      expect.objectContaining({ side: 'white', piece: rook, ability: 'pierce', remaining: 1 }),
+    ]);
+    expect(eventsOf(second ?? [], 'AbilityNegated').map((e) => e.ability)).toEqual([
+      'poisoned_meat',
+    ]);
+    expect(eventsOf(second ?? [], 'ChargeSpent')).toEqual([
+      expect.objectContaining({ side: 'white', piece: rook, ability: 'pierce', remaining: 0 }),
+    ]);
+    // Third capture: Pierce is spent, so it does not trigger; Poisoned Meat takes the rook.
+    expect(eventsOf(third ?? [], 'AbilityTriggered').map((e) => [e.side, e.ability])).toEqual([
+      ['black', 'poisoned_meat'],
+    ]);
+    expect(eventsOf(third ?? [], 'AbilityNegated')).toEqual([]);
+    expect(eventsOf(third ?? [], 'ChargeSpent')).toEqual([]);
+    expect(eventsOf(third ?? [], 'Captured').map((e) => [e.victim, e.by])).toEqual([
+      [idAt(r.initial, 'a7'), 'move'],
+      [rook, 'effect'],
+    ]);
+    expect(r.state.pieces[rook]?.square).toBe(-1);
+    expect(pieceAt(r.state, 'a7')).toBeUndefined();
+    // The usage counter and the public charge count agree (DD-17).
+    expect(r.state.usage[`${rook}:pierce`]).toBe(2);
+    expect(r.engine.remainingCharges(r.state, rook, 'pierce')).toBe(0);
+    expect(r.state.reveals.white.abilities.rook).toContain('pierce');
+    const seen = r.engine.projectEvents(r.state, r.events, 'black');
+    expect(eventsOf(seen, 'ChargeSpent').map((e) => [e.ability, e.remaining])).toEqual([
+      ['pierce', 1],
+      ['pierce', 0],
+    ]);
   });
 
   it("R-ABIL-005 R-ABIL-002 R-INFO-002 base: negates the victim's Poisoned Meat (revealed as negated); the bishop survives", () => {
@@ -234,7 +287,7 @@ describe('Pierce', () => {
     expect(idAt(r.state, 'd5')).toBe(BISHOP);
   });
 
-  it('R-ABIL-005 DD-98 a victim without Captured abilities: nothing is negated and nothing about it is revealed', () => {
+  it('R-ABIL-005 DD-98 DD-17 a victim without Captured abilities: nothing is negated and nothing about it is revealed, and the charge is still spent', () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['tide'], abilities: ['pierce'] },
@@ -249,6 +302,12 @@ describe('Pierce', () => {
     expect(revealedOn(r.state, 'black', 'pawn')).toEqual([]);
     expect(r.state.reveals.black.complete).toEqual([]);
     expect(idAt(r.state, 'd5')).toBe(BISHOP);
+    // The negate effect resolves when it is registered, so the charge is spent even when the victim
+    // had nothing to negate (DD-17); a fizzle here would leak that the victim has no Captured ability.
+    expect(eventsOf(r.events, 'ChargeSpent')).toEqual([
+      expect.objectContaining({ ability: 'pierce', piece: BISHOP, remaining: 1 }),
+    ]);
+    expect(r.state.usage[`${BISHOP}:pierce`]).toBe(1);
   });
 
   it('R-ABIL-005 R-ELEM-002 R-INFO-002 a Pierce on a Tide piece is silenced against a Grove victim, so Poisoned Meat resolves (6.2 design note)', () => {

@@ -1,12 +1,14 @@
 /**
- * Redo (5.8): Captured, neutral, all, replay, 1 charge. "When captured by a move of a piece of equal
- * or higher rank, the position returns to the moment before the previous action; that action and the
- * capturing reply are undone, pieces removed in them return, and play resumes there. Charges spent
- * (Redo's own included), everything revealed and the clocks are not undone; rewound positions do not
- * count toward repetition; the rewind resolves before any format objective is adjudicated."
+ * Redo (5.8): Captured, neutral, non-pawn, replay, 1 charge. "When captured by a move of a piece of
+ * equal or higher rank, the position returns to the moment before the previous action; that action
+ * and the capturing reply are undone, pieces removed in them return, and play resumes there. Charges
+ * spent (Redo's own included), everything revealed and the clocks are not undone; rewound positions
+ * do not count toward repetition; the rewind resolves before any format objective is adjudicated."
+ * Not on pawns since the B5 brief (2026-10-11): a pawn carrying it is captured without a rewind (7.3).
  *
  * Expected behaviour comes from spec 4.5 (repetition), 5.1 (rank, DD-97), 5.2 (REWIND), 5.4, 6.2,
- * 7.2 (Warden's Stopwatch), 9.1 (First Blood), INV-04 and DD-100, not from the engine's output.
+ * 7.2 (Warden's Stopwatch), 7.3 (eligibility), 9.1 (First Blood), INV-04 and DD-100, not from the
+ * engine's output.
  */
 import { describe, expect, it } from 'vitest';
 import { type GameState, parseSquare, toFen } from '@chain-theorem/rules';
@@ -28,12 +30,12 @@ const position = (s: GameState) => ({
 const FEN = '4k3/7p/8/3n4/8/8/8/R3K3 w - - 0 1';
 
 describe('Redo (5.8, DD-97, DD-100)', () => {
-  it('R-ABIL-005 module data: Captured, neutral, all, replay, 1 charge, level 15, a rank condition and a rewind effect', () => {
+  it('R-ABIL-005 module data: Captured, neutral, non-pawn, replay, 1 charge, level 15, a rank condition and a rewind effect', () => {
     const def = abilityById.get('redo');
     expect(def).toMatchObject({
       category: 'CAPTURED',
       affinity: 'neutral',
-      eligible: 'all',
+      eligible: ['knight', 'bishop', 'rook', 'queen', 'king'],
       tags: ['replay'],
       minLevel: 15,
       slotCost: 1,
@@ -42,6 +44,35 @@ describe('Redo (5.8, DD-97, DD-100)', () => {
       effects: [{ op: 'rewind' }],
     });
     expect(def?.attuned).toBeUndefined();
+    expect(def?.eligible).not.toContain('pawn');
+  });
+
+  it('R-ABIL-005 Redo on a pawn does nothing: a pawn with Redo in its set is captured without a rewind (the ability is ineligible, 7.3)', () => {
+    // As FEN, but the Redo piece on d5 is a pawn: the rook (rank 3 >= 1) takes it and the capture
+    // stands, because Redo is not eligible on pawns (B5). Nothing is triggered or revealed.
+    const { engine, state: start } = setup({
+      fen: '4k3/7p/8/3p4/8/8/8/R3K3 w - - 0 1',
+      black: { abilities: ['redo'] },
+    });
+    const pawn = idAt(start, 'd5');
+    expect(start.armies.black.sets.pawn).toEqual(['redo']);
+    const s1 = play(engine, start, 'a1d1').state;
+    const s2 = play(engine, s1, 'h7h6').state;
+    const { state: s3, step } = play(engine, s2, 'd1d5');
+    expect(eventsOf(step.events, 'AbilityTriggered')).toEqual([]);
+    expect(eventsOf(step.events, 'Rewound')).toEqual([]);
+    expect(eventsOf(step.events, 'ChargeSpent')).toEqual([]);
+    expect(eventsOf(step.events, 'Captured')).toEqual([
+      expect.objectContaining({ victim: pawn, victimType: 'pawn', by: 'move' }),
+    ]);
+    expect(pieceAt(s3, 'd5')).toMatchObject({ type: 'rook', side: 'white' });
+    expect(s3.pieces[pawn]?.square).toBe(-1);
+    expect(pieceAt(s3, 'h6')?.type).toBe('pawn');
+    expect(s3.turn).toBe('black');
+    expect(s3.ply).toBe(3);
+    expect(s3.usage[`${pawn}:redo`]).toBeUndefined();
+    expect(s3.reveals.black.abilities.pawn).toBeUndefined();
+    expect(eventsOf(step.events, 'TurnPassed')).toHaveLength(1);
   });
 
   it('R-ABIL-002 R-ABIL-004 a rook (rank 3) taking the Redo knight rewinds two plies: the knight is back, Black is to move as before its last move', () => {

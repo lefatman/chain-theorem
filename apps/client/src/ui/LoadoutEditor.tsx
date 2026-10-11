@@ -55,6 +55,7 @@ const RULE_NAME: Record<LoadoutError['rule'], string> = {
   6: 'elements',
   7: 'ownership',
   8: 'Stalwart and offensive cards',
+  9: 'passives per set',
 };
 
 const CATEGORIES: Category[] = ['CAPTURING', 'CAPTURES', 'CAPTURED', 'PASSIVE'];

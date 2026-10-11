@@ -73,8 +73,8 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     title: 'As E1, but the knight also has Pierce',
     setupText: 'As E1, but the knight also has Pierce',
     specText:
-      'Pierce negates Poisoned Meat (revealed as negated). Knight returns to its origin square.',
-    note: 'Nc3xd5. Ids: e1 K=0, c3 N=1, d5 p=2, e8 k=3.',
+      'Pierce negates Poisoned Meat (revealed as negated) and spends one of its two charges. Knight returns to its origin square.',
+    note: 'Nc3xd5. Ids: e1 K=0, c3 N=1, d5 p=2, e8 k=3. Pierce has 2 charges (B5).',
     setup: {
       fen: '4k3/8/8/3p4/8/2N5/8/4K3 w - - 0 1',
       format: 'full',

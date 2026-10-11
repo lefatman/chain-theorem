@@ -981,3 +981,17 @@ White 52.4%, surprise losses 14.4%, median 66 plies. Result reasons: stalwart_ca
    in: Storm over Stone reads 62.5% in First Blood where section 9 (bishops at non-knights) had 42%,
    and the mirror test reads 82.5% (section 10.1). Storm's Full Battle row stays the weakest (the
    Obstinate slot, section 7); both are B5's.
+
+## 11. Per-card changes and loadout rule 9 (B5; DD-116 to DD-120)
+
+Plan item B5, the designer's per-card changes measured on the same seeds: Obstinate costs two slots
+and kings ignore it; Block Path costs two slots and a king faces forward again after it moves; Redo
+is not eligible on pawns; Pierce has two charges; Scout's Lens reveals the whole pawn set; Resonance
+Crystal spares one silence under every scope (the B3 condition); and loadout rule 9, at most two
+Passive abilities per set (`CAPS.MAX_PASSIVES_PER_SET`), which cuts the Stalwart king set to Stalwart
+plus one. The simulator's picker deals a `--prefer` card right after the signature, so `--prefer
+obstinate` puts Obstinate into every Focused build, Storm's included (section 7's finding 2).
+
+@@B5_TABLES@@
+
+@@B5_FINDINGS@@

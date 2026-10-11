@@ -8,17 +8,25 @@
  *            [--elements ember,tide,...] (default: every enabled element, CAPS.ENABLED_ELEMENTS)
  *            [--silence ALL_TRIGGERS|REACTIONS_ONLY|OFF] [--pool any|affinity]
  *            [--cards id,id,...] (the cards suite only: test these abilities instead of all)
- *            [--prefer id,id,...] (deal these cards ahead of their category's other cards)
+ *            [--prefer id,id,...] (deal these cards right after the signature, before the category
+ *            spread, when they fit: so `--prefer obstinate` reaches every Focused build, Storm's
+ *            included, whose signature is itself the passive; B5)
  *            [--without id,id,...] (leave these items out of every build)
  *            [--caps '{"ELECTRIC_SLIDE":{"turners":["rook"]}}'] (CAPS overrides for a variant run;
  *            object-valued caps merge one level deep) [--tag name] (report file suffix for it)
  *            [--king stalwart|plain] (stalwart, the default: Stalwart leads the Maximum and Flexible
- *            king sets from level 16; plain: no Stalwart anywhere)
+ *            king sets from level 16, with the one more passive loadout rule 9 allows and nothing
+ *            else; plain: no Stalwart anywhere)
+ *
+ * Builds come from `./builds.ts` and read every limit from data: a card's slot cost, the categories
+ * it excludes (rule 8) and `CAPS.MAX_PASSIVES_PER_SET` (rule 9), so no set is dealt a third passive
+ * and a two-slot card displaces two one-slot ones.
  *
  * Suites: `elements` plays mono-element Focused builds against each other, `archetypes` the four
- * 7.3 builds, and `cards` a mirror test per ability (the card with the four best other cards of
- * its element's Focused build, against those four alone; `--games` per card, the element cycling
- * for neutral cards), which screens for a single card that wins on its own (17.2).
+ * 7.3 builds, and `cards` a mirror test per ability (the card in front of the best other cards of
+ * its element's Focused build up to capacity, against those same cards plus the next best in the
+ * slots the card used, so both sides use the whole capacity; `--games` per card, the element
+ * cycling for neutral cards), which screens for a single card that wins on its own (17.2).
  */
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';

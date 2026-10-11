@@ -1,6 +1,8 @@
 /**
- * Loadout model and validation (R-LOAD-003, R-LOAD-004 INVARIANT at battle start, R-ELEM-004).
- * Every limit comes from CAPS and module data (13.5); no item or ability id appears here.
+ * Loadout model and validation (R-LOAD-003, R-LOAD-004 INVARIANT at battle start, R-ELEM-004):
+ * rules 1-9 of spec 7.4, rule 9 (at most `CAPS.MAX_PASSIVES_PER_SET` Passive abilities per set,
+ * PLAYTEST, plan item B5) included. Every limit comes from CAPS and module data (13.5); no item or
+ * ability id appears here.
  */
 import type { AbilityDef, Caps, ItemDef } from '../sdk/types.ts';
 import {
@@ -183,6 +185,22 @@ export function validateLoadout(
           );
       }
     }
+    // Rule 9 (plan item B5, PLAYTEST): a set holds at most caps.MAX_PASSIVES_PER_SET Passive
+    // abilities, counted by id (a repeated id is rule 4's business); `ref` names the first one over.
+    let passives = 0;
+    let over: string | undefined;
+    for (const id of inSet) {
+      if (abilities.get(id)?.category !== 'PASSIVE') continue;
+      passives++;
+      if (passives === caps.MAX_PASSIVES_PER_SET + 1) over = id;
+    }
+    if (passives > caps.MAX_PASSIVES_PER_SET)
+      err(
+        9,
+        'passives_exceeded',
+        `the ${label} holds ${passives} passive abilities; at most ${caps.MAX_PASSIVES_PER_SET} may share a set`,
+        over,
+      );
   });
 
   // Elements (rule 6, R-ELEM-004).

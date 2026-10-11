@@ -1,13 +1,14 @@
 /** Loadout builder draft shaping (R-LOAD-003, R-LOAD-004, R-ELEM-004); legality stays with the engine. */
 import { describe, expect, it } from 'vitest';
-import { engine } from '@chain-theorem/content';
-import type { Loadout } from '@chain-theorem/rules';
+import { CAPS, engine } from '@chain-theorem/content';
+import { PIECE_TYPES, type Loadout } from '@chain-theorem/rules';
 import {
   abilityBlock,
   equipItem,
   itemBlock,
   levelForSlots,
   moveInSet,
+  passiveCount,
   setPerType,
   unequipItem,
 } from './loadoutEdit.ts';
@@ -59,6 +60,35 @@ describe('loadout builder helpers (R-LOAD-004)', () => {
     expect(abilityBlock([], 2, 1, 'rebirth')).toBe('Needs level 14');
     expect(abilityBlock([], 2, 30, 'rebirth')).toBeNull();
     expect(moveInSet(['a', 'b', 'c'], 2, 0)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('R-LOAD-004 rule 9: a third passive is blocked once a set holds two, and the engine agrees (B5)', () => {
+    expect(CAPS.MAX_PASSIVES_PER_SET).toBe(2);
+    expect(abilityBlock(['stalwart', 'veil'], 5, 30, 'block_path')).toBe(
+      'Set already holds two passives',
+    );
+    expect(abilityBlock(['obstinate', 'veil', 'last_word'], 5, 30, 'electric_slide')).toBe(
+      'Set already holds two passives',
+    );
+    // Captured cards still fit, one passive leaves room for a second, and a passive already in the
+    // set reads as such.
+    expect(abilityBlock(['stalwart', 'veil'], 5, 30, 'last_word')).toBeNull();
+    expect(abilityBlock(['stalwart'], 5, 30, 'veil')).toBeNull();
+    expect(abilityBlock(['stalwart', 'veil'], 5, 30, 'veil')).toBe('Already in this set');
+    // Capacity is reported first when both apply.
+    expect(abilityBlock(['stalwart', 'veil'], 2, 30, 'block_path')).toBe('Set is full (2)');
+    expect(passiveCount(['stalwart', 'veil', 'veil', 'last_word'])).toBe(2);
+    // The engine is the judge: the blocked set fails rule 9, the allowed one passes.
+    const king = (set: string[]): Loadout => ({
+      elements: ['grove'],
+      items: ['headmaster_ring', 'multitaskers_schedule'],
+      sets: PIECE_TYPES.map((t) => (t === 'king' ? set : [])),
+    });
+    const blocked = engine.validateLoadout(king(['stalwart', 'veil', 'block_path']), { level: 25 });
+    expect(blocked.errors.map((e) => e.rule)).toEqual([9]);
+    expect(engine.validateLoadout(king(['stalwart', 'veil', 'last_word']), { level: 25 }).ok).toBe(
+      true,
+    );
   });
 
   it('R-LOAD-001 slot unlock levels follow the caps formula', () => {
