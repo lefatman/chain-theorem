@@ -44,6 +44,9 @@ export const CAPS = {
   MAX_EVENTS_PER_ACTION: 512,
   // 5.8 Schrödinger's Joker (DD-101, PLAYTEST): a twin group holds at most this many pieces.
   TWIN_GROUP_MAX: 3,
+  // 7.4 rule 9 (PLAYTEST, plan item B5): a set holds at most this many Passive abilities, so a
+  // king set cannot stack Stalwart, Block Path and Veil (docs/BALANCE_BASELINE.md finding 3).
+  MAX_PASSIVES_PER_SET: 2,
   // 6.1 trait numbers (PLAYTEST; designer brief, plan item B4): Flow passes at most one allied
   // piece per move (0: no limit), Bulwark covers non-pawns only, Overabundance adds one charge
   // (the launch values were no limit, every piece and double charges), Hot Foot burns for 4

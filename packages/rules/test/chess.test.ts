@@ -65,6 +65,7 @@ const caps: Caps = {
   FORMATS,
   MAX_EVENTS_PER_ACTION: 512,
   TWIN_GROUP_MAX: 3,
+  MAX_PASSIVES_PER_SET: 2,
   TRAITS: {
     FLOW_PASS_LIMIT: 0,
     BULWARK_PAWNS: true,

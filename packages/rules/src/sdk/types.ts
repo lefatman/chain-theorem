@@ -58,6 +58,8 @@ export interface Caps {
   MAX_EVENTS_PER_ACTION: number;
   /** Most pieces in one twin group, the original included (Schrödinger's Joker, DD-101). */
   TWIN_GROUP_MAX: number;
+  /** Loadout rule 9 (7.4, PLAYTEST, plan item B5): most PASSIVE abilities one set may hold. */
+  MAX_PASSIVES_PER_SET: number;
   /**
    * Trait numbers (6.1; the identities are COMMITTED, these values PLAYTEST: designer brief, plan
    * item B4). The trait modules read them; the simulator and fuzzer override them with `--caps`.
