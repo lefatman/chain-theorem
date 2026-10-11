@@ -234,11 +234,19 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 
 - 2026-10-11 B5 (DD-116 to DD-122; R-LOAD-004, R-ABIL-003, R-ABIL-005, R-RULES-001, R-ELEM-002,
   R-LOAD-002, R-INFO-002, R-TEST-002): rule 9 through the validator (`passives_exceeded`), the
-  builder, the property checker and spec 7.4; Obstinate v2, Block Path v2, Redo v2, Pierce v3, Scout's
-  Lens v2, Resonance Crystal v3; golden E2 carries Pierce's ChargeSpent; simulator picker and mirror
-  builds under rule 9 and slot costs. `pnpm check` 1,634 unit tests, `req:coverage` 84/84; `pnpm
-test:fuzz` 500 games clean. Simulator (20,000 nodes, Trainer): batch running at this commit, results in the next commit. Findings in
-  `docs/BALANCE_BASELINE.md` section 11.
+  builder, the property checker and spec 7.4; Obstinate v2, Block Path v2, Redo v2, Pierce v3,
+  Scout's Lens v2, Resonance Crystal v3; golden E2 carries Pierce's ChargeSpent; simulator picker
+  and mirror builds under rule 9 and slot costs. `pnpm check` 1,634 unit tests, `req:coverage`
+  84/84; `pnpm test:fuzz` 500 games clean. Simulator (20,000 nodes, Trainer): the four changed cards
+  alone (36 and 24 games) Obstinate 79.2% / 72.9%, Block Path 58.3% / 60.4%, Pierce 69.4% / 54.2%,
+  Redo 55.6% / 33.3%; elements at the defaults (60 and 40 games) advantaged element 51.2% / 72.5%,
+  with `--prefer obstinate` 51.2% / 64.0% (Storm's First Blood row 63–85%), under `ONCE_PER_ABILITY`
+  with Pierce preferred (40 and 30 games) 57.9% / 62.5%; archetypes (60 and 24 games) Maximum over
+  Focused 65.0% / 72.9%, Flexible over Focused 40.8% / 52.1%, Maximum against Flexible 51.7% /
+  47.9%. Close-out (DD-116 amended, review of B5): Obstinate v3 eligible pawn to rook, the engine's
+  `hasAbility` honours eligibility (7.3), the picker deals Obstinate as army-wide, the NPC search
+  counts its own Pierce charges (DD-120); `pnpm check` 1,636 unit tests, `req:coverage` 84/84, `pnpm
+test:fuzz` 500 games clean. Findings in `docs/BALANCE_BASELINE.md` section 11.
 
 - 2026-10-10 B3c and B4 (DD-111 to DD-115; R-LOAD-004, R-RULES-003, R-ELEM-001, R-ELEM-003,
   R-ELEM-005, R-ELEM-006, R-ELEM-007, R-FMT-005, R-TEST-002): rule 9 reverted to the pre-B3b

@@ -30,7 +30,7 @@ rank, DD-111: 82.5% and 62.3% on its own) and the four trait numbers of B4 as co
 measured alone: Flow's one-ally cap does not tame Tide (aggregate 52.1% to 50.6% in First Blood,
 69.2% to 72.2% in Full Battle), Bulwark's pawn exclusion and Hot Foot's fourth turn are inert at 40
 and 30 games, and Overabundance's extra charge changes no game because no Focused build carries a
-consumable; at the shipped defaults the advantaged element reads 48.3% and 73.5%.
+consumable; at the shipped defaults the advantaged element reads 48.3% and 73.5%. Section 11 measures B5's per-card changes and loadout rule 9: Obstinate at two slots still reads 79% and 73% on its own and the defaults 51.2% and 72.5%; Storm with Obstinate turns First Blood on its head (63–85% row) and brings the Full Battle aggregate to 64.0%; `ONCE_PER_ABILITY` with the shipped Crystal reads 57.9% and 62.5%, the closest any scope has come in both formats; and rule 9 brings Flexible against Focused (52.1%) and Maximum against Flexible (47.9%) into the band in Full Battle while Maximum over Focused keeps 72.9%. Scout's Lens now reveals a one-set army whole, so surprise losses read 0% in the element suites by construction.
 
 ## 1. Method
 
@@ -992,4 +992,194 @@ Passive abilities per set (`CAPS.MAX_PASSIVES_PER_SET`), which cuts the Stalwart
 plus one. The simulator's picker deals a `--prefer` card right after the signature, so `--prefer
 obstinate` puts Obstinate into every Focused build, Storm's included (section 7's finding 2).
 
-_The `b5` simulator batch (the four changed cards alone, the element suites at the defaults, with `--prefer obstinate`, under `ONCE_PER_ABILITY` with `--prefer pierce`, and the archetypes) was still running at this commit; its tables and findings follow in the next commit._
+**The changed cards alone, First Blood** — `pnpm sim --suite cards --cards obstinate,block_path,pierce,redo --format first_blood --games 36 --nodes 20000` (a two-slot card displaces two cards on its side)
+
+| Obstinate | PASSIVE | 9 | 79.2% | 36 | 16 | **above 60%** |
+| Pierce | CAPTURING | 3 | 69.4% | 36 | 16 | **above 60%** |
+| Block Path | PASSIVE | 12 | 58.3% | 36 | 19 | |
+| Redo | CAPTURED | 15 | 55.6% | 36 | 19 | |
+
+**The changed cards alone, Full Battle** — `pnpm sim --suite cards --cards obstinate,block_path,pierce,redo --format full --games 24 --nodes 20000` (a two-slot card displaces two cards on its side)
+
+| Obstinate | PASSIVE | 9 | 72.9% | 24 | 106 | **above 60%** |
+| Block Path | PASSIVE | 12 | 60.4% | 24 | 96 | **above 60%** |
+| Pierce | CAPTURING | 3 | 54.2% | 24 | 68 | |
+| Redo | CAPTURED | 15 | 33.3% | 24 | 102 | below 40% (a liability) |
+
+**Element matchups, First Blood, the shipped defaults** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000`
+
+| ember | mirror, white 41.7% | 35.8% | 49.2% | 65.0% | 45.8% | 45.0% |
+| tide | 64.2% | mirror, white 33.3% | 53.3% | 65.0% | 81.7% | 76.7% |
+| grove | 50.8% | 46.7% | mirror, white 52.5% | 30.8% | 66.7% | 60.8% |
+| storm | 35.0% | 35.0% | 69.2% | mirror, white 48.3% | 71.7% | 68.3% |
+| stone | 54.2% | 18.3% | 33.3% | 28.3% | mirror, white 55.0% | 49.2% |
+| frost | 55.0% | 23.3% | 39.2% | 31.7% | 50.8% | mirror, white 52.5% |
+
+Advantaged element: **51.2%**. White 48.1%, surprise losses 0.0%, median 23 plies. Result reasons: objective 1172, repetition 50, checkmate 32, ply_cap 6.
+
+**Element matchups, Full Battle, the shipped defaults** — `pnpm sim --suite elements --format full --games 40 --nodes 20000`
+
+| ember | mirror, white 45.0% | 22.5% | 70.0% | 73.8% | 41.3% | 53.8% |
+| tide | 77.5% | mirror, white 51.2% | 20.0% | 100.0% | 56.3% | 65.0% |
+| grove | 30.0% | 80.0% | mirror, white 48.8% | 91.3% | 63.7% | 65.0% |
+| storm | 26.3% | 0.0% | 8.8% | mirror, white 53.8% | 17.5% | 70.0% |
+| stone | 58.8% | 43.8% | 36.3% | 82.5% | mirror, white 53.8% | 45.0% |
+| frost | 46.3% | 35.0% | 35.0% | 30.0% | 55.0% | mirror, white 51.2% |
+
+Advantaged element: **72.5%**. White 50.7%, surprise losses 0.0%, median 110 plies. Result reasons: checkmate 399, repetition 328, ply_cap 100, stalemate 2, fifty_move 11.
+
+**Element matchups, First Blood, Obstinate in every Focused build (`--prefer obstinate`)** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000 --prefer obstinate`
+
+| ember | mirror, white 41.7% | 35.8% | 49.2% | 17.5% | 45.8% | 45.0% |
+| tide | 64.2% | mirror, white 33.3% | 53.3% | 36.7% | 81.7% | 76.7% |
+| grove | 50.8% | 46.7% | mirror, white 52.5% | 15.0% | 66.7% | 60.8% |
+| storm | 82.5% | 63.3% | 85.0% | mirror, white 53.3% | 85.0% | 81.7% |
+| stone | 54.2% | 18.3% | 33.3% | 15.0% | mirror, white 55.0% | 49.2% |
+| frost | 55.0% | 23.3% | 39.2% | 18.3% | 50.8% | mirror, white 52.5% |
+
+Advantaged element: **51.2%**. White 49.0%, surprise losses 0.0%, median 23 plies. Result reasons: objective 1194, repetition 50, checkmate 10, ply_cap 6.
+
+**Element matchups, Full Battle, Obstinate in every Focused build (`--prefer obstinate`)** — `pnpm sim --suite elements --format full --games 40 --nodes 20000 --prefer obstinate`
+
+| ember | mirror, white 45.0% | 22.5% | 70.0% | 60.0% | 41.3% | 53.8% |
+| tide | 77.5% | mirror, white 51.2% | 20.0% | 71.3% | 56.3% | 65.0% |
+| grove | 30.0% | 80.0% | mirror, white 48.8% | 70.0% | 63.7% | 65.0% |
+| storm | 40.0% | 28.7% | 30.0% | mirror, white 46.3% | 60.0% | 61.3% |
+| stone | 58.8% | 43.8% | 36.3% | 40.0% | mirror, white 53.8% | 45.0% |
+| frost | 46.3% | 35.0% | 35.0% | 38.8% | 55.0% | mirror, white 51.2% |
+
+Advantaged element: **64.0%**. White 49.7%, surprise losses 0.0%, median 134 plies. Result reasons: checkmate 313, repetition 391, ply_cap 120, stalemate 2, fifty_move 14.
+
+**Element matchups, First Blood, `ONCE_PER_ABILITY` with Pierce preferred and the Crystal sparing one silence** — `pnpm sim --suite elements --format first_blood --games 40 --nodes 20000 --silence ONCE_PER_ABILITY --prefer pierce`
+
+| ember | mirror, white 43.8% | 33.8% | 71.3% | 77.5% | 52.5% | 40.0% |
+| tide | 66.3% | mirror, white 51.2% | 57.5% | 62.5% | 71.3% | 85.0% |
+| grove | 28.7% | 42.5% | mirror, white 48.8% | 45.0% | 58.8% | 46.3% |
+| storm | 22.5% | 37.5% | 55.0% | mirror, white 50.0% | 57.5% | 67.5% |
+| stone | 47.5% | 28.7% | 41.3% | 42.5% | mirror, white 41.3% | 42.5% |
+| frost | 60.0% | 15.0% | 53.8% | 32.5% | 57.5% | mirror, white 50.0% |
+
+Advantaged element: **57.9%**. White 47.7%, surprise losses 0.0%, median 23 plies. Result reasons: objective 763, repetition 52, checkmate 22, ply_cap 3.
+
+**Element matchups, Full Battle, `ONCE_PER_ABILITY` with Pierce preferred and the Crystal sparing one silence** — `pnpm sim --suite elements --format full --games 30 --nodes 20000 --silence ONCE_PER_ABILITY --prefer pierce`
+
+| ember | mirror, white 46.7% | 21.7% | 68.3% | 83.3% | 68.3% | 51.7% |
+| tide | 78.3% | mirror, white 46.7% | 41.7% | 96.7% | 78.3% | 66.7% |
+| grove | 31.7% | 58.3% | mirror, white 46.7% | 76.7% | 43.3% | 46.7% |
+| storm | 16.7% | 3.3% | 23.3% | mirror, white 51.7% | 20.0% | 36.7% |
+| stone | 31.7% | 21.7% | 56.7% | 80.0% | mirror, white 53.3% | 46.7% |
+| frost | 48.3% | 33.3% | 53.3% | 63.3% | 53.3% | mirror, white 51.7% |
+
+Advantaged element: **62.5%**. White 51.9%, surprise losses 0.0%, median 111 plies. Result reasons: checkmate 320, repetition 242, fifty_move 11, ply_cap 55, stalemate 2.
+
+**Build archetypes, First Blood** (rule 9: the king set is Stalwart plus one passive) — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000`
+
+| maximum | — | 51.7% | 65.0% | 66.7% |
+| flexible | 48.3% | — | 40.8% | 45.0% |
+| focused | 35.0% | 59.2% | — | 81.7% |
+| starter | 33.3% | 55.0% | 18.3% | — |
+
+White 48.5%, surprise losses 30.4%, median 15 plies. Result reasons: objective 348, stalwart_captured 6, repetition 5, checkmate 1.
+
+**Build archetypes, Full Battle** (rule 9: the king set is Stalwart plus one passive) — `pnpm sim --suite archetypes --format full --games 24 --nodes 20000`
+
+| maximum | — | 47.9% | 72.9% | 83.3% |
+| flexible | 52.1% | — | 52.1% | 87.5% |
+| focused | 27.1% | 47.9% | — | 89.6% |
+| starter | 16.7% | 12.5% | 10.4% | — |
+
+White 55.6%, surprise losses 12.9%, median 78 plies. Result reasons: stalwart_captured 36, repetition 26, checkmate 80, ply_cap 2.
+
+**What the data says.**
+
+1. **The changed cards alone.** Obstinate at two slots reads 79.2% in First Blood and 72.9% in Full
+   Battle (section 5: 88.9% and 95.8%); the mirror now pairs it against the two one-slot cards its
+   second slot displaces (Squall and Snowdrift in Ember's and Tide's builds, Last Word and Reinforce
+   in Grove's, Stone's and Frost's), and it is still the only card above 60% in both formats. Block
+   Path at two slots reads 58.3% and 60.4% (50.0% and 72.9%): a king that faces forward again after
+   it moves costs the card a third of its Full Battle edge, and against the two-slot Obstinate as its
+   filler it no longer wins on its own in either format by more than a game. Pierce at two charges
+   reads 69.4% and 54.2% (54.2% and 47.9%): the second charge makes it a First Blood card that wins by
+   itself, since the Focused build's first two captures are the ones that decide that format, and
+   leaves Full Battle where a Capturing card belongs. Redo without pawns reads 55.6% and 33.3% (61.1%
+   and 37.5%): the pawn exclusion takes away its First Blood edge and leaves the Full Battle liability
+   (a second move for a piece the opponent has just chosen to take), so Redo is the one B5 card the
+   change did not help; it goes to B8 with the new cards as a candidate for a rework rather than a
+   price.
+2. **Element matchups at the defaults.** With Obstinate at two slots every Focused build (Storm's
+   aside) carries four cards instead of five, and the advantaged element reads 51.2% in First Blood
+   (section 10: 48.3%) and 72.5% in Full Battle (73.5%); White 48.1% and 50.7%. Tide's row is
+   unchanged in kind (53–82% in First Blood, 56–100% in Full Battle except its foil), and Storm's Full
+   Battle row is still the weakest (0–26% against four elements, 70% over Frost, from 0–11% and 48%):
+   Obstinate's price did not take it out of the other five builds, and Storm still cannot hold it
+   beside its signature without `--prefer`. Full Battle games are much longer: median 110 plies from
+   66, 100 of 1,260 reach the ply cap (27 before) and 328 end by repetition (176): a side whose
+   pieces cannot be taken by higher ranks and whose build has one reaction fewer has less to force
+   with, and the NPCs shuffle. That is a cost of the two-slot shield worth a look in B8 when the live
+   clocks are set.
+3. **Surprise losses read 0.0% by construction in the element and cards suites.** Scout's Lens now
+   reveals the opponent's whole pawn set at battle start, every Focused build carries the Lens, and a
+   Focused build has one army-wide set: both sides know each other's entire set from the first ply, so
+   the 17.2 "unseen ability" metric has nothing left to count (9.6% and 1.1% in section 10). The
+   figure is real, not a tooling fault, and it says something about the item: against a Lens a
+   one-set army is an open book, while Maximum and Flexible builds (per-type sets) give it eight
+   pawns' worth of cards and keep the rest hidden. The archetype suite is where the metric still
+   reads (30.4% in First Blood and 12.9% in Full Battle, from 33.2% and 14.4% in section 10).
+4. **Obstinate in every Focused build (`--prefer obstinate`).** `--prefer obstinate` changes only
+   Storm's build, since the other five already carry the card: Storm's becomes Electric Slide,
+   Obstinate, Last Word and Snowdrift (Scout and Squall drop), a legal set under rule 9 (two
+   passives, five slots). With it Storm is the strongest First Blood element by a distance: its row
+   reads 82.5%, 63.3%, 85.0%, 85.0% and 81.7% (63.3% over Tide) where the defaults gave 35.0%,
+   35.0%, 69.2%, 71.7% and 68.3%, Stone over Storm falls from 28.3% to 15.0% and Storm over Frost
+   rises to 81.7%: an army that no higher rank can take, moved by turning sliders, wins the first
+   exchange. In Full Battle Storm stops being the weakest element by a distance (40.0%, 28.7%,
+   30.0%, 60.0% and 61.3% from 26.3%, 0.0%, 8.8%, 17.5% and 70.0%) without becoming a strong one,
+   and the advantaged element falls from 72.5% to 64.0%, the closest a Full Battle default has come
+   to the 55–60% target with the Crystal in every build (White 49.7%, median 134 plies, 120 of 1,260
+   games at the ply cap). The two findings are one: Obstinate decides which side can be attacked, so
+   in Full Battle it is the slot Storm has been missing since section 7, and in First Blood it is a
+   card the picker should not hand Storm for free. Storm's signature being its passive is what keeps
+   the default picker from dealing it (the category spread sees the passive slot filled), so the
+   mono-Storm build at the defaults is the no-Obstinate build; a player is not so constrained. This
+   goes to B8 with the Tide row: both are Obstinate's price, not Storm's or Tide's.
+5. **`ONCE_PER_ABILITY` with the Crystal's new reading.** With the Crystal sparing one silence per
+   battle under every scope (DD-122) and Pierce preferred into every build (Scout gives way to it;
+   at two charges), `ONCE_PER_ABILITY` reads 57.9% in First Blood and 62.5% in Full Battle with the
+   Crystal in every Focused build: inside the 55–60% band in the short format and just above it in
+   the long one. Section 8 had the same scope at 47.9% and 44.4% while the Crystal meant never
+   (`OFF` for every holder), and at 53.5% and 61.7% only with the Crystal removed from every build;
+   the condition finding 4 of that section set for shipping the scope is met, and the scope now
+   measures with the item that every build carries. The Full Battle foil pairs read Tide over Ember
+   78%, Ember over Grove 68%, Grove over Tide 58%, Frost over Stone 53%, Stone over Storm 80% and
+   Storm over Frost 37%: four of six point the right way and the last two are Storm's missing
+   Obstinate (finding 4), not the scope. White 47.7% and 51.9%, medians 23 and 111 plies, 55 of 630
+   Full Battle games at the ply cap. The default stays `ALL_TRIGGERS` in this item; the data now
+   says `ONCE_PER_ABILITY` is the scope closest to target in both formats with the shipped Crystal,
+   and B8 should put the switch to the designer with these two tables.
+6. **Archetypes under rule 9.** Rule 9 caps the Stalwart king set at Stalwart plus one passive
+   (Block Path, at two slots: three of the king's five slots used and nothing else dealable), and
+   the Maximum and Flexible builds pay for it. In Full Battle Flexible over Focused falls from 87.5%
+   to 52.1% and Maximum against Flexible from 56.3% to 47.9%, both inside the 45–55% band for the
+   first time; Maximum over Focused falls from 81.3% to 72.9% and stays out of it. Stalwart kings
+   are caught 36 times in 144 games (13 before): the thinner king set is the one that gets hunted
+   down. In First Blood Maximum over Focused rises from 58.3% to 65.0% while Flexible over Focused
+   falls from 58.3% to 40.8% and Maximum against Flexible from 62.5% to 51.7%: Focused carries the
+   two-slot Obstinate in its one five-slot set, Flexible's four-slot per-type sets cannot (the
+   spread reaches the passive with one slot left and deals Veil), and Maximum's five-slot sets can,
+   so the short format sorts the three by who holds Obstinate and the long one by who holds
+   Obstinate and a Stalwart king. White 48.5% and 55.6%, medians 15 and 78 plies, Starter 10–18%
+   against the three (as before). Two of the three archetype pairs are now in band in Full Battle;
+   the Maximum-Focused gap is the one left, and it is the Stalwart king plus Obstinate on every type
+   against Obstinate alone.
+7. **Close-out changes.** The review of B5 found Obstinate dead on a queen once kings ignore it
+   (nothing it could stop can take a queen), so Obstinate v3 is eligible on pawns, knights, bishops
+   and rooks only (DD-116, close-out), and the engine's `hasAbility` now reads false for a card in the
+   set but ineligible on the piece's type, so hook-based passives idle on ineligible types exactly as
+   triggers do (7.3, R-LOAD-003; test 'R-LOAD-003 an ineligible passive does nothing there'). The
+   picker deals Obstinate like an army-wide card (its missing types are ones it could never act on),
+   so every Focused and Flexible build above is unchanged by the eligibility and only the Maximum
+   queen set changes (Block Path in place of Obstinate); the four completed runs were kept and the
+   builds checked identical. The NPC search now knows its own Pierce charges (two, plus
+   Overabundance's) from the public usage counters and stops counting on a negation once they are
+   spent, so the Trainer plays Pierce v3 as written (DD-120; opponent counters are not read,
+   R-FMT-005).
