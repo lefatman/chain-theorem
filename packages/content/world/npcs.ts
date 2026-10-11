@@ -127,7 +127,7 @@ export const NPCS: readonly NpcDef[] = [
     look: { variant: 10, element: 'ember' },
     lines: [
       'When I grow up I am going to lead an Ember army! Hot Foot is the best trait.',
-      'Did you know? When an Ember piece captures and then moves on, the square it left burns for three turns, and only Ember pieces may step there.',
+      'Did you know? When an Ember piece captures and then moves on, the square it left burns for four turns, and only Ember pieces may step there.',
     ],
     role: { kind: 'talk' },
   },
@@ -137,7 +137,7 @@ export const NPCS: readonly NpcDef[] = [
     look: { variant: 11, element: 'grove' },
     lines: [
       'Fresh bread! Well, soon. The shop opens when the traders arrive.',
-      'Grove armies are like good bread: they keep going. Abilities with charges get twice as many on a Grove piece.',
+      'Grove armies are like good bread: they keep going. Abilities with charges get one more on a Grove piece.',
     ],
     role: { kind: 'talk' },
   },

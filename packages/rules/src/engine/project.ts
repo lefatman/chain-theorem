@@ -78,6 +78,11 @@ export interface PublicState {
   pending: { chooser: Side; request: ChoiceRequest | null } | null;
   /** The viewer's legal moves (UCI) when it is their turn and nothing is pending. */
   legal: string[];
+  /**
+   * Under silenceScope ONCE_PER_ABILITY (DD-108): the `<pieceType>:<abilityId>` pairs each side has
+   * had silenced once, limited to abilities the viewer knows (R-SEC-001).
+   */
+  silenced?: Record<Side, string[]>;
 }
 
 export type PublicEvent = BattleEvent;
@@ -199,6 +204,16 @@ function projectBase(
     if (!p) continue;
     if (knownAbility(state, p.side, viewer, ability, p.type)) usage[key] = n;
   }
+  // The once-per-ability silence record (DD-108): a silence reveals the ability, Veil excepted, so
+  // the viewer sees the entries it may know about and no other (R-SEC-001).
+  const silencedOf = (side: Side): string[] =>
+    (state.silenced?.[side] ?? []).filter((key) => {
+      const [type, ability] = key.split(':') as [PieceType, string];
+      return knownAbility(state, side, viewer, ability, type);
+    });
+  const silenced = state.silenced
+    ? { white: silencedOf('white'), black: silencedOf('black') }
+    : undefined;
   return {
     format: state.format,
     contentVersion: state.contentVersion,
@@ -216,6 +231,7 @@ function projectBase(
     inCheck: state.inCheck,
     result: state.result,
     eventSeq: state.eventSeq,
+    ...(silenced ? { silenced } : {}),
   };
 }
 

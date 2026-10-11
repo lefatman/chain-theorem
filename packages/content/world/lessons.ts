@@ -216,7 +216,7 @@ export const LESSONS: readonly LessonDef[] = [
     intro: [
       'Every army has an element. Ember beats Grove, Grove beats Tide, and Tide beats Ember.',
       'When two pieces meet in a capture and one element beats the other, the weaker piece’s abilities stay silent for that capture.',
-      'Each element also has a trait that is always on. Tide pieces can move through their own pieces (Flow). When an Ember piece captures and then moves on, the square it leaves burns for three turns (Hot Foot). Grove pieces get double charges on abilities that have charges (Overabundance).',
+      'Each element also has a trait that is always on. Tide pieces can move through one of their own pieces per move (Flow). When an Ember piece captures and then moves on, the square it leaves burns for four turns (Hot Foot). Grove pieces get one extra charge on abilities that have charges (Overabundance).',
       'You lead Tide against an Ember army. Your Hit and Run works when your pieces capture theirs, but their Backdraft stays silent every time a Tide piece takes an Ember piece. Pick your element wisely!',
     ],
     format: 'first_blood',

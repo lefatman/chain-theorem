@@ -190,15 +190,18 @@ export function silenced(
  * The element traits that change a capture's reactions (6.1, COMMITTED, public knowledge): Always
  * First puts a Storm captor's After-capturing abilities ahead of a non-Storm victim's reactions;
  * Stillness negates them when the victim is Frost; Bulwark saves a Stone piece from its first effect
- * capture (the spent list is a public slice).
+ * capture (the spent list is a public slice). A Stone pawn is covered only when the engine's
+ * `caps.TRAITS.BULWARK_PAWNS` says so (DD-113): `bulwarkPawns` is that public setting.
  */
 export function traitEffects(
   captorEl: ElementId,
   victimEl: ElementId,
+  captorType: PieceType,
+  bulwarkPawns: boolean,
 ): { stormFirst: boolean; stillness: boolean; captorBulwark: boolean } {
   return {
     stormFirst: captorEl === 'storm' && victimEl !== 'storm',
     stillness: victimEl === 'frost',
-    captorBulwark: captorEl === 'stone',
+    captorBulwark: captorEl === 'stone' && (captorType !== 'pawn' || bulwarkPawns),
   };
 }

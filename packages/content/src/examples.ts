@@ -161,14 +161,26 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
     title: 'Hot Foot: an Ember knight captures on e5, then leaves it',
     setupText: 'Ember knight captures on e5; two turns later it moves to f3',
     specText:
-      'Hot Foot: e5 ignites. Until the opponent has taken 3 turns, no non-Ember piece may move to or capture on e5; a non-Ember rook may still slide over it.',
-    note: 'Nc4xe5, Ka8-b8, Ne5-f3 (e5 ignites), Re8-e4 slides over e5, then Black takes turns 2 and 3 and the fire goes out; Kg1-g2 closes the golden test. Ids: g1 K=0, c4 N=1, e5 p=2, c6 n=3, a8 k=4, e8 r=5.',
+      'Hot Foot: e5 ignites. Until the opponent has taken 4 turns, no non-Ember piece may move to or capture on e5; a non-Ember rook may still slide over it.',
+    note: 'Nc4xe5, Ka8-b8, Ne5-f3 (e5 ignites), Re8-e4 slides over e5, then Black takes turns 2, 3 and 4 and the fire goes out; Kg2-g1 closes the golden test. Ids: g1 K=0, c4 N=1, e5 p=2, c6 n=3, a8 k=4, e8 r=5.',
     setup: {
       fen: 'k3r3/8/2n5/4p3/2N5/8/8/6K1 w - - 0 1',
       format: 'full',
       white: { elements: ['ember'] },
       black: { elements: ['neutral'] },
-      moves: ['c4e5', 'a8b8', 'e5f3', 'e8e4', 'f3e5', 'b8a8', 'e5f3', 'a8b8', 'g1g2'],
+      moves: [
+        'c4e5',
+        'a8b8',
+        'e5f3',
+        'e8e4',
+        'f3e5',
+        'b8a8',
+        'e5f3',
+        'a8b8',
+        'g1g2',
+        'b8a8',
+        'g2g1',
+      ],
     },
   },
   {
@@ -298,18 +310,18 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
   },
   {
     id: 'E15',
-    title: 'Electric Slide: the rook turns at its knight and checks through the corner',
+    title: 'Electric Slide: the bishop turns at its rook and checks through the corner',
     setupText:
-      'White (Storm, Electric Slide) rook a1, knight b2, king a2; Black king d7. The knight goes to d1',
+      'White (Storm, Electric Slide) bishop c1, rook e1, king a1; Black king b6. The rook goes to e3',
     specText:
-      "The rook's rank-1 ray now meets its knight on d1 and turns north: the king on d7 is in check through the turn (attacks follow the paths), may not stay on the d-file, and Electric Slide is revealed on White's rooks. Unattuned, the same move gives no check.",
-    note: 'Ids: a1 R=0, a2 K=1, b2 N=2, d7 k=3. No prompt (DD-104).',
+      "The bishop's c1-h6 diagonal now meets its rook on e3 and turns north-west: the king on b6 is in check through the turn (attacks follow the paths), may not step along that diagonal to c5, and Electric Slide is revealed on White's bishops. Unattuned, the same move gives no check (DD-111: a rook outranks the bishop, so it is a corner for it; a pawn on e3 would block).",
+    note: 'Ids: a1 K=0, c1 B=1, e1 R=2, b6 k=3. No prompt (DD-104, DD-111).',
     setup: {
-      fen: '8/3k4/8/8/8/8/KN6/R7 w - - 0 1',
+      fen: '8/8/1k6/8/8/8/8/K1B1R3 w - - 0 1',
       format: 'full',
       white: { elements: ['storm'], abilities: ['electric_slide'] },
       black: { elements: ['neutral'] },
-      moves: ['b2d1'],
+      moves: ['e1e3'],
     },
   },
   {

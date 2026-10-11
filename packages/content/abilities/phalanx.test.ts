@@ -103,18 +103,22 @@ describe('phalanx (R-ABIL-005)', () => {
     expect(pieceAt(r.state, 'd5')?.type).toBe('knight');
   });
 
-  it('R-ELEM-002 a Frost victim silences a Stone captor’s Phalanx (Frost beats Stone), so the Poisoned Meat resolves', () => {
+  it('R-ELEM-002 DD-113 a Frost victim silences a Stone captor’s Phalanx (Frost beats Stone), so the Poisoned Meat resolves and removes the Stone pawn', () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['stone'], abilities: ['phalanx'] },
       black: { elements: ['frost'], abilities: ['poisoned_meat'] },
       moves: ['e4d5'],
     });
+    const pawn = idAt(r.initial, 'e4');
     expect(eventsOf(r.events, 'AbilitySilenced').map((e) => e.ability)).toEqual(['phalanx']);
-    // The Stone pawn's Bulwark (6.1) still answers the first effect capture against it.
-    expect(eventsOf(r.events, 'EffectFizzled')).toEqual([
-      expect.objectContaining({ ability: 'poisoned_meat', reason: 'bulwark' }),
+    // A Stone pawn carries no Bulwark by default (6.1, DD-113), so nothing answers the retaliation.
+    expect(eventsOf(r.events, 'EffectFizzled')).toEqual([]);
+    expect(eventsOf(r.events, 'Captured')).toEqual([
+      expect.objectContaining({ by: 'move' }),
+      expect.objectContaining({ victim: pawn, by: 'effect' }),
     ]);
+    expect(pieceAt(r.state, 'd5')).toBeUndefined();
   });
 
   it('R-INFO-005 R-SEC-001 before it fires, Black’s projection never names Phalanx', () => {

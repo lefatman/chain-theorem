@@ -1,8 +1,10 @@
 /**
- * Hot Foot scenario tests (Ember trait, R-ELEM-001, R-ELEM-005, E7, DD-19, DD-24, DD-25, DD-33).
+ * Hot Foot scenario tests (Ember trait, R-ELEM-001, R-ELEM-005, E7, DD-19, DD-24, DD-25, DD-33,
+ * DD-115).
  *
  * Expected behaviour comes from spec 6.1 (Hot Foot rules), 5.4, 5.5 E7 and the delegated decisions
- * DD-17, DD-19, DD-24, DD-25 and DD-33, not from the engine's current output.
+ * DD-17, DD-19, DD-24, DD-25, DD-33 and DD-115 (the burn length is `CAPS.TRAITS.HOT_FOOT_TURNS`, 4),
+ * not from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -22,8 +24,10 @@ import {
   parseSquare,
   pieceAt,
   play,
+  scenario,
   setup,
 } from '../src/testing.ts';
+import { CAPS } from '../config.ts';
 import type { HotFootState } from './hot_foot.ts';
 
 const sq = parseSquare;
@@ -87,10 +91,10 @@ describe('hot_foot (R-ELEM-005)', () => {
     });
     const last = (w.steps[4] as ScenarioStep).events;
     expect(eventsOf(last, 'SquareIgnited')).toEqual([
-      expect.objectContaining({ square: sq('e5'), side: 'white', turns: 3 }),
+      expect.objectContaining({ square: sq('e5'), side: 'white', turns: 4 }),
     ]);
     expect(kinds(last).indexOf('SquareIgnited')).toBeGreaterThan(kinds(last).indexOf('MoveMade'));
-    expect(hot(w.state)).toEqual({ burning: [burn('e5', 'white', 3)], pending: [] });
+    expect(hot(w.state)).toEqual({ burning: [burn('e5', 'white', 4)], pending: [] });
   });
 
   it('R-ELEM-005 only a move capture by an Ember piece starts a burn: a non-Ember capture or an Ember non-capturing move leaves nothing', () => {
@@ -137,9 +141,9 @@ describe('hot_foot (R-ELEM-005)', () => {
       pending: [{ piece: pawn, sq: sq('d6') }],
     });
     expect(eventsOf((w.steps[3] as ScenarioStep).events, 'SquareIgnited')).toEqual([
-      expect.objectContaining({ square: sq('d6'), side: 'white', turns: 3 }),
+      expect.objectContaining({ square: sq('d6'), side: 'white', turns: 4 }),
     ]);
-    expect(hot(w.state)).toEqual({ burning: [burn('d6', 'white', 3)], pending: [] });
+    expect(hot(w.state)).toEqual({ burning: [burn('d6', 'white', 4)], pending: [] });
   });
 
   it('R-ELEM-005 Hit and Run ignites the capture square immediately, and non-Ember pieces then cannot stop there but slide over it', () => {
@@ -162,9 +166,9 @@ describe('hot_foot (R-ELEM-005)', () => {
       expect.objectContaining({ from: sq('d5'), to: sq('c3') }),
     ]);
     expect(eventsOf(ev, 'SquareIgnited')).toEqual([
-      expect.objectContaining({ square: sq('d5'), side: 'white', turns: 3 }),
+      expect.objectContaining({ square: sq('d5'), side: 'white', turns: 4 }),
     ]);
-    expect(hot(w.state)).toEqual({ burning: [burn('d5', 'white', 3)], pending: [] });
+    expect(hot(w.state)).toEqual({ burning: [burn('d5', 'white', 4)], pending: [] });
     // The black (neutral) rook may not stop on d5 but slides over it down the file.
     expect(dests(w.engine, w.state, 'black', 'd8')).toEqual(
       ['a8', 'b8', 'c8', 'd7', 'd6', 'd4', 'd3', 'd2', 'd1'].sort(),
@@ -220,12 +224,12 @@ describe('hot_foot (R-ELEM-005)', () => {
     const bonus = eventsOf(ev, 'MoveMade').find((e) => e.bonus);
     expect(bonus).toMatchObject({ from: sq('d5'), to: sq('b4') });
     expect(eventsOf(ev, 'SquareIgnited')).toEqual([
-      expect.objectContaining({ square: sq('d5'), side: 'white', turns: 3 }),
+      expect.objectContaining({ square: sq('d5'), side: 'white', turns: 4 }),
     ]);
     expect(ev.findIndex((e) => e.k === 'SquareIgnited')).toBeGreaterThan(
       ev.findIndex((e) => e.k === 'MoveMade' && e.bonus),
     );
-    expect(hot(w.state)).toEqual({ burning: [burn('d5', 'white', 3)], pending: [] });
+    expect(hot(w.state)).toEqual({ burning: [burn('d5', 'white', 4)], pending: [] });
     expect(pieceAt(w.state, 'b4')?.type).toBe('knight');
   });
 
@@ -252,9 +256,9 @@ describe('hot_foot (R-ELEM-005)', () => {
       pending: [{ piece: bishop, sq: sq('d5') }],
     });
     expect(eventsOf((w.steps[1] as ScenarioStep).events, 'SquareIgnited')).toEqual([
-      expect.objectContaining({ square: sq('d5'), side: 'black', turns: 3 }),
+      expect.objectContaining({ square: sq('d5'), side: 'black', turns: 4 }),
     ]);
-    expect(hot(w.state)).toEqual({ burning: [burn('d5', 'black', 3)], pending: [] });
+    expect(hot(w.state)).toEqual({ burning: [burn('d5', 'black', 4)], pending: [] });
   });
 
   it('R-ELEM-005 DD-24 R-ELEM-004 the element after promotion decides whether a capturing pawn leaves a pending burn', () => {
@@ -290,7 +294,7 @@ describe('hot_foot (R-ELEM-005)', () => {
       ['g7h8q', 'e8d7', 'h8h1'],
     );
     expect(eventsOf((w.steps[2] as ScenarioStep).events, 'SquareIgnited')).toEqual([
-      expect.objectContaining({ square: sq('h8'), side: 'white', turns: 3 }),
+      expect.objectContaining({ square: sq('h8'), side: 'white', turns: 4 }),
     ]);
   });
 
@@ -305,7 +309,7 @@ describe('hot_foot (R-ELEM-005)', () => {
       ['f3e5', 'a8b8', 'e5f3', 'b8a8'],
     );
     let state = w.state;
-    expect(hot(state).burning).toEqual([burn('e5', 'white', 2)]);
+    expect(hot(state).burning).toEqual([burn('e5', 'white', 3)]);
     // White (the igniting side): its Tide rook may not stop on e5 but slides over it.
     let moves = legal(w.engine, state, 'white');
     expect(moves).not.toContain('e1e5');
@@ -342,7 +346,7 @@ describe('hot_foot (R-ELEM-005)', () => {
       { fen, white: { elements: ['ember'] }, black: { elements: ['neutral'] } },
       moves,
     );
-    expect(hot(w.state).burning).toEqual([burn('e4', 'white', 2)]);
+    expect(hot(w.state).burning).toEqual([burn('e4', 'white', 3)]);
     const king = legal(w.engine, w.state, 'white');
     expect(king).toContain('d3e4'); // the rook cannot capture on e4, so e4 is not attacked
     expect(king).not.toContain('d3e3'); // the rook's line passes over e4
@@ -380,7 +384,7 @@ describe('hot_foot (R-ELEM-005)', () => {
       { kind: 'move', from: sq('a5'), to: sq('d5') },
     ]);
     const last = grove.steps[4] as ScenarioStep;
-    expect(hot(grove.states[4] as GameState).burning).toEqual([burn('d5', 'white', 2)]);
+    expect(hot(grove.states[4] as GameState).burning).toEqual([burn('d5', 'white', 3)]);
     expect(eventsOf(last.events, 'AbilityTriggered').map((e) => e.ability)).toEqual(['riposte']);
     expect(last.prompts).toEqual([]);
     expect(eventsOf(last.events, 'EffectFizzled')).toEqual([
@@ -411,11 +415,11 @@ describe('hot_foot (R-ELEM-005)', () => {
         white: { elements: ['ember'] },
         black: { elements: ['neutral'] },
       },
-      ['c3e4', 'a8b8', 'e4c3', 'b8a8', 'd3e4', 'a8b8', 'c3b1'],
+      ['c3e4', 'a8b8', 'e4c3', 'b8a8', 'd3e4', 'a8b8', 'c3b1', 'b8a8', 'b1c3'],
     );
     expect(hot(w.state).burning).toEqual([burn('e4', 'white', 1)]);
     expect(w.state.inCheck).toBeNull();
-    const r = play(w.engine, w.state, 'b8a8');
+    const r = play(w.engine, w.state, 'a8b8');
     const ev = r.step.events;
     expect(eventsOf(ev, 'SquareExtinguished')).toEqual([
       expect.objectContaining({ square: sq('e4') }),
@@ -445,7 +449,7 @@ describe('hot_foot (R-ELEM-005)', () => {
     );
     const pawn = idAt(w.state, 'd5');
     expect(pieceAt(w.state, 'd5')).toMatchObject({ side: 'white', type: 'pawn' });
-    expect(hot(w.state).burning).toEqual([burn('d5', 'white', 2)]);
+    expect(hot(w.state).burning).toEqual([burn('d5', 'white', 3)]);
     const moves = legal(w.engine, w.state, 'black');
     expect(moves).not.toContain('f6d5');
     expect(moves).toContain('f6e4');
@@ -459,52 +463,83 @@ describe('hot_foot (R-ELEM-005)', () => {
     expect(pieceAt(r.state, 'd5')).toBeUndefined();
   });
 
-  it('R-ELEM-005 DD-25 the burn counts only the igniting player’s opponent’s turns and ends after the third with SquareExtinguished', () => {
+  it('R-ELEM-005 DD-25 the burn counts only the igniting player’s opponent’s turns and ends after the fourth with SquareExtinguished', () => {
     const w = walk(
       {
         fen: '3k4/8/8/r3p3/8/5N2/8/4K3 w - - 0 1',
         white: { elements: ['ember'] },
         black: { elements: ['neutral'] },
       },
-      ['f3e5', 'd8c8', 'e5f3', 'c8d8', 'e1e2', 'd8c8', 'e2e1', 'c8d8'],
+      ['f3e5', 'd8c8', 'e5f3', 'c8d8', 'e1e2', 'd8c8', 'e2e1', 'c8d8', 'e1e2', 'd8c8'],
     );
     const turnsAfter = w.states.slice(3).map((s) => hot(s).burning.map((b) => b.turns));
-    // After the ignition (white), black, white, black, white, black.
-    expect(turnsAfter).toEqual([[3], [2], [2], [1], [1], []]);
+    // After the ignition (white), black, white, black, white, black, white, black.
+    expect(turnsAfter).toEqual([[4], [3], [3], [2], [2], [1], [1], []]);
     const ignited = w.states[3] as GameState;
     const rook = dests(w.engine, ignited, 'black', 'a5');
     expect(rook).not.toContain('e5');
     expect(rook).toEqual(expect.arrayContaining(['d5', 'f5', 'g5', 'h5']));
-    for (const i of [2, 3, 4, 5, 6])
+    for (const i of [2, 3, 4, 5, 6, 7, 8])
       expect(eventsOf((w.steps[i] as ScenarioStep).events, 'SquareExtinguished')).toEqual([]);
-    expect(eventsOf((w.steps[7] as ScenarioStep).events, 'SquareExtinguished')).toEqual([
+    expect(eventsOf((w.steps[9] as ScenarioStep).events, 'SquareExtinguished')).toEqual([
       expect.objectContaining({ square: sq('e5') }),
     ]);
     // Once extinguished, the non-Ember rook may enter e5 again.
-    const after = play(w.engine, w.state, 'e1e2').state;
+    const after = play(w.engine, w.state, 'e2e1').state;
     expect(dests(w.engine, after, 'black', 'a5')).toContain('e5');
+  });
+
+  it('R-ELEM-005 DD-115 the burn length is a config knob: under HOT_FOOT_TURNS 3 the square clears one turn earlier', () => {
+    // The same moves as above up to the third opponent turn; only the caps differ.
+    const spec: ScenarioSpec = {
+      fen: '3k4/8/8/r3p3/8/5N2/8/4K3 w - - 0 1',
+      white: { elements: ['ember'] },
+      black: { elements: ['neutral'] },
+      moves: ['f3e5', 'd8c8', 'e5f3', 'c8d8', 'e1e2', 'd8c8', 'e2e1', 'c8d8'],
+    };
+    const three = scenario({ ...spec, caps: { TRAITS: { ...CAPS.TRAITS, HOT_FOOT_TURNS: 3 } } });
+    expect(eventsOf(three.steps[2]?.events ?? [], 'SquareIgnited')).toEqual([
+      expect.objectContaining({ square: sq('e5'), side: 'white', turns: 3 }),
+    ]);
+    expect(eventsOf(three.steps[7]?.events ?? [], 'SquareExtinguished')).toEqual([
+      expect.objectContaining({ square: sq('e5') }),
+    ]);
+    expect(hot(three.state).burning).toEqual([]);
+    const threeAfter = play(three.engine, three.state, 'e1e2').state;
+    expect(dests(three.engine, threeAfter, 'black', 'a5')).toContain('e5');
+
+    // Under the shipped count (4) the same moves leave e5 burning for one more opponent turn.
+    const four = scenario(spec);
+    expect(eventsOf(four.steps[2]?.events ?? [], 'SquareIgnited')).toEqual([
+      expect.objectContaining({ square: sq('e5'), side: 'white', turns: 4 }),
+    ]);
+    expect(eventsOf(four.events, 'SquareExtinguished')).toEqual([]);
+    expect(hot(four.state).burning).toEqual([burn('e5', 'white', 1)]);
+    const fourAfter = play(four.engine, four.state, 'e1e2').state;
+    expect(dests(four.engine, fourAfter, 'black', 'a5')).not.toContain('e5');
   });
 
   it('R-ELEM-005 igniting a burning square again resets its count', () => {
     // The black Ember knight enters the burning e5, the white Ember knight captures it there and
-    // leaves again: e5 re-ignites with a fresh count of 3.
+    // leaves again: e5 re-ignites with a fresh count of 4.
     const w = walk(
       {
         fen: 'k7/8/6n1/4p3/8/5N2/8/K7 w - - 0 1',
         white: { elements: ['ember'] },
         black: { elements: ['ember'] },
       },
-      ['f3e5', 'a8b8', 'e5f3', 'g6e5', 'f3e5', 'b8a8', 'e5f3', 'a8b8'],
+      ['f3e5', 'a8b8', 'e5f3', 'g6e5', 'f3e5', 'b8a8', 'a1b1', 'a8b8', 'e5f3', 'b8a8'],
     );
-    expect(hot(w.states[5] as GameState).burning).toEqual([burn('e5', 'white', 2)]);
-    expect(hot(w.states[6] as GameState).burning).toEqual([burn('e5', 'white', 1)]);
-    expect(eventsOf((w.steps[6] as ScenarioStep).events, 'SquareIgnited')).toEqual([
-      expect.objectContaining({ square: sq('e5'), side: 'white', turns: 3 }),
+    expect(hot(w.states[5] as GameState).burning).toEqual([burn('e5', 'white', 3)]);
+    expect(hot(w.states[6] as GameState).burning).toEqual([burn('e5', 'white', 2)]);
+    expect(hot(w.states[8] as GameState).burning).toEqual([burn('e5', 'white', 1)]);
+    expect(eventsOf((w.steps[8] as ScenarioStep).events, 'SquareIgnited')).toEqual([
+      expect.objectContaining({ square: sq('e5'), side: 'white', turns: 4 }),
     ]);
-    expect(hot(w.states[7] as GameState).burning).toEqual([burn('e5', 'white', 3)]);
+    expect(hot(w.states[9] as GameState).burning).toEqual([burn('e5', 'white', 4)]);
     // Under the old count e5 would have gone out on this black turn.
-    expect(eventsOf((w.steps[7] as ScenarioStep).events, 'SquareExtinguished')).toEqual([]);
-    expect(hot(w.state).burning).toEqual([burn('e5', 'white', 2)]);
+    expect(eventsOf((w.steps[9] as ScenarioStep).events, 'SquareExtinguished')).toEqual([]);
+    expect(hot(w.state).burning).toEqual([burn('e5', 'white', 3)]);
   });
 
   it('R-ELEM-005 when the opponent re-ignites a burning square, the count restarts against the new igniting player', () => {
@@ -514,15 +549,16 @@ describe('hot_foot (R-ELEM-005)', () => {
         white: { elements: ['ember'] },
         black: { elements: ['ember'] },
       },
-      ['f3e5', 'a8b8', 'e5f3', 'b8a8', 'f3e5', 'g6e5', 'a1b1', 'e5g6', 'b1a1'],
+      ['f3e5', 'a8b8', 'e5f3', 'b8a8', 'f3e5', 'g6e5', 'a1b1', 'a8b8', 'b1a1', 'e5g6', 'a1b1'],
     );
-    expect(hot(w.states[6] as GameState).burning).toEqual([burn('e5', 'white', 1)]);
-    expect(eventsOf((w.steps[7] as ScenarioStep).events, 'SquareIgnited')).toEqual([
-      expect.objectContaining({ square: sq('e5'), side: 'black', turns: 3 }),
+    expect(hot(w.states[6] as GameState).burning).toEqual([burn('e5', 'white', 2)]);
+    expect(hot(w.states[9] as GameState).burning).toEqual([burn('e5', 'white', 1)]);
+    expect(eventsOf((w.steps[9] as ScenarioStep).events, 'SquareIgnited')).toEqual([
+      expect.objectContaining({ square: sq('e5'), side: 'black', turns: 4 }),
     ]);
     // Black's own turn does not count down black's burn; white's next turn does.
-    expect(hot(w.states[8] as GameState).burning).toEqual([burn('e5', 'black', 3)]);
-    expect(hot(w.state).burning).toEqual([burn('e5', 'black', 2)]);
+    expect(hot(w.states[10] as GameState).burning).toEqual([burn('e5', 'black', 4)]);
+    expect(hot(w.state).burning).toEqual([burn('e5', 'black', 3)]);
   });
 
   it('R-ELEM-005 DD-17 an effect cannot place a non-Ember piece on a burning square: Rebirth fizzles (burning) and keeps its charge', () => {
@@ -631,7 +667,7 @@ describe('hot_foot (R-ELEM-005)', () => {
         },
         [`${c.knight}${c.burn}`, 'e8d8', `${c.burn}${c.knight}`, 'd8e8'],
       );
-      expect(hot(w.state).burning, c.burn).toEqual([burn(c.burn, 'white', 2)]);
+      expect(hot(w.state).burning, c.burn).toEqual([burn(c.burn, 'white', 3)]);
       const moves = legal(w.engine, w.state, 'white');
       expect(moves.includes('e1g1'), `O-O with ${c.burn} burning`).toBe(c.ks);
       expect(moves.includes('e1c1'), `O-O-O with ${c.burn} burning`).toBe(c.qs);
@@ -656,7 +692,7 @@ describe('hot_foot (R-ELEM-005)', () => {
       { fen, white: { elements: ['neutral'] }, black: { elements: ['ember'] } },
       moves,
     );
-    expect(hot(neutral.state).burning).toEqual([burn('d5', 'black', 2)]);
+    expect(hot(neutral.state).burning).toEqual([burn('d5', 'black', 3)]);
     expect(pieceAt(neutral.state, 'd5')).toMatchObject({ side: 'black', type: 'pawn' });
     const wm = legal(neutral.engine, neutral.state, 'white');
     expect(wm).not.toContain('e5d6');
@@ -681,7 +717,7 @@ describe('hot_foot (R-ELEM-005)', () => {
     );
     for (const viewer of ['white', 'black'] as const) {
       const slice = w.engine.project(w.state, viewer).slices.hot_foot as HotFootState | undefined;
-      expect(slice?.burning, viewer).toEqual([burn('e5', 'white', 3)]);
+      expect(slice?.burning, viewer).toEqual([burn('e5', 'white', 4)]);
     }
   });
 
@@ -701,9 +737,9 @@ describe('hot_foot (R-ELEM-005)', () => {
     });
     expect(w.engine.stateHash(withSlice({ burning: [], pending: [] }))).not.toBe(h);
     expect(
-      w.engine.stateHash(withSlice({ burning: [burn('e5', 'white', 2)], pending: [] })),
+      w.engine.stateHash(withSlice({ burning: [burn('e5', 'white', 3)], pending: [] })),
     ).not.toBe(h);
-    expect(w.engine.stateHash(withSlice({ burning: [burn('e5', 'white', 3)], pending: [] }))).toBe(
+    expect(w.engine.stateHash(withSlice({ burning: [burn('e5', 'white', 4)], pending: [] }))).toBe(
       h,
     );
   });
@@ -723,6 +759,8 @@ describe('hot_foot (R-ELEM-005)', () => {
       'c8d8',
       'e2e1',
       'd8c8',
+      'e1e2',
+      'c8d8',
     ];
     const opening = ['f3e5', 'e8d8', 'e5f3'];
     const fen = '4k3/8/8/4p3/8/5N2/8/4K3 w - - 0 1';
@@ -733,14 +771,14 @@ describe('hot_foot (R-ELEM-005)', () => {
     ]);
     expect(tide.state.result).toEqual({ winner: null, reason: 'repetition' });
 
-    // With e5 burning (3, then 1, then out) those three boards differ; the first threefold
-    // repetition is the board after black's move that recurs with no burn at plies 5, 9 and 13.
+    // With e5 burning (4, then 2, then out) those three boards differ; the first threefold
+    // repetition is the board after black's c8d8 that recurs with no burn at plies 9, 13 and 17.
     const ember = walk({ fen, white: { elements: ['ember'] }, black: { elements: ['neutral'] } }, [
       ...opening,
-      ...shuffle.slice(0, 12),
+      ...shuffle.slice(0, 14),
     ]);
     expect(ember.state.result).toBeNull();
-    const last = play(ember.engine, ember.state, shuffle[12] as string);
+    const last = play(ember.engine, ember.state, shuffle[14] as string);
     expect(last.state.result).toEqual({ winner: null, reason: 'repetition' });
   });
 });

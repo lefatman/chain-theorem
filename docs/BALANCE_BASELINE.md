@@ -20,7 +20,17 @@ and 0% with the corrected metric (35% in the First Blood archetype suite), media
 Section 6 lists the findings and what each later item of the plan takes from them. Section 7
 re-measures after the Electric Slide fix (DD-106): the opening trap is gone (Storm's First Blood row
 22–56%), the card alone reads 72% and 75%, and Storm is now the weakest Full Battle element for want
-of Obstinate.
+of Obstinate. Section 8 measures the silence scopes with a Capturing card in play (B3, DD-108): the new
+`ONCE_PER_ABILITY` comes closest to the Full Battle target (61.7%) as long as Resonance Crystal does
+not mean never under it. Section 9 carries out two designer answers (B3b, DD-109, DD-110): Stalwart
+on a king costs an item slot, which prices the king set without yet making Focused competitive
+against a paid Stalwart king (81–88% in Full Battle, as before), and Electric Slide ships its most
+balanced measured turn (bishops only, at a bishop, rook, queen or king: 58% and 64% on its own). Section 10 records the designer's rulings on both (rule 9 reverted; Electric Slide turns by
+rank, DD-111: 82.5% and 62.3% on its own) and the four trait numbers of B4 as config knobs, each
+measured alone: Flow's one-ally cap does not tame Tide (aggregate 52.1% to 50.6% in First Blood,
+69.2% to 72.2% in Full Battle), Bulwark's pawn exclusion and Hot Foot's fourth turn are inert at 40
+and 30 games, and Overabundance's extra charge changes no game because no Focused build carries a
+consumable; at the shipped defaults the advantaged element reads 48.3% and 73.5%.
 
 ## 1. Method
 
@@ -454,3 +464,520 @@ short format is the open design question, flagged with DD-106.
 **For the next items.** B3 and B4 measure against the section 7 tables, not sections 2 and 4. The
 `REACTIONS_ONLY` and archetype tables of sections 3 and 4 were not re-run: the fix touches one card,
 and both knobs were inert with these builds.
+
+## 8. The silence scope (B3, DD-108)
+
+Plan item B3. Three scopes of the 6.2 knob measured on the same builds and seeds, with Pierce dealt
+into every Focused build (`--prefer pierce`, new in this item) so the Capturing category carries a
+card with an effect: `ALL_TRIGGERS` (the default), `REACTIONS_ONLY` and the new `ONCE_PER_ABILITY`
+(each ability on each piece type is silenced once per battle; Resonance Crystal, which every Focused
+build carries, then means never). 40 games per pairing in First Blood (about ±8 points per cell) and
+30 in Full Battle (±9); the advantaged-element score aggregates 480 and 360 games.
+
+The Focused builds with Pierce preferred: Ember Cleave, Last Word, Pierce, Obstinate, Squall; Tide
+Hit and Run, Last Word, Pierce, Obstinate, Squall; Grove Poisoned Meat, Snowdrift, Pierce, Obstinate,
+Last Word; Storm Electric Slide, Last Word, Snowdrift, Pierce, Squall; Stone Stonewall, Snowdrift,
+Pierce, Obstinate, Last Word; Frost Frost Heave, Snowdrift, Pierce, Obstinate, Last Word.
+
+**First Blood** — `pnpm sim --suite elements --format first_blood --games 40 --nodes 20000 --prefer pierce` with `--silence ALL_TRIGGERS`, `REACTIONS_ONLY` and `ONCE_PER_ABILITY`
+
+_ALL_TRIGGERS_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 57.5% | 23.8%               | 50.0%               | 85.0%               | 38.8%               | 66.3%               |
+| tide          | 76.3%               | mirror, white 27.5% | 70.0%               | 67.5%               | 76.3%               | 78.8%               |
+| grove         | 50.0%               | 30.0%               | mirror, white 65.0% | 55.0%               | 55.0%               | 61.3%               |
+| storm         | 15.0%               | 32.5%               | 45.0%               | mirror, white 32.5% | 43.8%               | 52.5%               |
+| stone         | 61.3%               | 23.8%               | 45.0%               | 56.3%               | mirror, white 40.0% | 61.3%               |
+| frost         | 33.8%               | 21.3%               | 38.8%               | 47.5%               | 38.8%               | mirror, white 58.8% |
+
+Advantaged element: **50.6%**. White 51.6%, surprise losses 12.4%, median 23 plies. Result reasons: repetition 43, objective 730, checkmate 63, fifty_move 1, ply_cap 3.
+
+_REACTIONS_ONLY_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 57.5% | 23.8%               | 47.5%               | 85.0%               | 38.8%               | 66.3%               |
+| tide          | 76.3%               | mirror, white 27.5% | 81.3%               | 67.5%               | 76.3%               | 78.8%               |
+| grove         | 52.5%               | 18.8%               | mirror, white 65.0% | 55.0%               | 55.0%               | 61.3%               |
+| storm         | 15.0%               | 32.5%               | 45.0%               | mirror, white 32.5% | 43.8%               | 50.0%               |
+| stone         | 61.3%               | 23.8%               | 45.0%               | 56.3%               | mirror, white 40.0% | 63.7%               |
+| frost         | 33.8%               | 21.3%               | 38.8%               | 50.0%               | 36.3%               | mirror, white 58.8% |
+
+Advantaged element: **47.5%**. White 51.2%, surprise losses 12.1%, median 23 plies. Result reasons: repetition 41, objective 735, checkmate 61, ply_cap 3.
+
+_ONCE_PER_ABILITY_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 57.5% | 23.8%               | 47.5%               | 85.0%               | 38.8%               | 66.3%               |
+| tide          | 76.3%               | mirror, white 27.5% | 72.5%               | 67.5%               | 76.3%               | 78.8%               |
+| grove         | 52.5%               | 27.5%               | mirror, white 65.0% | 55.0%               | 55.0%               | 61.3%               |
+| storm         | 15.0%               | 32.5%               | 45.0%               | mirror, white 32.5% | 43.8%               | 45.0%               |
+| stone         | 61.3%               | 23.8%               | 45.0%               | 56.3%               | mirror, white 40.0% | 65.0%               |
+| frost         | 33.8%               | 21.3%               | 38.8%               | 55.0%               | 35.0%               | mirror, white 58.8% |
+
+Advantaged element: **47.9%**. White 50.8%, surprise losses 12.2%, median 24 plies. Result reasons: repetition 43, objective 731, checkmate 63, ply_cap 3.
+
+**Full Battle** — `pnpm sim --suite elements --format full --games 30 --nodes 20000 --prefer pierce` with the same three scopes
+
+_ALL_TRIGGERS_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 40.0% | 28.3%               | 68.3%               | 90.0%               | 36.7%               | 56.7%               |
+| tide          | 71.7%               | mirror, white 46.7% | 35.0%               | 100.0%              | 88.3%               | 90.0%               |
+| grove         | 31.7%               | 65.0%               | mirror, white 58.3% | 86.7%               | 41.7%               | 43.3%               |
+| storm         | 10.0%               | 0.0%                | 13.3%               | mirror, white 33.3% | 3.3%                | 43.3%               |
+| stone         | 63.3%               | 11.7%               | 58.3%               | 96.7%               | mirror, white 50.0% | 45.0%               |
+| frost         | 43.3%               | 10.0%               | 56.7%               | 56.7%               | 55.0%               | mirror, white 45.0% |
+
+Advantaged element: **66.7%**. White 47.9%, surprise losses 2.6%, median 74 plies. Result reasons: checkmate 460, repetition 153, ply_cap 15, fifty_move 2.
+
+_REACTIONS_ONLY_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 40.0% | 16.7%               | 61.7%               | 90.0%               | 36.7%               | 56.7%               |
+| tide          | 83.3%               | mirror, white 46.7% | 91.7%               | 100.0%              | 88.3%               | 90.0%               |
+| grove         | 38.3%               | 8.3%                | mirror, white 58.3% | 86.7%               | 41.7%               | 43.3%               |
+| storm         | 10.0%               | 0.0%                | 13.3%               | mirror, white 33.3% | 11.7%               | 35.0%               |
+| stone         | 63.3%               | 11.7%               | 58.3%               | 88.3%               | mirror, white 50.0% | 53.3%               |
+| frost         | 43.3%               | 10.0%               | 56.7%               | 65.0%               | 46.7%               | mirror, white 45.0% |
+
+Advantaged element: **53.9%**. White 48.4%, surprise losses 2.8%, median 71 plies. Result reasons: checkmate 472, repetition 141, ply_cap 15, fifty_move 2.
+
+_ONCE_PER_ABILITY_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 40.0% | 40.0%               | 60.0%               | 90.0%               | 36.7%               | 56.7%               |
+| tide          | 60.0%               | mirror, white 46.7% | 91.7%               | 100.0%              | 88.3%               | 90.0%               |
+| grove         | 40.0%               | 8.3%                | mirror, white 58.3% | 86.7%               | 41.7%               | 43.3%               |
+| storm         | 10.0%               | 0.0%                | 13.3%               | mirror, white 33.3% | 10.0%               | 5.0%                |
+| stone         | 63.3%               | 11.7%               | 58.3%               | 90.0%               | mirror, white 50.0% | 56.7%               |
+| frost         | 43.3%               | 10.0%               | 56.7%               | 95.0%               | 43.3%               | mirror, white 45.0% |
+
+Advantaged element: **44.4%**. White 49.0%, surprise losses 2.5%, median 70 plies. Result reasons: checkmate 478, repetition 136, fifty_move 4, ply_cap 12.
+
+**Without the Crystal.** Every Focused build carries Resonance Crystal, which under
+`ONCE_PER_ABILITY` means never silenced, so the runs above measure the scope and the item together.
+The same two formats with the Crystal left out of every build (`--without resonance_crystal`, new in
+this item; the slot stays empty) isolate the scope:
+
+**First Blood** — `pnpm sim --suite elements --format first_blood --games 40 --nodes 20000 --prefer pierce --without resonance_crystal` with `--silence ALL_TRIGGERS` and `ONCE_PER_ABILITY`
+
+_ALL_TRIGGERS_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 57.5% | 21.3%               | 52.5%               | 85.0%               | 38.8%               | 66.3%               |
+| tide          | 78.8%               | mirror, white 27.5% | 62.5%               | 67.5%               | 76.3%               | 78.8%               |
+| grove         | 47.5%               | 37.5%               | mirror, white 65.0% | 55.0%               | 55.0%               | 61.3%               |
+| storm         | 15.0%               | 32.5%               | 45.0%               | mirror, white 32.5% | 43.8%               | 62.5%               |
+| stone         | 61.3%               | 23.8%               | 45.0%               | 56.3%               | mirror, white 40.0% | 56.3%               |
+| frost         | 33.8%               | 21.3%               | 38.8%               | 37.5%               | 43.8%               | mirror, white 58.8% |
+
+Advantaged element: **55.2%**. White 52.3%, surprise losses 10.9%, median 23 plies. Result reasons: repetition 48, objective 726, checkmate 63, ply_cap 3.
+
+_ONCE_PER_ABILITY_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 57.5% | 21.3%               | 51.2%               | 85.0%               | 38.8%               | 66.3%               |
+| tide          | 78.8%               | mirror, white 27.5% | 66.3%               | 67.5%               | 76.3%               | 78.8%               |
+| grove         | 48.8%               | 33.8%               | mirror, white 65.0% | 55.0%               | 55.0%               | 61.3%               |
+| storm         | 15.0%               | 32.5%               | 45.0%               | mirror, white 32.5% | 43.8%               | 60.0%               |
+| stone         | 61.3%               | 23.8%               | 45.0%               | 56.3%               | mirror, white 40.0% | 58.8%               |
+| frost         | 33.8%               | 21.3%               | 38.8%               | 40.0%               | 41.3%               | mirror, white 58.8% |
+
+Advantaged element: **53.5%**. White 52.3%, surprise losses 10.8%, median 23 plies. Result reasons: repetition 50, objective 725, checkmate 62, ply_cap 3.
+
+**Full Battle** — the same with `--format full --games 30`
+
+_ALL_TRIGGERS_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 40.0% | 16.7%               | 81.7%               | 90.0%               | 36.7%               | 56.7%               |
+| tide          | 83.3%               | mirror, white 46.7% | 20.0%               | 100.0%              | 88.3%               | 90.0%               |
+| grove         | 18.3%               | 80.0%               | mirror, white 58.3% | 86.7%               | 41.7%               | 43.3%               |
+| storm         | 10.0%               | 0.0%                | 13.3%               | mirror, white 33.3% | 5.0%                | 30.0%               |
+| stone         | 63.3%               | 11.7%               | 58.3%               | 95.0%               | mirror, white 50.0% | 41.7%               |
+| frost         | 43.3%               | 10.0%               | 56.7%               | 70.0%               | 58.3%               | mirror, white 45.0% |
+
+Advantaged element: **71.4%**. White 46.9%, surprise losses 2.5%, median 72 plies. Result reasons: checkmate 477, repetition 133, ply_cap 16, stalemate 1, fifty_move 3.
+
+_ONCE_PER_ABILITY_
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 40.0% | 20.0%               | 65.0%               | 90.0%               | 36.7%               | 56.7%               |
+| tide          | 80.0%               | mirror, white 46.7% | 45.0%               | 100.0%              | 88.3%               | 90.0%               |
+| grove         | 35.0%               | 55.0%               | mirror, white 58.3% | 86.7%               | 41.7%               | 43.3%               |
+| storm         | 10.0%               | 0.0%                | 13.3%               | mirror, white 33.3% | 6.7%                | 20.0%               |
+| stone         | 63.3%               | 11.7%               | 58.3%               | 93.3%               | mirror, white 50.0% | 43.3%               |
+| frost         | 43.3%               | 10.0%               | 56.7%               | 80.0%               | 56.7%               | mirror, white 45.0% |
+
+Advantaged element: **61.7%**. White 47.0%, surprise losses 2.8%, median 71 plies. Result reasons: checkmate 468, repetition 141, ply_cap 17, fifty_move 4.
+
+**What the data says.**
+
+1. **With a Capturing card that acts, the knob acts.** In First Blood the three scopes are within two
+   points of each other (advantaged element 50.6%, 47.5%, 47.9%): the short format is decided by
+   traits and openings before silence matters. In Full Battle the aggregate moves from 66.7%
+   (`ALL_TRIGGERS`) to 53.9% (`REACTIONS_ONLY`) and 44.4% (`ONCE_PER_ABILITY` with the Crystal in
+   every build), where section 3 had found it inert with Scout as the only Capturing card.
+2. **`REACTIONS_ONLY` moves the lopsided pairs rather than flattening them.** Its 53.9% sits just
+   under the 55–60% target, but the table behind it is not balanced: Grove over Tide falls from
+   65% to 8% because Tide's Pierce, no longer silenced, negates Poisoned Meat on every capture, while
+   Tide over Ember rises from 72% to 83%. Freeing Capturing cards hands the game to whoever carries
+   the negation.
+3. **`ONCE_PER_ABILITY` with Resonance Crystal is `OFF` for anyone who equips it.** Every Focused
+   build carries the Crystal, so the 44.4% is a measurement of no silence at all: the foil's edge is
+   gone and the kits decide, which means Tide (Flow, Hit and Run, Pierce) beats every element at
+   60–100% in Full Battle and Storm loses 0–13% to four of them. Without the Crystal the picture changes: `ONCE_PER_ABILITY` reads 61.7% in Full Battle
+   (`ALL_TRIGGERS` 71.4% on the same builds), the closest any scope comes to the 55–60% target, and
+   53.5% in First Blood (55.2%). Its foil pairs are Tide over Ember 80%, Ember over Grove 65%, Grove
+   over Tide 55%, Frost over Stone 57%, Stone over Storm 93% and Storm over Frost 20%: the last two
+   are Storm's missing Obstinate slot (section 7), not the scope. The Crystal itself, under
+   `ALL_TRIGGERS`, trims the foil's Full Battle edge by five points (71.4% to 66.7%), which is the
+   job its text describes.
+4. **What to ship.** The data favours `ONCE_PER_ABILITY`, on one condition: Resonance Crystal must
+   not mean never under it, or the scope is `OFF` for every Crystal holder and the foil advantage
+   inverts (44.4%). The default stays `ALL_TRIGGERS` in this item, and two things go to B5: the
+   Crystal's reading under `ONCE_PER_ABILITY` (back to one spared silence per battle, as DD-30 had
+   it, or a higher slot cost for "never") and Storm's slot. `REACTIONS_ONLY` is the scope the data
+   argues against: it makes Pierce the best card in the game. The knob is now measurable in an
+   afternoon (`--prefer pierce`, `--without resonance_crystal`), so B4 and B5 can re-run it after
+   each change.
+
+## 9. Two designer answers (B3b, DD-109, DD-110)
+
+The designer answered two of the questions this report raised (2026-10-09): Stalwart on a king
+should cost a slot, and Storm's signature should ship in its most balanced version. Both are measured
+here with the method of sections 2–8; the mirror tests use 120 games in First Blood (about ±4.5
+points) and 80 in Full Battle (±5.5), the finalists 300 and 200 (±2.9 and ±3.5), and the element and
+archetype suites the counts of section 7, so every cell pairs with the one there.
+
+### 9.1 Storm's signature: which pieces turn, and where
+
+Electric Slide's attuned turn is now a config knob (`CAPS.ELECTRIC_SLIDE`: the slider types that turn
+once per move, and whether any allied piece other than a pawn, any such piece other than a knight, or
+only a piece that has left its starting square serves as the corner), so the variants run from
+`pnpm sim --suite cards --cards electric_slide --caps '{"ELECTRIC_SLIDE":{...}}'` without a content
+change. The base leap (a pawn over one adjacent ally) is the same in every row. Section 7's shipped
+rule (DD-106) is the first row.
+
+**The matrix** — `--format first_blood --games 120` and `--format full --games 80`, `--nodes 20000`
+
+| Turning sliders       | Corners                       | First Blood (120) | Median plies | Full Battle (80) |
+| --------------------- | ----------------------------- | ----------------- | ------------ | ---------------- |
+| Rooks and bishops     | any piece but a pawn (DD-106) | 77.9%             | 14           | 71.9%            |
+| Rooks                 | any piece but a pawn          | 55.0%             | 20           | 68.1%            |
+| Bishops               | any piece but a pawn          | 87.9%             | 15           | 53.1%            |
+| Rooks and bishops     | not a pawn or a knight        | 54.6%             | 22           | 66.9%            |
+| Rooks and bishops     | a piece that has moved        | 88.3%             | 15           | 73.8%            |
+| none (the leap alone) | —                             | 57.5%             | 21           | 57.5%            |
+| Rooks                 | not a pawn or a knight        | 51.7%             | 22           | 66.9%            |
+| Bishops               | not a pawn or a knight        | 61.3%             | 21           | 62.5%            |
+| Rooks                 | a piece that has moved        | 60.4%             | 21           | 65.6%            |
+| Bishops               | a piece that has moved        | 87.9%             | 15           | 53.8%            |
+
+Bishop lines through a developed knight decide First Blood (bishops at any piece 88%, at pieces that
+have moved 88%: the `Bc5-d4-c3` pattern of section 7), rook turns decide Full Battle (68–74%
+whichever corners), and the leap alone is already a solid card (57.5% in both formats, the band the
+other signatures sit in: 42–51% in First Blood and 52–77% in Full Battle, section 5). Four finalists
+were re-run at 300 and 200 games (the same seed base, so the first 120 and 80 games are the rows
+above):
+
+**The finalists** — `--games 300` and `--games 200`
+
+| Turning sliders   | Corners                | First Blood (300) | Median plies | Full Battle (200) |
+| ----------------- | ---------------------- | ----------------- | ------------ | ----------------- |
+| Rooks             | any piece but a pawn   | 55.8%             | 20           | 68.0%             |
+| Rooks             | not a pawn or a knight | 57.2%             | 21           | 68.8%             |
+| Rooks and bishops | not a pawn or a knight | 59.2%             | 21           | 70.0%             |
+| Bishops           | not a pawn or a knight | 57.8%             | 21           | 64.0%             |
+
+**The choice (DD-110; superseded the same day by the designer's own rule, DD-111, measured in section 10).** Bishops turning once at an allied bishop, rook, queen or king is the only
+turning rule that adds no First Blood edge over the leap alone (57.8% against 57.5%) while keeping a
+moderate Full Battle bonus (64.0%, between Cleave's 58% and Poisoned Meat's 77%); every rule that
+lets rooks turn reads 68–70% in Full Battle, and every rule that lets bishops turn at knights reads
+88% in First Blood. It ships as the default of `CAPS.ELECTRIC_SLIDE` (`turners: ['bishop']`,
+`corners: 'no_knights'`); the DD-106 geometry stays one config line away, and the module's tests keep
+exercising it through a caps override. The designer may prefer another row: each is one line.
+
+With the shipped rule in every Storm build, the element and archetype suites of section 7 were
+re-run (same seeds and counts).
+
+**Element matchups, First Blood** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000`
+
+| ember | mirror, white 51.7% | 29.2% | 47.5% | 81.7% | 59.2% | 57.5% |
+| tide | 70.8% | mirror, white 35.0% | 67.5% | 68.3% | 87.5% | 68.3% |
+| grove | 52.5% | 32.5% | mirror, white 30.8% | 63.3% | 63.3% | 45.8% |
+| storm | 18.3% | 31.7% | 36.7% | mirror, white 57.5% | 41.7% | 32.5% |
+| stone | 40.8% | 12.5% | 36.7% | 58.3% | mirror, white 65.0% | 60.0% |
+| frost | 42.5% | 31.7% | 54.2% | 67.5% | 40.0% | mirror, white 51.7% |
+
+Advantaged element: **46.9%**. White 52.1%, surprise losses 10.2%, median 25 plies. Result reasons: repetition 83, objective 1070, checkmate 102, ply_cap 5.
+
+**Element matchups, Full Battle** — `pnpm sim --suite elements --format full --games 40 --nodes 20000`
+
+| ember | mirror, white 40.0% | 18.8% | 76.3% | 92.5% | 65.0% | 47.5% |
+| tide | 81.3% | mirror, white 51.2% | 20.0% | 100.0% | 92.5% | 88.8% |
+| grove | 23.8% | 80.0% | mirror, white 55.0% | 91.3% | 47.5% | 81.3% |
+| storm | 7.5% | 0.0% | 8.8% | mirror, white 53.8% | 1.3% | 23.8% |
+| stone | 35.0% | 7.5% | 52.5% | 98.8% | mirror, white 53.8% | 43.8% |
+| frost | 52.5% | 11.3% | 18.8% | 76.3% | 56.3% | mirror, white 53.8% |
+
+Advantaged element: **69.4%**. White 52.1%, surprise losses 0.5%, median 68 plies. Result reasons: checkmate 610, repetition 196, ply_cap 29, stalemate 2, fifty_move 3.
+
+**What changed.** Storm's First Blood row falls from 22–56% (section 7) to 18–42% and its Full
+Battle row from 0–39% to 0–24%: a bishop turn is worth less than a rook turn over 70 plies, so the
+signature change costs Storm about ten points where it was already weakest, for the reason section 7
+gives (its passive slot holds the signature where every other Focused build holds Obstinate). The
+aggregates barely move: advantaged element 46.9% (48.3%) in First Blood and 69.4% (70.8%) in Full
+Battle, surprise losses 10.2% and 0.5%, medians 25 and 68 plies. Stone over Storm reads 58% in First
+Blood (44% before) and Storm over Frost 33% (55%): the two Storm pairs of the wheel now read like
+their Full Battle counterparts, the slot problem rather than the opening. B5 (Storm's slot,
+Obstinate's cost) is where Storm's row moves next.
+
+### 9.2 Stalwart on a king costs an item slot (rule 9)
+
+> **Overruled.** The designer reverted rule 9 the same day (B3c, DD-111): Stalwart costs one ability
+> slot and nothing else; it simply means only a direct capture removes the piece. The measurements
+> below stay as the record of what an item-slot price would have done.
+
+The designer's answer: yes, Stalwart on a king should cost a slot. An ability slot would cost nothing
+in practice, because a per-type king set has nothing better to hold (Captured cards and Obstinate are
+inert on a king, section 1), while finding 3 showed that king set deciding Full Battle between
+archetypes. So the slot is an item slot (7.4 rule 9, DD-109): `kingItemSlots` is module data
+(Stalwart: 1), added to rule 1's total when the set that applies to the king holds it (the sixth
+per-type set, or the army-wide set). The total stays public under 8.1, deductions treat an unrevealed
+king slot as either an item or the king's cost until Stalwart is seen on the king, and the loadout
+builder shows the slot in its meter.
+
+At level 25 every 7.3 build uses all six item slots, so a Stalwart king now costs Maximum its Blended
+Family (and second element) and Flexible its Resonance Crystal; the simulator plays both answers:
+`--king plain` (the 7.3 item lists, no Stalwart anywhere) and `--king stalwart` (the king set leads
+with Stalwart and the build pays). Focused and Starter never carry it (rule 8 would strip an
+army-wide set of its offensive cards). The mirror test for Stalwart itself pays the slot too: the
+side carrying the card gives up Scout's Lens.
+
+**Stalwart alone, paying its slot** — `pnpm sim --suite cards --cards stalwart --format first_blood --games 36 --nodes 20000` and `--format full --games 24`
+
+| Format      | Card     | Category | Level | Score with the card | Games | Median plies | Note          |
+| ----------- | -------- | -------- | ----- | ------------------- | ----- | ------------ | ------------- |
+| First Blood | Stalwart | PASSIVE  | 16    | 61.1%               | 36    | 11           | **above 60%** |
+| Full Battle | Stalwart | PASSIVE  | 16    | 81.3%               | 24    | 68           | **above 60%** |
+
+**Build archetypes** — the 7.3 item lists first (`--king plain`, the default), then with the Stalwart king paid for (`--king stalwart`: Maximum without Blended Family, Flexible without the Crystal).
+
+**First Blood, the 7.3 item lists, no Stalwart** — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000`
+
+| maximum | — | 68.3% | 49.2% | 58.3% |
+| flexible | 31.7% | — | 44.2% | 60.0% |
+| focused | 50.8% | 55.8% | — | 84.2% |
+| starter | 41.7% | 40.0% | 15.8% | — |
+
+White 50.7%, surprise losses 22.5%, median 19 plies. Result reasons: objective 340, checkmate 11, repetition 8, ply_cap 1.
+
+**First Blood, Stalwart kings paid for** — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000 --king stalwart`
+
+| maximum | — | 66.7% | 58.3% | 58.3% |
+| flexible | 33.3% | — | 53.3% | 66.7% |
+| focused | 41.7% | 46.7% | — | 84.2% |
+| starter | 41.7% | 33.3% | 15.8% | — |
+
+White 49.6%, surprise losses 27.3%, median 18 plies. Result reasons: objective 348, checkmate 6, repetition 5, stalwart_captured 1.
+
+**Full Battle, the 7.3 item lists, no Stalwart** — `pnpm sim --suite archetypes --format full --games 24 --nodes 20000`
+
+| maximum | — | 50.0% | 68.8% | 97.9% |
+| flexible | 50.0% | — | 64.6% | 95.8% |
+| focused | 31.3% | 35.4% | — | 87.5% |
+| starter | 2.1% | 4.2% | 12.5% | — |
+
+White 49.7%, surprise losses 7.2%, median 64 plies. Result reasons: repetition 28, checkmate 111, ply_cap 4, fifty_move 1.
+
+**Full Battle, Stalwart kings paid for** — `pnpm sim --suite archetypes --format full --games 24 --nodes 20000 --king stalwart`
+
+| maximum | — | 41.7% | 81.3% | 91.7% |
+| flexible | 58.3% | — | 87.5% | 93.8% |
+| focused | 18.8% | 12.5% | — | 87.5% |
+| starter | 8.3% | 6.3% | 12.5% | — |
+
+White 51.4%, surprise losses 12.0%, median 70 plies. Result reasons: stalwart_captured 13, ply_cap 8, repetition 26, checkmate 95, fifty_move 2.
+
+### 9.3 What the data says
+
+1. **Storm's signature is in the band.** The shipped Electric Slide reads 57.8% in First Blood and
+   64.0% in Full Battle on its own (section 5 had 100% and 100%, section 7 72% and 75%). Its First
+   Blood score is the leap's: the attuned bishop turn adds nothing there, which is the point. In
+   Full Battle it sits between Cleave and Poisoned Meat. In the element suite Storm pays for the weaker turn where it was already weakest (its Full Battle
+   row 0–24% from 0–39%, its First Blood row 18–42% from 22–56%), which is the passive-slot problem
+   of section 7 and B5's to fix, not the signature's.
+2. **The Stalwart king now has a price, and one item slot is not it.** Paying Scout's Lens for the
+   card moves its mirror score from 69% to 61% in First Blood and leaves Full Battle at 81%: a king
+   that must be caught is worth far more than a utility item over 70 plies. The archetype suite says
+   the same. Without Stalwart (the 7.3 item lists) Maximum and Flexible are level (50% each way in
+   Full Battle, 68% for Maximum in First Blood) and beat Focused 65–69% in Full Battle, down from
+   83–88%; with the king paid for (Maximum without Blended Family, Flexible without the Crystal)
+   they beat Focused 81–88% again, exactly section 7's numbers, and a quarter of those games end in
+   `stalwart_captured`. Rule 9 makes the choice visible and costed; it does not yet make Focused
+   competitive with a Stalwart king. The levers left are B5's: at most two passives per set (rule 10) takes Block Path or Veil off the king, Obstinate at two slots narrows the per-type edge, and
+   the designer can raise the king's cost to two item slots in one line of module data.
+3. **Archetype target.** Maximum against Flexible is inside 45–55% in Full Battle under either king
+   rule (50% and 42–58%); Maximum over Flexible in First Blood stays at 67–68% (section 7: 67%),
+   which is the second element and the fifth selections at work, not the king. Focused against the
+   Schedule builds misses in Full Battle (31–35% without Stalwart, 13–19% against a paid Stalwart
+   king) and is level in First Blood (41–56%).
+4. **What ships.** Rule 9 and the bishops-only Electric Slide, both PLAYTEST: the loadout builder
+   shows the king's slot, the simulator plays both king answers (`--king`) and every Electric Slide
+   variant above is one `--caps` line, so B4 and B5 can re-measure either in minutes. The designer
+   may overrule either decision; DD-109 and DD-110 record the alternatives measured.
+
+## 10. The designer's rulings and the trait numbers (B3c, B4; DD-111 to DD-115)
+
+The designer answered section 9 on 2026-10-09: rule 9 is reverted (Stalwart simply means only a
+direct capture removes the piece; it costs one ability slot), and Electric Slide gets the designer's
+own turn rule rather than a measured variant. B4 then turns the four trait numbers of the brief into
+config knobs (`CAPS.TRAITS`) and measures each. Same method and seeds as before; the element suites
+use 40 games per pairing in First Blood (about ±8 points per cell) and 30 in Full Battle (±9) for the
+one-knob runs and 60 and 40 for the shipped defaults, so the last tables pair with sections 7 and 9.
+
+### 10.1 Electric Slide, the designer's rule (DD-111)
+
+Rooks and bishops turn once at an allied piece of equal or higher rank than themselves (5.1: a rook at
+a rook or queen; a bishop at a knight, bishop, rook or queen), the queen twice at allied rooks and
+bishops, nothing at the king or at a pawn. The engine's corner flag is now per slider type, so a
+knight conducts a bishop and blocks a rook.
+
+**Electric Slide alone** — `pnpm sim --suite cards --cards electric_slide --format first_blood --games 300 --nodes 20000` and `--format full --games 200`
+
+| Format      | Card           | Category | Level | Score with the card | Games | Median plies | Note          |
+| ----------- | -------------- | -------- | ----- | ------------------- | ----- | ------------ | ------------- |
+| First Blood | Electric Slide | PASSIVE  | 3     | 82.5%               | 300   | 12           | **above 60%** |
+| Full Battle | Electric Slide | PASSIVE  | 3     | 62.3%               | 200   | 63           | **above 60%** |
+
+The Full Battle number sits where the bishops-only variant did (64%); the First Blood number is the
+knight's doing: under the DD-97 rank order a knight equals a bishop, so a bishop turns at a developed
+knight and the `Bc5-d4-c3` lines of section 7 return (bishops at any piece read 88% in section 9.1,
+the leap alone 57.5%). Median length 12 plies, against 20–22 for the rules without that corner. This
+is the designer's rule and ships as given; the one-line variant that keeps everything else and takes
+the knight out of a bishop's corners is the measured 57.8% / 64.0% of section 9.1.
+
+### 10.2 Trait numbers (B4)
+
+| Trait (element)       | Launch value                       | B4 value (`CAPS.TRAITS`)                          |
+| --------------------- | ---------------------------------- | ------------------------------------------------- |
+| Flow (Tide)           | passes any number of allied pieces | passes at most one per move (`FLOW_PASS_LIMIT` 1) |
+| Bulwark (Stone)       | every Stone piece                  | non-pawns only (`BULWARK_PAWNS` false)            |
+| Overabundance (Grove) | double charges                     | one extra charge (`OVERABUNDANCE` add 1)          |
+| Hot Foot (Ember)      | 3 opponent turns                   | 4 opponent turns (`HOT_FOOT_TURNS` 4)             |
+
+Each knob was measured alone against the launch values (`--caps` with the other three at their launch
+values), then all four together at the shipped defaults.
+
+**First Blood: advantaged element and the six foil pairs** (row element over its foil; `--suite elements` at 40 / 30 games per pairing, the shipped row at 60 / 40)
+
+| Run                | Advantaged | tide > ember | ember > grove | grove > tide | storm > frost | frost > stone | stone > storm | White | Surprise | Median |
+| ------------------ | ---------- | ------------ | ------------- | ------------ | ------------- | ------------- | ------------- | ----- | -------- | ------ |
+| launch values      | **52.1%**  | 76.3%        | 56.3%         | 31.3%        | 67.5%         | 43.8%         | 37.5%         | 52.1% | 9.2%     | 22     |
+| Flow passes one    | **50.6%**  | 68.8%        | 56.3%         | 30.0%        | 67.5%         | 43.8%         | 37.5%         | 53.0% | 9.3%     | 22     |
+| Bulwark non-pawns  | **52.1%**  | 76.3%        | 56.3%         | 31.3%        | 67.5%         | 43.8%         | 37.5%         | 52.5% | 9.3%     | 22     |
+| Overabundance +1   | **52.1%**  | 76.3%        | 56.3%         | 31.3%        | 67.5%         | 43.8%         | 37.5%         | 52.1% | 9.2%     | 22     |
+| Hot Foot 4 turns   | **52.1%**  | 76.3%        | 56.3%         | 31.3%        | 67.5%         | 43.8%         | 37.5%         | 52.1% | 9.2%     | 22     |
+| all four (shipped) | **48.3%**  | 68.3%        | 47.5%         | 35.0%        | 60.0%         | 40.0%         | 39.2%         | 54.4% | 9.6%     | 23     |
+
+**Full Battle: advantaged element and the six foil pairs** (row element over its foil; `--suite elements` at 40 / 30 games per pairing, the shipped row at 60 / 40)
+
+| Run                | Advantaged | tide > ember | ember > grove | grove > tide | storm > frost | frost > stone | stone > storm | White | Surprise | Median |
+| ------------------ | ---------- | ------------ | ------------- | ------------ | ------------- | ------------- | ------------- | ----- | -------- | ------ |
+| launch values      | **69.2%**  | 80.0%        | 81.7%         | 73.3%        | 41.7%         | 46.7%         | 91.7%         | 52.8% | 0.8%     | 67     |
+| Flow passes one    | **72.2%**  | 86.7%        | 81.7%         | 85.0%        | 41.7%         | 46.7%         | 91.7%         | 53.3% | 0.8%     | 67     |
+| Bulwark non-pawns  | **69.2%**  | 80.0%        | 81.7%         | 73.3%        | 41.7%         | 46.7%         | 91.7%         | 53.1% | 0.8%     | 67     |
+| Overabundance +1   | **69.2%**  | 80.0%        | 81.7%         | 73.3%        | 41.7%         | 46.7%         | 91.7%         | 52.8% | 0.8%     | 67     |
+| Hot Foot 4 turns   | **68.9%**  | 80.0%        | 80.0%         | 73.3%        | 41.7%         | 46.7%         | 91.7%         | 52.2% | 0.8%     | 67     |
+| all four (shipped) | **73.5%**  | 88.8%        | 77.5%         | 76.3%        | 47.5%         | 56.3%         | 95.0%         | 51.5% | 1.1%     | 66     |
+
+**Element matchups at the shipped defaults, First Blood** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000`
+
+| ember | mirror, white 51.7% | 31.7% | 47.5% | 66.7% | 59.2% | 59.2% |
+| tide | 68.3% | mirror, white 50.0% | 65.0% | 63.3% | 83.3% | 70.8% |
+| grove | 52.5% | 35.0% | mirror, white 30.8% | 35.0% | 64.2% | 45.8% |
+| storm | 33.3% | 36.7% | 65.0% | mirror, white 41.7% | 60.8% | 60.0% |
+| stone | 40.8% | 16.7% | 35.8% | 39.2% | mirror, white 65.0% | 60.0% |
+| frost | 40.8% | 29.2% | 54.2% | 40.0% | 40.0% | mirror, white 51.7% |
+
+Advantaged element: **48.3%**. White 54.4%, surprise losses 9.6%, median 23 plies. Result reasons: repetition 65, objective 1099, checkmate 89, ply_cap 7.
+
+**Element matchups at the shipped defaults, Full Battle** — `pnpm sim --suite elements --format full --games 40 --nodes 20000`
+
+| ember | mirror, white 40.0% | 11.3% | 77.5% | 100.0% | 68.8% | 56.3% |
+| tide | 88.8% | mirror, white 61.3% | 23.8% | 98.8% | 92.5% | 77.5% |
+| grove | 22.5% | 76.3% | mirror, white 55.0% | 88.8% | 70.0% | 81.3% |
+| storm | 0.0% | 1.3% | 11.3% | mirror, white 46.3% | 5.0% | 47.5% |
+| stone | 31.3% | 7.5% | 30.0% | 95.0% | mirror, white 53.8% | 43.8% |
+| frost | 43.8% | 22.5% | 18.8% | 52.5% | 56.3% | mirror, white 53.8% |
+
+Advantaged element: **73.5%**. White 51.5%, surprise losses 1.1%, median 66 plies. Result reasons: checkmate 628, repetition 176, stalemate 4, ply_cap 27, fifty_move 5.
+
+**Build archetypes at the shipped defaults, First Blood** — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000`
+
+| maximum | — | 62.5% | 58.3% | 58.3% |
+| flexible | 37.5% | — | 58.3% | 65.0% |
+| focused | 41.7% | 41.7% | — | 80.0% |
+| starter | 41.7% | 35.0% | 20.0% | — |
+
+White 47.4%, surprise losses 33.2%, median 17 plies. Result reasons: objective 343, stalwart_captured 2, repetition 5, checkmate 10.
+
+**Build archetypes at the shipped defaults, Full Battle** — `pnpm sim --suite archetypes --format full --games 24 --nodes 20000`
+
+| maximum | — | 56.3% | 81.3% | 100.0% |
+| flexible | 43.8% | — | 87.5% | 93.8% |
+| focused | 18.8% | 12.5% | — | 91.7% |
+| starter | 0.0% | 6.3% | 8.3% | — |
+
+White 52.4%, surprise losses 14.4%, median 66 plies. Result reasons: stalwart_captured 13, repetition 24, ply_cap 7, checkmate 98, fifty_move 2.
+
+**What the data says.**
+
+1. **The simulator is deterministic and each knob moves only its own pairings.** Comparing the
+   per-pairing outcome sets of the one-knob runs with the launch run: the Flow knob changes every
+   Tide pairing and nothing else, the Bulwark knob only Grove-Stone and Ember-Stone (the two foils
+   whose Poisoned Meat and Cleave hit Stone pawns), the Hot Foot knob only Ember's pairings, and the
+   Overabundance knob changes no game at all, because no Focused build carries a consumable (the
+   picker's top cards of every element have no charges). Overabundance's new value is therefore
+   unmeasured here; the cards suite (section 5) is where Momentum, Snowbound and the revives show it.
+2. **Flow's cap does not tame Tide.** With one allied piece per move Tide over Ember falls from 76%
+   to 69% in First Blood, but Tide's row otherwise rises (80% over Stone from 73%, 86% over Frost from
+   75%), and in Full Battle Tide over Ember rises to 87% while Grove over Tide, its foil, climbs from
+   73% to 85%. The aggregate moves from 52.1% to 50.6% in First Blood and from 69.2% to 72.2% in Full
+   Battle. Tide's strength is its kit (Hit and Run, Pierce, Obstinate on the Focused build), not the
+   number of allies a slider passes; the cap removes the long double-crossings the NPC used to walk
+   into and otherwise changes little. B5's card changes (Pierce at two charges, Obstinate at two
+   slots) are the Tide lever; the Flow number is now a knob either way.
+3. **Bulwark without pawns and Hot Foot at four turns are inert at this resolution.** Both leave the
+   aggregates where they were (52.1% / 69.2% and 52.1% / 68.9%); Ember over Grove in Full Battle moves
+   from 81.7% to 80.0% with the longer burn and Stone's pairs do not move at all at 40 and 30 games.
+   The changes are kept as the designer's brief asks (they are PLAYTEST numbers behind one knob each),
+   and they do no harm; they are not where the balance lives.
+4. **The shipped defaults.** All four knobs together, at 60 and 40 games (so the tables pair with sections 7 and 9): advantaged
+   element 48.3% in First Blood and 73.5% in Full Battle (sections 7 and 9: 48.3% / 46.9% and 70.8% /
+   69.4%), White 54.4% and 51.5%, surprise losses 9.6% and 1.1%, medians 23 and 66 plies. The wheel
+   points the right way in Full Battle for five pairs (Tide over Ember 89%, Ember over Grove 78%, Grove
+   over Tide 76%, Frost over Stone 56%, Stone over Storm 95%) and Storm over Frost reads 48%; in First
+   Blood only Tide over Ember (68%) and Storm over Frost (60%) do, Stone over Storm reads 39% (the
+   DD-111 bishop turn) and Frost over Stone 40%. Tide's row (63–83% in First Blood, 78–99% in Full
+   Battle except its foil) and Storm's Full Battle row (0–11% against four elements) are unchanged in
+   kind. Archetypes (with Stalwart kings back on the Schedule builds): Maximum over Focused 58.3% and
+   Flexible over Focused 58.3% in First Blood, 81.3% and 87.5% in Full Battle, Maximum against Flexible
+   62.5% and 56.3%: the Stalwart king set still decides Full Battle (section 9.3), which the designer has
+   chosen to keep as it is; the two-passive rule of B5 is the lever left.
+5. **Storm after DD-111.** The designer's Electric Slide rule puts a bishop's turn at a knight back
+   in: Storm over Stone reads 62.5% in First Blood where section 9 (bishops at non-knights) had 42%,
+   and the mirror test reads 82.5% (section 10.1). Storm's Full Battle row stays the weakest (the
+   Obstinate slot, section 7); both are B5's.

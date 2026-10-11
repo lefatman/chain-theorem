@@ -2,15 +2,21 @@
  * Bulwark scenario tests (Stone trait, R-ELEM-001, DD-19, DD-35). The engine supports all six
  * elements (6.5); tests use Stone directly.
  *
- * Expected behaviour comes from spec 5.1, 5.4, 5.5 E3/E5, 6.1 (Bulwark), 6.4 and DD-19 and DD-35,
- * not from the engine's current output.
+ * Expected behaviour comes from spec 5.1, 5.4, 5.5 E3/E5, 6.1 (Bulwark), 6.4 and DD-19, DD-35 and
+ * DD-113 (B4: Stone pawns are covered only under `CAPS.TRAITS.BULWARK_PAWNS`), not from the engine's
+ * current output.
  */
 import { describe, expect, it } from 'vitest';
+import { CAPS } from '../index.ts';
 import { eventsOf, idAt, parseSquare, pieceAt, scenario } from '../src/testing.ts';
 import type { BulwarkState } from './bulwark.ts';
 
 const sq = parseSquare;
 const BULWARK = { kind: 'trait', id: 'bulwark', element: 'stone' };
+/** The launch rule: Bulwark covers Stone pawns too (DD-113). */
+const PAWNS_TOO = { TRAITS: { ...CAPS.TRAITS, BULWARK_PAWNS: true } };
+// A white Stone pawn e4 takes the Poisoned Meat pawn d5. Ids: e1 K=0, e4 P=1, d5 p=2, e8 k=3.
+const PAWN_FEN = '4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1';
 const spent = (s: { slices: Record<string, unknown> }) => (s.slices.bulwark as BulwarkState).spent;
 
 describe('bulwark (R-ELEM-001)', () => {
@@ -148,12 +154,14 @@ describe('bulwark (R-ELEM-001)', () => {
     expect(spent(r.state)).toEqual([]);
   });
 
-  it('R-ELEM-001 DD-19 protected Stone pawns are still offered as targets, and the chosen effect fizzles', () => {
-    // A neutral knight with Cleave takes the Stone pawn d5; both c6 and e6 are offered.
+  it('R-ELEM-001 DD-19 DD-113 protected Stone pawns (under BULWARK_PAWNS) are still offered as targets, and the chosen effect fizzles', () => {
+    // A neutral knight with Cleave takes the Stone pawn d5; both c6 and e6 are offered. Cleave only
+    // targets pawns, so the launch knob makes them Bulwark-protected (by default they are not).
     const r = scenario({
       fen: '4k3/8/2p1p3/3p4/8/2N5/8/4K3 w - - 0 1',
       white: { elements: ['neutral'], abilities: ['cleave'] },
       black: { elements: ['stone'] },
+      caps: PAWNS_TOO,
       moves: ['c3d5'],
       answers: [(req) => req.options.findIndex((o) => o.kind === 'piece' && o.square === sq('c6'))],
     });
@@ -168,6 +176,47 @@ describe('bulwark (R-ELEM-001)', () => {
     ]);
     expect(pieceAt(r.state, 'c6')?.id).toBe(pc6);
     expect(spent(r.state)).toEqual([pc6]);
+  });
+
+  it('R-ELEM-001 DD-113 a Stone pawn is not protected by default: the first effect capture against it resolves and spends nothing', () => {
+    const r = scenario({
+      fen: PAWN_FEN,
+      white: { elements: ['stone'] },
+      black: { elements: ['neutral'], abilities: ['poisoned_meat'] },
+      moves: ['e4d5'],
+    });
+    const pawn = idAt(r.initial, 'e4');
+    expect(eventsOf(r.events, 'AbilityTriggered').map((e) => e.ability)).toEqual(['poisoned_meat']);
+    expect(eventsOf(r.events, 'EffectFizzled')).toEqual([]);
+    expect(eventsOf(r.events, 'Captured')).toEqual([
+      expect.objectContaining({ square: sq('d5'), by: 'move' }),
+      expect.objectContaining({ victim: pawn, square: sq('d5'), by: 'effect' }),
+    ]);
+    expect(r.state.pieces[pawn]?.square).toBe(-1);
+    expect(pieceAt(r.state, 'd5')).toBeUndefined();
+    expect(spent(r.state)).toEqual([]);
+  });
+
+  it('R-ELEM-001 DD-113 under BULWARK_PAWNS a Stone pawn is protected like any other Stone piece', () => {
+    const r = scenario({
+      fen: PAWN_FEN,
+      white: { elements: ['stone'] },
+      black: { elements: ['neutral'], abilities: ['poisoned_meat'] },
+      caps: PAWNS_TOO,
+      moves: ['e4d5'],
+    });
+    const pawn = idAt(r.initial, 'e4');
+    expect(eventsOf(r.events, 'EffectFizzled')).toEqual([
+      expect.objectContaining({
+        ability: 'poisoned_meat',
+        reason: 'bulwark',
+        target: pawn,
+        source: BULWARK,
+      }),
+    ]);
+    expect(eventsOf(r.events, 'Captured')).toHaveLength(1);
+    expect(pieceAt(r.state, 'd5')?.id).toBe(pawn);
+    expect(spent(r.state)).toEqual([pawn]);
   });
 
   it('R-ELEM-001 R-INFO-005 Bulwark state is public: both players see which pieces have spent it', () => {

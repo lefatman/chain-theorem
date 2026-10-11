@@ -83,19 +83,22 @@ describe('stonewall (R-ABIL-005)', () => {
     expect(pieceAt(r.state, 'e6')).toBeUndefined();
   });
 
-  it('R-ELEM-002 a Frost captor silences Stonewall on a Stone victim (Frost beats Stone)', () => {
+  it('R-ELEM-002 DD-113 a Frost captor silences Stonewall on a Stone victim (Frost beats Stone), so Cleave resolves', () => {
     const r = scenario({
       fen: FEN,
       white: { elements: ['frost'], abilities: ['cleave'] },
       black: { elements: ['stone'], abilities: ['stonewall'] },
       moves: ['c3d5'],
     });
+    const e6 = idAt(r.initial, 'e6');
     expect(eventsOf(r.events, 'AbilitySilenced').map((e) => e.ability)).toEqual(['stonewall']);
-    // Cleave resolves, but the Stone pawn e6's Bulwark answers the first effect capture (6.1).
-    expect(eventsOf(r.events, 'EffectFizzled')).toEqual([
-      expect.objectContaining({ ability: 'cleave', reason: 'bulwark' }),
+    // Cleave is not negated, and the Stone pawn e6 carries no Bulwark by default (6.1, DD-113).
+    expect(eventsOf(r.events, 'EffectFizzled')).toEqual([]);
+    expect(eventsOf(r.events, 'Captured')).toEqual([
+      expect.objectContaining({ by: 'move' }),
+      expect.objectContaining({ victim: e6, by: 'effect' }),
     ]);
-    expect(pieceAt(r.state, 'e6')?.type).toBe('pawn');
+    expect(pieceAt(r.state, 'e6')).toBeUndefined();
   });
 
   it('R-INFO-005 R-SEC-001 before it fires, White’s projection never names Stonewall', () => {

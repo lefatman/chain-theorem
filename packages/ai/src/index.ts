@@ -107,6 +107,7 @@ function makeCtx(
     elem: state.pieces.map((p) => p.element),
     start: state.pieces.map((p) => p.start),
     bulwarkSpent,
+    bulwarkPawns: engine.caps.TRAITS.BULWARK_PAWNS,
     know: [
       sideKnowledge(engine, state, 'white', viewer),
       sideKnowledge(engine, state, 'black', viewer),
@@ -114,6 +115,14 @@ function makeCtx(
     abilityAware: tier.abilityAware,
     risk: tier.risk,
     silence: engine.caps.SILENCE_SCOPE,
+    silenceSpent: new Set(
+      (['white', 'black'] as const).flatMap((side) =>
+        (state.silenced?.[side] ?? []).map(
+          (key) =>
+            `${side === 'white' ? 0 : 1}:${PIECE_TYPES.indexOf(key.split(':')[0] as PieceType)}`,
+        ),
+      ),
+    ),
     objectiveNeed: need,
     objective: [state.objective.white, state.objective.black],
     nodes: 0,

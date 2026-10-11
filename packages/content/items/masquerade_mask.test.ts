@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { BattleEvent, ElementId, Loadout } from '@chain-theorem/rules';
-import { engine, itemById } from '../index.ts';
+import { CAPS, engine, itemById } from '../index.ts';
 import { type ArmySpec, eventsOf, idAt, pieceAt, scenario, setup } from '../src/testing.ts';
 
 const ID = 'masquerade_mask';
@@ -38,6 +38,8 @@ function maskDrops(events: readonly BattleEvent[], side: 'white' | 'black') {
 
 // Knight c3 takes the pawn d5.
 const KNIGHT_FEN = '4k3/8/8/3p4/8/2N5/8/4K3 w - - 0 1';
+// Pawn e4 takes the pawn d5.
+const PAWN_FEN = '4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1';
 
 describe('masquerade mask (R-LOAD-002)', () => {
   it('R-LOAD-002 DD-13 DD-29 Masquerade Mask costs 1 slot at min level 14 and needs an element parameter', () => {
@@ -294,6 +296,31 @@ describe('masquerade mask (R-LOAD-002)', () => {
       white: masked(['tide'], 'stone'),
       black: { elements: ['storm'], abilities: ['poisoned_meat'] },
       moves: ['c3d5'],
+    });
+    expect(eventsOf(r.events, 'Captured').map((e) => e.by)).toEqual(['move', 'effect']);
+    expect(maskReveals(r.events, 'white')).toHaveLength(1);
+    expect(r.engine.project(r.state, 'black').armies.white.elements).toEqual(['tide']);
+  });
+
+  it('R-LOAD-002 DD-44 R-ELEM-001 DD-113 shown Stone: an effect capture of a pawn keeps the Mask, since Stone pawns carry no Bulwark by default', () => {
+    const r = scenario({
+      fen: PAWN_FEN,
+      white: masked(['tide'], 'stone'),
+      black: { elements: ['storm'], abilities: ['poisoned_meat'] },
+      moves: ['e4d5'],
+    });
+    expect(eventsOf(r.events, 'Captured').map((e) => e.by)).toEqual(['move', 'effect']);
+    expect(maskReveals(r.events, 'white')).toEqual([]);
+    expect(r.engine.project(r.state, 'black').armies.white.elements).toEqual(['stone']);
+  });
+
+  it('R-LOAD-002 DD-44 R-ELEM-001 DD-113 shown Stone under BULWARK_PAWNS: the same pawn’s loss drops the Mask', () => {
+    const r = scenario({
+      fen: PAWN_FEN,
+      white: masked(['tide'], 'stone'),
+      black: { elements: ['storm'], abilities: ['poisoned_meat'] },
+      caps: { TRAITS: { ...CAPS.TRAITS, BULWARK_PAWNS: true } },
+      moves: ['e4d5'],
     });
     expect(eventsOf(r.events, 'Captured').map((e) => e.by)).toEqual(['move', 'effect']);
     expect(maskReveals(r.events, 'white')).toHaveLength(1);

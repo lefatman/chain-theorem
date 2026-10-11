@@ -22,6 +22,35 @@ let POOL: Pool = 'any';
 export function setPool(p: Pool): void {
   POOL = p;
 }
+/**
+ * Cards to deal ahead of the other cards of their category (`--prefer pierce,phalanx`): a build
+ * that must carry a particular card, such as a Capturing card with an effect for the silence-scope
+ * runs (DD-98 section 4, `docs/BALANCE_BASELINE.md` finding 5). The signature still leads.
+ */
+let PREFER: ReadonlySet<string> = new Set();
+export function setPrefer(ids: readonly string[]): void {
+  PREFER = new Set(ids);
+}
+/**
+ * Items left out of every build (`--without resonance_crystal`): the slot stays empty. For runs that
+ * must isolate a rule from an item that interacts with it (the Crystal under ONCE_PER_ABILITY).
+ */
+let WITHOUT: ReadonlySet<string> = new Set();
+export function setWithout(ids: readonly string[]): void {
+  WITHOUT = new Set(ids);
+}
+const items = (ids: string[]): string[] => ids.filter((id) => !WITHOUT.has(id));
+/**
+ * The king's set (`--king`): 'stalwart' (the default) puts Stalwart on it from level 16 with the
+ * Schedule builds, 'plain' deals the king passives like any other type and never Stalwart. Focused
+ * and Starter never carry it: Stalwart in an army-wide set strips the offensive cards (rule 8), and
+ * Starter plays at level 5.
+ */
+export type King = 'plain' | 'stalwart';
+let KING: King = 'stalwart';
+export function setKing(mode: King): void {
+  KING = mode;
+}
 export const ARCHETYPES: Archetype[] = ['maximum', 'flexible', 'focused', 'starter'];
 /** Deal order when categories are equally filled and their best cards score alike (M3 3.4). */
 const CATEGORIES: readonly Category[] = ['CAPTURED', 'CAPTURES', 'CAPTURING', 'PASSIVE'];
@@ -47,16 +76,18 @@ function score(a: AbilityDef, element: ElementId, type: PieceType | 'all'): numb
   // on pawns, Afterimage on knights) and a poor one for an army-wide set, where it idles on the
   // other types but still uses the slot (7.3); there it ranks below every army-wide card.
   const fit = a.eligible === 'all' ? 0 : type === 'all' ? -1 : 0.75;
-  return affinity + category + fit - a.minLevel / 100;
+  // A preferred card outranks every other neutral card of its category, never the signature.
+  const prefer = PREFER.has(a.id) ? 5 : 0;
+  return affinity + category + fit + prefer - a.minLevel / 100;
 }
 
 /**
  * Fill up to `n` slots with abilities for an element and piece type. The best card comes first (the
  * element's own signature when the level allows), then the emptiest category is dealt its best
  * remaining card each time, ties going to the category whose best card scores highest; so a set of
- * four or more spreads over all four categories and carries a Capturing card and a passive. The
- * king's set from level 16 is Stalwart plus passives: a Stalwart set holds no Capturing or Captures
- * card (loadout rule 8, DD-102), and Captured cards are inert on a king.
+ * four or more spreads over all four categories and carries a Capturing card and a passive. Unless
+ * `--king plain`, the king's set from level 16 is Stalwart plus passives: a Stalwart set holds no
+ * Capturing or Captures card (loadout rule 8, DD-102), and Captured cards are inert on a king.
  */
 export function pickAbilities(
   element: ElementId,
@@ -65,7 +96,7 @@ export function pickAbilities(
   level: number,
   type: PieceType | 'all' = 'all',
 ): string[] {
-  const stalwartKing = type === 'king' && n >= 2 && level >= 16;
+  const stalwartKing = KING === 'stalwart' && type === 'king' && n >= 2 && level >= 16;
   const pool = abilities
     .filter((a) => !a.retired && a.minLevel <= level && eligible(a, type) && !inert(a, type))
     // Stalwart goes on the king set only: anywhere else rule 8 would strip the set of its
@@ -110,38 +141,36 @@ export function pickAbilities(
 }
 
 export function buildLoadout(arch: Archetype, a: ElementId, b: ElementId, level = 25): Loadout {
+  const second = (t: PieceType): ElementId =>
+    t === 'rook' || t === 'queen' || t === 'king' ? b : a;
   switch (arch) {
     case 'maximum':
       return {
         elements: [a, b],
-        items: ['headmaster_ring', 'multitaskers_schedule', 'blended_family'],
-        sets: PIECE_TYPES.map((t) =>
-          pickAbilities(t === 'rook' || t === 'queen' || t === 'king' ? b : a, 5, level, t),
-        ),
+        items: items(['headmaster_ring', 'multitaskers_schedule', 'blended_family']),
+        sets: PIECE_TYPES.map((t) => pickAbilities(second(t), 5, level, t)),
       };
     case 'flexible':
       return {
         elements: [a, b],
-        items: [
+        items: items([
           'journeymans_medallion',
           'multitaskers_schedule',
           'blended_family',
           'resonance_crystal',
-        ],
-        sets: PIECE_TYPES.map((t) =>
-          pickAbilities(t === 'rook' || t === 'queen' || t === 'king' ? b : a, 4, level, t),
-        ),
+        ]),
+        sets: PIECE_TYPES.map((t) => pickAbilities(second(t), 4, level, t)),
       };
     case 'focused':
       return {
         elements: [a],
-        items: ['headmaster_ring', 'resonance_crystal', 'scouts_lens'],
+        items: items(['headmaster_ring', 'resonance_crystal', 'scouts_lens']),
         sets: [pickAbilities(a, 5, level)],
       };
     case 'starter':
       return {
         elements: [a],
-        items: ['dual_adepts_glove'],
+        items: items(['dual_adepts_glove']),
         sets: [pickAbilities(a, 2, Math.min(level, 5))],
       };
   }

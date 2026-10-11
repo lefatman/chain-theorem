@@ -1,11 +1,14 @@
 /**
- * Overabundance scenario tests (Grove trait, R-ELEM-001, R-ELEM-007, E9, DD-14, DD-17).
+ * Overabundance scenario tests (Grove trait, R-ELEM-001, R-ELEM-007, E9, DD-14, DD-17, DD-114).
  *
- * Expected behaviour comes from spec 6.1 (Overabundance rules), 5.4, 5.5 E9, 6.4 and DD-14 and
- * DD-17, not from the engine's current output.
+ * Expected behaviour comes from spec 6.1 (Overabundance rules), 5.4, 5.5 E9, 6.4 and DD-14, DD-17
+ * and DD-114 (one extra charge; `CAPS.TRAITS.OVERABUNDANCE` holds the number), not from the engine's
+ * current output.
  */
 import { describe, expect, it } from 'vitest';
 import type { ElementId } from '@chain-theorem/rules';
+import type { Caps } from '@chain-theorem/rules/sdk';
+import { CAPS } from '../config.ts';
 import { eventsOf, idAt, parseSquare, pieceAt, scenario, setup } from '../src/testing.ts';
 
 const sq = parseSquare;
@@ -15,14 +18,43 @@ const KNIGHT = 1;
 const BISHOP = 2;
 const PAWN = 8;
 
+/** Caps with another Overabundance number; `{ mode: 'multiply', amount: 2 }` is the launch rule. */
+const overabundance = (knob: Caps['TRAITS']['OVERABUNDANCE']): Partial<Caps> => ({
+  TRAITS: { ...CAPS.TRAITS, OVERABUNDANCE: knob },
+});
+const LAUNCH_DOUBLING = overabundance({ mode: 'multiply', amount: 2 });
+
 describe('overabundance (R-ELEM-007)', () => {
-  it('R-ELEM-007 every consumable ability on a Grove piece starts with double the charges', () => {
+  it('R-ELEM-007 DD-114 every consumable ability on a Grove piece starts with one extra charge', () => {
     const grove = setup({
       white: { elements: ['grove'], abilities: ['momentum', 'rebirth', 'reinforce'] },
     });
-    expect(grove.engine.remainingCharges(grove.state, KNIGHT, 'momentum')).toBe(4);
+    expect(CAPS.TRAITS.OVERABUNDANCE).toEqual({ mode: 'add', amount: 1 });
+    expect(grove.engine.remainingCharges(grove.state, KNIGHT, 'momentum')).toBe(3);
     expect(grove.engine.remainingCharges(grove.state, BISHOP, 'rebirth')).toBe(2);
     expect(grove.engine.remainingCharges(grove.state, PAWN, 'reinforce')).toBe(2);
+  });
+
+  it('R-ELEM-007 DD-114 the number is the CAPS.TRAITS.OVERABUNDANCE knob: multiply 2 restores the launch doubling, add 2 gives two extra', () => {
+    const army = {
+      elements: ['grove'] as ElementId[],
+      abilities: ['momentum', 'rebirth', 'reinforce'],
+    };
+    const doubled = setup({ caps: LAUNCH_DOUBLING, white: army });
+    expect(doubled.engine.remainingCharges(doubled.state, KNIGHT, 'momentum')).toBe(4);
+    expect(doubled.engine.remainingCharges(doubled.state, BISHOP, 'rebirth')).toBe(2);
+    expect(doubled.engine.remainingCharges(doubled.state, PAWN, 'reinforce')).toBe(2);
+
+    const plusTwo = setup({ caps: overabundance({ mode: 'add', amount: 2 }), white: army });
+    expect(plusTwo.engine.remainingCharges(plusTwo.state, KNIGHT, 'momentum')).toBe(4);
+    expect(plusTwo.engine.remainingCharges(plusTwo.state, BISHOP, 'rebirth')).toBe(3);
+    expect(plusTwo.engine.remainingCharges(plusTwo.state, PAWN, 'reinforce')).toBe(3);
+
+    // Other elements and abilities without charges are untouched whatever the knob says.
+    const tide = setup({ caps: LAUNCH_DOUBLING, white: { ...army, elements: ['tide'] } });
+    expect(tide.engine.remainingCharges(tide.state, KNIGHT, 'momentum')).toBe(2);
+    const chargeless = setup({ caps: LAUNCH_DOUBLING, white: { ...army, abilities: ['cleave'] } });
+    expect(chargeless.engine.remainingCharges(chargeless.state, KNIGHT, 'cleave')).toBe(Infinity);
   });
 
   it('R-ELEM-007 R-ELEM-001 pieces of every other element keep the listed charges', () => {
@@ -45,21 +77,23 @@ describe('overabundance (R-ELEM-007)', () => {
       expect(grove.engine.remainingCharges(grove.state, KNIGHT, id), id).toBe(Infinity);
   });
 
-  it('R-ELEM-007 R-ELEM-004 Overabundance applies per piece under Blended Family', () => {
+  it('R-ELEM-007 R-ELEM-004 DD-114 Overabundance applies per piece under Blended Family', () => {
     const a = setup({
       white: { elements: ['grove', 'ember'], items: ['blended_family'], abilities: ['momentum'] },
     });
-    expect(a.engine.remainingCharges(a.state, KNIGHT, 'momentum')).toBe(4); // group A: Grove
+    expect(a.engine.remainingCharges(a.state, KNIGHT, 'momentum')).toBe(3); // group A: Grove
     expect(a.engine.remainingCharges(a.state, ROOK, 'momentum')).toBe(2); // group B: Ember
     const b = setup({
       white: { elements: ['ember', 'grove'], items: ['blended_family'], abilities: ['momentum'] },
     });
     expect(b.engine.remainingCharges(b.state, KNIGHT, 'momentum')).toBe(2);
-    expect(b.engine.remainingCharges(b.state, ROOK, 'momentum')).toBe(4);
+    expect(b.engine.remainingCharges(b.state, ROOK, 'momentum')).toBe(3);
   });
 
   it('R-ELEM-007 E9 R-ABIL-004 a Grove bishop with Rebirth returns twice; charges persist through revival and the third capture is final', () => {
     // 1... Bf5 2. Qxf5 (back to c8) 2... Bd7 3. Qxd7 (back to c8) 3... Bb7 4. Qxb7 (gone).
+    // Rebirth has 1 charge, so one extra charge (DD-114) and the launch doubling both read 2: E9's
+    // outcome does not depend on the knob.
     const r = scenario({
       fen: '2b4k/8/8/8/8/8/8/4KQ2 b - - 0 1',
       white: { elements: ['neutral'] },
@@ -114,23 +148,30 @@ describe('overabundance (R-ELEM-007)', () => {
     expect(pieceAt(r.state, 'c8')).toBeUndefined();
   });
 
-  it('R-ELEM-007 DD-17 a Grove knight spends one of its four Momentum charges per bonus move', () => {
-    const r = scenario({
+  it('R-ELEM-007 DD-17 DD-114 a Grove knight spends one of its three Momentum charges per bonus move (one of four under the launch doubling)', () => {
+    const spec = {
       fen: '4k3/8/8/3p4/8/2N5/8/4K3 w - - 0 1',
-      white: { elements: ['grove'], abilities: ['momentum'] },
-      black: { elements: ['neutral'] },
+      white: { elements: ['grove'] as ElementId[], abilities: ['momentum'] },
+      black: { elements: ['neutral'] as ElementId[] },
       moves: ['c3d5'],
-      answers: [{ kind: 'move', from: sq('d5'), to: sq('b4') }],
-    });
+      answers: [{ kind: 'move' as const, from: sq('d5'), to: sq('b4') }],
+    };
+    const r = scenario(spec);
     const knight = idAt(r.initial, 'c3');
     expect(eventsOf(r.events, 'ChargeSpent')).toEqual([
+      expect.objectContaining({ piece: knight, ability: 'momentum', remaining: 2 }),
+    ]);
+    expect(r.engine.remainingCharges(r.state, knight, 'momentum')).toBe(2);
+    expect(pieceAt(r.state, 'b4')?.id).toBe(knight);
+
+    const launch = scenario({ ...spec, caps: LAUNCH_DOUBLING });
+    expect(eventsOf(launch.events, 'ChargeSpent')).toEqual([
       expect.objectContaining({ piece: knight, ability: 'momentum', remaining: 3 }),
     ]);
-    expect(r.engine.remainingCharges(r.state, knight, 'momentum')).toBe(3);
-    expect(pieceAt(r.state, 'b4')?.id).toBe(knight);
+    expect(launch.engine.remainingCharges(launch.state, knight, 'momentum')).toBe(3);
   });
 
-  it('R-ELEM-007 DD-43 R-RULES-002 the doubling is fixed at battle start: an Ember pawn promoted to a Grove queen keeps single charges', () => {
+  it('R-ELEM-007 DD-43 R-RULES-002 the extra charge is fixed at battle start: an Ember pawn promoted to a Grove queen keeps single charges', () => {
     const r = scenario({
       fen: '4k3/6P1/8/8/8/8/8/4K3 w - - 0 1',
       white: { elements: ['ember', 'grove'], items: ['blended_family'], abilities: ['momentum'] },
@@ -142,11 +183,11 @@ describe('overabundance (R-ELEM-007)', () => {
     expect(eventsOf(r.events, 'Promoted')).toEqual([
       expect.objectContaining({ piece: pawn, to: 'queen', element: 'grove' }),
     ]);
-    // "A Grove piece starts each battle with double the charges": this piece did not start as one.
+    // "A Grove piece starts each battle with one extra charge": this piece did not start as one.
     expect(r.engine.remainingCharges(r.state, pawn, 'momentum')).toBe(2);
   });
 
-  it('R-ELEM-007 DD-43 R-RULES-002 a Grove pawn promoted to an Ember queen keeps its doubled charges', () => {
+  it('R-ELEM-007 DD-43 DD-114 R-RULES-002 a Grove pawn promoted to an Ember queen keeps its extra charge', () => {
     const r = scenario({
       fen: '4k3/6P1/8/8/8/8/8/4K3 w - - 0 1',
       white: { elements: ['grove', 'ember'], items: ['blended_family'], abilities: ['momentum'] },
@@ -154,10 +195,10 @@ describe('overabundance (R-ELEM-007)', () => {
       moves: ['g7g8q'],
     });
     const pawn = idAt(r.initial, 'g7');
-    expect(r.engine.remainingCharges(r.initial, pawn, 'momentum')).toBe(4);
+    expect(r.engine.remainingCharges(r.initial, pawn, 'momentum')).toBe(3);
     expect(eventsOf(r.events, 'Promoted')).toEqual([
       expect.objectContaining({ piece: pawn, to: 'queen', element: 'ember' }),
     ]);
-    expect(r.engine.remainingCharges(r.state, pawn, 'momentum')).toBe(4);
+    expect(r.engine.remainingCharges(r.state, pawn, 'momentum')).toBe(3);
   });
 });

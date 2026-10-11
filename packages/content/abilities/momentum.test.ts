@@ -128,12 +128,12 @@ describe('momentum (R-ABIL-005)', () => {
     }
   });
 
-  it('R-ABIL-005 R-ELEM-007 momentum has 2 charges on a neutral or Ember piece and 4 on a Grove piece (Overabundance)', () => {
+  it('R-ABIL-005 R-ELEM-007 DD-114 momentum has 2 charges on a neutral or Ember piece and 3 on a Grove piece (Overabundance)', () => {
     for (const [element, charges] of [
       ['neutral', 2],
       ['ember', 2],
       ['tide', 2],
-      ['grove', 4],
+      ['grove', 3],
     ] as const) {
       const r = scenario({
         fen: BASE_FEN,
@@ -149,7 +149,7 @@ describe('momentum (R-ABIL-005)', () => {
     });
     expect(eventsOf(grove.events, 'ChargeSpent')[0]).toMatchObject({
       ability: 'momentum',
-      remaining: 3,
+      remaining: 2,
     });
   });
 

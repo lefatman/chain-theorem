@@ -214,4 +214,24 @@ describe('resonance crystal (R-LOAD-002)', () => {
     expect(crystalReveals(third, 'white')).toHaveLength(1);
     expect(pieceAt(r.state, 'a5')?.id).toBe(rook);
   });
+  it('R-LOAD-002 DD-108 under silenceScope ONCE_PER_ABILITY the Crystal spares every silence of its owner: not even once, revealed the first time', () => {
+    // Tide beats Ember: two Ember knights with Scout take Tide pawns; neither Scout is silenced.
+    const r = scenario({
+      fen: '4k3/8/8/3pp3/8/2N2N2/8/4K3 w - - 0 1',
+      white: { elements: ['ember'], abilities: ['scout'], items: [ID] },
+      black: { elements: ['tide'] },
+      caps: { SILENCE_SCOPE: 'ONCE_PER_ABILITY' },
+      moves: ['c3d5', 'e8d8', 'f3e5'],
+    });
+    expect(eventsOf(r.events, 'AbilitySilenced')).toEqual([]);
+    expect(eventsOf(r.events, 'AbilityTriggered').map((e) => e.ability)).toEqual([
+      'scout',
+      'scout',
+    ]);
+    expect(
+      eventsOf(r.events, 'Revealed').filter((e) => e.info.kind === 'item' && e.info.item === ID),
+    ).toHaveLength(1);
+    // Nothing was silenced, so the once-per-ability record is never written.
+    expect(r.state.silenced).toBeUndefined();
+  });
 });

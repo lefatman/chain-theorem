@@ -710,7 +710,7 @@ exports[`E6 a bishop captures a knight with Riposte > E6 R-ABIL-003 INV-01 DD-18
 ]
 `;
 
-exports[`E7 Hot Foot: an Ember knight captures on e5, then leaves it > E7 R-ELEM-005 e5 ignites for 3 opponent turns: non-Ember pieces may not enter or capture there, sliders pass over, then it goes out 1`] = `
+exports[`E7 Hot Foot: an Ember knight captures on e5, then leaves it > E7 R-ELEM-005 e5 ignites for 4 opponent turns: non-Ember pieces may not enter or capture there, sliders pass over, then it goes out 1`] = `
 [
   {
     "depth": 0,
@@ -812,7 +812,7 @@ exports[`E7 Hot Foot: an Ember knight captures on e5, then leaves it > E7 R-ELEM
     "k": "SquareIgnited",
     "side": "white",
     "square": 36,
-    "turns": 3,
+    "turns": 4,
   },
   {
     "depth": 0,
@@ -967,19 +967,13 @@ exports[`E7 Hot Foot: an Ember knight captures on e5, then leaves it > E7 R-ELEM
   {
     "depth": 0,
     "i": 26,
-    "k": "SquareExtinguished",
-    "square": 36,
-  },
-  {
-    "depth": 0,
-    "i": 27,
     "k": "TurnPassed",
     "ply": 8,
     "side": "white",
   },
   {
     "depth": 0,
-    "i": 28,
+    "i": 27,
     "k": "ActionStarted",
     "move": {
       "from": 6,
@@ -993,7 +987,7 @@ exports[`E7 Hot Foot: an Ember knight captures on e5, then leaves it > E7 R-ELEM
     "capture": false,
     "depth": 0,
     "from": 6,
-    "i": 29,
+    "i": 28,
     "k": "MoveMade",
     "piece": 0,
     "pieceType": "king",
@@ -1002,9 +996,75 @@ exports[`E7 Hot Foot: an Ember knight captures on e5, then leaves it > E7 R-ELEM
   },
   {
     "depth": 0,
-    "i": 30,
+    "i": 29,
     "k": "TurnPassed",
     "ply": 9,
+    "side": "black",
+  },
+  {
+    "depth": 0,
+    "i": 30,
+    "k": "ActionStarted",
+    "move": {
+      "from": 57,
+      "to": 56,
+    },
+    "ply": 9,
+    "side": "black",
+  },
+  {
+    "bonus": false,
+    "capture": false,
+    "depth": 0,
+    "from": 57,
+    "i": 31,
+    "k": "MoveMade",
+    "piece": 4,
+    "pieceType": "king",
+    "side": "black",
+    "to": 56,
+  },
+  {
+    "depth": 0,
+    "i": 32,
+    "k": "SquareExtinguished",
+    "square": 36,
+  },
+  {
+    "depth": 0,
+    "i": 33,
+    "k": "TurnPassed",
+    "ply": 10,
+    "side": "white",
+  },
+  {
+    "depth": 0,
+    "i": 34,
+    "k": "ActionStarted",
+    "move": {
+      "from": 14,
+      "to": 6,
+    },
+    "ply": 10,
+    "side": "white",
+  },
+  {
+    "bonus": false,
+    "capture": false,
+    "depth": 0,
+    "from": 14,
+    "i": 35,
+    "k": "MoveMade",
+    "piece": 0,
+    "pieceType": "king",
+    "side": "white",
+    "to": 6,
+  },
+  {
+    "depth": 0,
+    "i": 36,
+    "k": "TurnPassed",
+    "ply": 11,
     "side": "black",
   },
 ]

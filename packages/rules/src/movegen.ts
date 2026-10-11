@@ -4,7 +4,10 @@
  * directly on `Pos` with make/unmake.
  *
  * Movement modifiers come from hooks as per-piece data (`MoveRules`), so move generation stays fast:
- * - passThrough[id]: Flow — the piece may slide (or double-push) through its own side's pieces.
+ * - passThrough[id]: Flow — how many of its own side's pieces the piece may pass in one move while
+ *                    sliding or double-pushing (0 none, `PASS_UNLIMITED` = 255 no limit; DD-112).
+ *                    Attacks follow the same paths, and crossings add up across Electric Slide
+ *                    turns (a corner itself is not crossed).
  * - blocked[id]:     Hot Foot — squares the piece may not move to or capture a piece standing on.
  * - stalwart[side]:  Stalwart king — its owner may leave it in check and castle through attacks.
  * - noCapBy[id], noCapDirs[id], noCapDirsSoft[id], bypass[id]: capture restrictions on a victim
@@ -14,7 +17,8 @@
  * - leap[id]:        Electric Slide base — a pawn may move straight over one adjacent ally.
  * - redirect[id]:    Electric Slide attuned — a slider may turn at an ally's square this many times
  *                    per move (never stopping on the ally); attacks follow the same paths (DD-104).
- * - conducts[id]:    0 for an ally a slider is blocked by instead of turning at (DD-106: pawns)
+ * - conducts[id]:    which slider types may turn at this ally (bits: 1 bishops, 2 rooks, 4 queens;
+ *                    DD-106, DD-111: Electric Slide's corners depend on the slider's rank)
  */
 import {
   BISHOP,
@@ -59,9 +63,14 @@ export function decodeMove(m: number): Move {
 }
 
 export interface MoveRules {
+  /**
+   * Per piece: the most allied pieces it may pass in one move (Flow): 0 for none, `PASS_UNLIMITED`
+   * for no limit. Crossings add up across redirect segments; the corner itself is not a crossing.
+   */
   passThrough: Uint8Array;
   blocked: (Uint8Array | null)[];
   stalwart: [boolean, boolean];
+  /** Per side: some piece of that side may pass allies (fast path for the attack rays). */
   anyPass: [boolean, boolean];
   /** Per victim: attacker ids that may not move-capture it (bypassing attackers already left out). */
   noCapBy: (Uint8Array | null)[];
@@ -80,15 +89,23 @@ export interface MoveRules {
   /** Per side: some piece of that side has a redirect budget (fast path for `attacked`). */
   anyRedirect: [boolean, boolean];
   /**
-   * 1 for a piece at which its side's sliders may turn (a corner); 0 for one they are blocked by
-   * like any ally. Every piece conducts unless a `redirectCorner` hook says otherwise (Electric
-   * Slide: never a pawn, DD-106).
+   * Bitmask of the slider types that may turn at this ally (a corner for them): 1 bishops, 2 rooks,
+   * 4 queens; a slider whose bit is clear is blocked by it like any ally. Every piece conducts for
+   * every type unless a `redirectCorner` hook says otherwise (Electric Slide: an ally of equal or
+   * higher rank than the slider, never the king; DD-106, DD-111).
    */
   conducts: Uint8Array;
 }
 
+/** `conducts` bit of a slider type (0 for pieces that never turn). */
+export const CORNER_BIT: readonly number[] = [0, 0, 1, 2, 4, 0];
+export const CORNER_ALL = 7;
+/** `passThrough` value of a piece that may pass any number of allies in one move (Flow, no limit). */
+export const PASS_UNLIMITED = 255;
+
 export function defaultRules(n: number): MoveRules {
   return {
+    // No piece passes allies until a passThrough hook grants a limit.
     passThrough: new Uint8Array(n),
     blocked: new Array<Uint8Array | null>(n).fill(null),
     stalwart: [false, false],
@@ -101,7 +118,7 @@ export function defaultRules(n: number): MoveRules {
     leap: new Uint8Array(n),
     redirect: new Uint8Array(n),
     anyRedirect: [false, false],
-    conducts: new Uint8Array(n).fill(1),
+    conducts: new Uint8Array(n).fill(CORNER_ALL),
   };
 }
 
@@ -331,7 +348,9 @@ export class Pos {
     for (let d = 0; d < 8; d++) {
       const ray = rays[d] as number[];
       const diag = d >= 4;
-      let allyBlocked = false;
+      // Allies of `by` between `target` and the square in hand: a slider there attacks only when
+      // its Flow limit covers them (R-ELEM-006: attacks follow movement).
+      let crossed = 0;
       for (let i = 0; i < ray.length; i++) {
         const sq = ray[i] as number;
         const id = board[sq] as number;
@@ -339,17 +358,27 @@ export class Pos {
         if (pside[id] !== by) break;
         const t = ptype[id];
         const matches = t === QUEEN || (diag ? t === BISHOP : t === ROOK);
-        if (matches && (!allyBlocked || pass[id] === 1) && ok(id, sq)) return true;
+        if (matches && crossed <= (pass[id] as number) && ok(id, sq)) return true;
         // A slider that turned at this ally reaches `target` along ray d from here (DD-104), if
-        // the ally is a corner at all (DD-106).
+        // the ally is a corner for some slider type at all (DD-106, DD-111).
         if (
           anyRedirect &&
-          this.rules.conducts[id] === 1 &&
-          this.reachesVia(sq, d, by, 1, victim, target, allyBlocked, d < 4 ? 1 : 2)
+          this.rules.conducts[id] !== 0 &&
+          this.reachesVia(
+            sq,
+            d,
+            by,
+            1,
+            victim,
+            target,
+            crossed,
+            d < 4 ? 1 : 2,
+            this.rules.conducts[id] as number,
+          )
         )
           return true;
         if (!anyPass) break;
-        allyBlocked = true;
+        crossed++;
       }
     }
     return false;
@@ -360,8 +389,10 @@ export class Pos {
    * along ray `last` (DIRS index, as walked from the target) after `used` redirects? Walking
    * backwards from the target: the next segment leaves `corner` along any ray but `last` and its
    * reverse. `segs` collects the geometry of every segment so far (1 orthogonal, 2 diagonal), which
-   * the slider's type must allow; `passed` says the previous segment crossed an ally, which only a
-   * Flow slider may do (DD-104).
+   * the slider's type must allow; `passed` counts the allies the segments so far crossed (corners
+   * excluded), which the slider's Flow limit must cover (DD-104, DD-112). `mask` is the AND of the
+   * `conducts` bits of every corner used so far: the slider found must be of a type they all
+   * conduct (DD-111).
    */
   private reachesVia(
     corner: number,
@@ -370,8 +401,9 @@ export class Pos {
     used: number,
     victim: number,
     target: number,
-    passed: boolean,
+    passed: number,
     segs: number,
+    mask: number,
   ): boolean {
     const board = this.board;
     const pside = this.pside;
@@ -394,22 +426,24 @@ export class Pos {
           t === QUEEN || (t === ROOK ? geometry === 1 : t === BISHOP && geometry === 2);
         if (
           typeOk &&
+          (mask & (CORNER_BIT[t as number] as number)) !== 0 &&
           (this.rules.redirect[id] as number) >= used &&
-          (!crossed || pass[id] === 1) &&
+          crossed <= (pass[id] as number) &&
           !this.blk(id, target) &&
           (victim < 0 || this.capOk(id, corner, victim, target))
         )
           return true;
-        // Another ally that conducts: one more turn, if any piece has the budget (the queen's
-        // second redirect).
+        // Another ally that conducts for a type the earlier corners conduct too: one more turn, if
+        // any piece has the budget (the queen's second redirect).
+        const both = mask & (this.rules.conducts[id] as number);
         if (
           used < 2 &&
-          this.rules.conducts[id] === 1 &&
-          this.reachesVia(sq, d, by, used + 1, victim, target, crossed, geometry)
+          both !== 0 &&
+          this.reachesVia(sq, d, by, used + 1, victim, target, crossed, geometry, both)
         )
           return true;
         if (!anyPass) break;
-        crossed = true;
+        crossed++;
       }
     }
     return false;
@@ -462,7 +496,9 @@ export class Pos {
         }
         let doubled = false;
         if (from >> 3 === startRank) {
-          const canPass = ahead < 0 || (pass[id] === 1 && pside[ahead] === side);
+          // Flow: the double push crosses the one square ahead, so any limit of 1 or more passes
+          // an ally standing there (DD-24, DD-112).
+          const canPass = ahead < 0 || ((pass[id] as number) > 0 && pside[ahead] === side);
           const to2 = to + dir;
           if (canPass && (board[to2] as number) < 0 && !this.blk(id, to2)) {
             out.push(encodeMove(from, to2, 0, F_DOUBLE));
@@ -531,9 +567,10 @@ export class Pos {
           continue;
         }
         const rays = RAYS[from] as number[][];
-        const canPass = pass[id] === 1;
+        const limit = pass[id] as number;
         for (let d = d0; d < d1; d++) {
           const ray = rays[d] as number[];
+          let crossed = 0;
           for (let i = 0; i < ray.length; i++) {
             const to = ray[i] as number;
             const v = board[to] as number;
@@ -542,7 +579,11 @@ export class Pos {
               continue;
             }
             if (pside[v] === side) {
-              if (canPass) continue;
+              // Flow: pass the ally while the limit allows, never stopping on it (DD-112).
+              if (crossed < limit) {
+                crossed++;
+                continue;
+              }
               break;
             }
             if (this.capturable(v) && !this.blk(id, to) && this.capOk(id, from, v, to))
@@ -558,7 +599,9 @@ export class Pos {
    * Slider moves with Electric Slide redirects (DD-104): on meeting an ally that conducts (DD-106)
    * the piece may continue from the ally's square along any of its rays but the one it came along
    * and its reverse, up to `budget` times; it never stops on the ally. Destinations are
-   * deduplicated, and a capture's approach square (for Block Path) is the last corner.
+   * deduplicated, and a capture's approach square (for Block Path) is the last corner. Flow
+   * crossings add up across the segments: `passed` counts the allies crossed before `start`, the
+   * corners themselves excluded (DD-112).
    */
   private slideWithTurns(
     id: number,
@@ -572,12 +615,14 @@ export class Pos {
     const board = this.board;
     const pside = this.pside;
     const seen = new Uint8Array(64);
-    const canPass = this.rules.passThrough[id] === 1;
-    const walk = (start: number, exclude: number, left: number) => {
+    const limit = this.rules.passThrough[id] as number;
+    const kind = CORNER_BIT[this.ptype[id] as number] as number;
+    const walk = (start: number, exclude: number, left: number, passed: number) => {
       const rays = RAYS[start] as number[][];
       for (let d = d0; d < d1; d++) {
         if (exclude >= 0 && (d === exclude || d === REVERSE[exclude])) continue;
         const ray = rays[d] as number[];
+        let crossed = passed;
         for (let i = 0; i < ray.length; i++) {
           const to = ray[i] as number;
           const v = board[to] as number;
@@ -589,9 +634,14 @@ export class Pos {
             continue;
           }
           if (pside[v] === side) {
-            // A turn needs budget and an ally that conducts (DD-106: never a pawn).
-            if (left > 0 && this.rules.conducts[v] === 1) walk(to, d, left - 1);
-            if (canPass) continue;
+            // A turn needs budget and an ally that conducts for this slider's type (DD-106, DD-111);
+            // the corner is not crossed, so the turned segment inherits the count so far.
+            if (left > 0 && ((this.rules.conducts[v] as number) & kind) !== 0)
+              walk(to, d, left - 1, crossed);
+            if (crossed < limit) {
+              crossed++;
+              continue;
+            }
             break;
           }
           if (
@@ -607,7 +657,7 @@ export class Pos {
         }
       }
     };
-    walk(from, -1, budget);
+    walk(from, -1, budget, 0);
   }
 
   private castles(kid: number, side: number, from: number, out: number[]): void {

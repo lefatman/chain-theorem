@@ -815,6 +815,15 @@ export class ActionRun extends EventHost {
       for (const e of this.rt.hook(this.s, 'silenceOverride')) {
         if (e.hooks.silenceOverride?.(this.rt.ctx(this, e), info)) return 'allow';
       }
+      // ONCE_PER_ABILITY (6.2, DD-108): the element silences an ability on a piece type once per
+      // battle; from then on it fires. A hook's own silence is not the element's and stays as it is.
+      if (!hookSilence && this.rt.caps.SILENCE_SCOPE === 'ONCE_PER_ABILITY') {
+        const key = `${t.setType}:${t.def.id}`;
+        const spent = this.s.silenced?.[t.side] ?? [];
+        if (spent.includes(key)) return 'allow';
+        const prev = this.s.silenced ?? { white: [], black: [] };
+        this.s.silenced = { ...prev, [t.side]: [...spent, key] };
+      }
       const other = t.piece === t.cap.captor ? t.cap.victim : t.cap.captor;
       const view = this.trigView(t);
       this.emit({
@@ -838,7 +847,7 @@ export class ActionRun extends EventHost {
     return 'allow';
   }
 
-  /** R-ELEM-002 silence rule with the silenceScope knob. */
+  /** R-ELEM-002 silence rule with the silenceScope knob (ONCE_PER_ABILITY is applied by the caller). */
   private silencedByElement(t: Trig): boolean {
     const scope = this.rt.caps.SILENCE_SCOPE;
     if (scope === 'OFF') return false;

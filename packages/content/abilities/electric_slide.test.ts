@@ -1,12 +1,14 @@
 /**
- * Electric Slide (5.8, Storm signature): "Base: a pawn may move straight over one adjacent allied
- * piece to the empty square beyond. Attuned (Storm pieces): a rook or bishop that meets an allied
- * piece other than a pawn may continue from that square in a new direction once per move; it still
- * cannot stop on the ally. The queen never turns. Attacks and checks follow the same paths."
+ * Electric Slide (5.8, Storm signature; designer rule 2026-10-09, DD-111): "Base: a pawn may move
+ * straight over one adjacent allied piece to the empty square beyond. Attuned (Storm pieces): a rook
+ * or bishop may change direction once at an allied piece of equal or higher rank than itself (DD-97:
+ * pawn < knight = bishop < rook < queen); the queen may change direction twice, at allied rooks and
+ * bishops; the king is never a corner and nothing turns at a pawn. A slider never stops on the ally
+ * and never continues straight or back. Attacks and checks follow the same paths."
  *
- * Expected behaviour comes from spec 4.1 (INV-03), 5.6, 6.3 (attunement, the Attunement Charm),
- * 8.2 (DD-32 reveal on observation), R-ELEM-006 (checks follow movement), DD-104 and DD-106 (pawns
- * are not corners, the queen does not turn), not from the engine's current output.
+ * Expected behaviour comes from spec 4.1 (INV-03), 5.1, 5.6, 6.3 (attunement, the Attunement Charm),
+ * 8.2 (DD-32 reveal on observation), R-ELEM-006 (checks follow movement), DD-104, DD-106 and DD-111,
+ * not from the engine's current output.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -29,12 +31,17 @@ const dests = (engine: Engine, state: GameState, side: Side, from: string): stri
     .filter((m) => m.from === sq(from))
     .map((m) => squareName(m.to) + (m.promotion ? m.promotion[0] : ''))
     .sort();
+const on = (fen: string, army: ArmySpec = STORM, from = 'a1') => {
+  const { engine, state } = setup({ fen, white: army });
+  return dests(engine, state, 'white', from);
+};
 
 const STORM: ArmySpec = { elements: ['storm'], abilities: ['electric_slide'] };
 const PLAIN: ArmySpec = { elements: ['neutral'], abilities: ['electric_slide'] };
+const A_FILE = ['a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8'];
 
-describe('Electric Slide (5.8, DD-104)', () => {
-  it('R-ABIL-005 R-ELEM-003 module data: Passive, Storm signature with an attuned version, all, level 4, pawnLeap and redirects hooks', () => {
+describe('Electric Slide (5.8, DD-104, DD-111)', () => {
+  it('R-ABIL-005 R-ELEM-003 module data: Passive, Storm signature with an attuned version, all, level 3, pawnLeap, redirects and redirectCorner hooks', () => {
     const def = abilityById.get('electric_slide');
     expect(def).toMatchObject({
       category: 'PASSIVE',
@@ -43,10 +50,12 @@ describe('Electric Slide (5.8, DD-104)', () => {
       tags: [],
       minLevel: 3,
       slotCost: 1,
+      version: 5,
     });
     expect(def?.attuned).toBeDefined();
     expect(def?.hooks?.moveFilter?.pawnLeap).toBeTypeOf('function');
     expect(def?.hooks?.moveFilter?.redirects).toBeTypeOf('function');
+    expect(def?.hooks?.moveFilter?.redirectCorner).toBeTypeOf('function');
     // Squall handed the signature over (DD-98, DD-104).
     expect(abilityById.get('squall')).toMatchObject({ affinity: 'neutral', version: 2 });
     expect(abilityById.get('squall')?.attuned).toBeUndefined();
@@ -111,78 +120,72 @@ describe('Electric Slide (5.8, DD-104)', () => {
     expect(eventsOf(quiet.events, 'Revealed')).toEqual([]);
   });
 
-  it('R-ELEM-003 attuned: a Storm rook turns at its ally once, never stops on it, never continues straight; an unattuned rook does not turn', () => {
-    // Ra1, Nd1, Kh2; black pawn d6 and king h8. Along rank 1 the rook meets the knight on d1 and
-    // may turn north; the a-file is open as usual.
-    const fen = '7k/8/3p4/8/8/8/7K/R2N4 w - - 0 1';
-    const storm = setup({ fen, white: STORM });
-    const file = ['a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8'];
-    expect(dests(storm.engine, storm.state, 'white', 'a1')).toEqual(
-      [...file, 'b1', 'c1', 'd2', 'd3', 'd4', 'd5', 'd6'].sort(),
-    );
-    const plain = setup({ fen, white: PLAIN });
-    expect(dests(plain.engine, plain.state, 'white', 'a1')).toEqual([...file, 'b1', 'c1'].sort());
-  });
-
-  it('R-ELEM-003 DD-106 a bishop turns once onto a diagonal, a rook once onto a rank or file; the queen never turns', () => {
-    // Bc1 meets the knight e3: on it may turn NW (d4..a7) or SE (f2, g1), not continue to f4.
-    const bishop = setup({ fen: '7k/8/8/8/8/4N3/8/K1B5 w - - 0 1', white: STORM });
-    expect(dests(bishop.engine, bishop.state, 'white', 'c1')).toEqual(
-      ['a3', 'b2', 'd2', 'a7', 'b6', 'c5', 'd4', 'f2', 'g1'].sort(),
-    );
-    // A rook turns once: a1-a4 (knight) -b4-c4 and no further (the knight d4 is an ally with no turn
-    // left), or along the rank to its king on h1 and north from there (the black king on h8 is
-    // never a target).
-    const rook = setup({ fen: '7k/8/8/8/N2N4/8/8/R6K w - - 0 1', white: STORM });
-    expect(dests(rook.engine, rook.state, 'white', 'a1')).toEqual(
-      [
-        'a2',
-        'a3',
-        'b1',
-        'b4',
-        'c1',
-        'c4',
-        'd1',
-        'e1',
-        'f1',
-        'g1',
-        'h2',
-        'h3',
-        'h4',
-        'h5',
-        'h6',
-        'h7',
-      ].sort(),
-    );
-    // The queen in the rook's place has the plain queen's moves: no turn at the knights nor at the
-    // king (DD-106: with two turns the card alone won 97% of First Blood mirror tests, with one 86%).
-    const queen = setup({ fen: '7k/8/8/8/N2N4/8/8/Q6K w - - 0 1', white: STORM });
-    expect(dests(queen.engine, queen.state, 'white', 'a1')).toEqual(
-      ['a2', 'a3', 'b1', 'c1', 'd1', 'e1', 'f1', 'g1', 'b2', 'c3'].sort(),
+  it('R-ELEM-003 DD-111 attuned: a Storm rook turns once at an allied rook or queen (equal or higher rank), never stops on it, never continues straight; an unattuned rook does not turn', () => {
+    // Ra1, Rd1, Kh2; black pawn d6 and king h8. Along rank 1 the rook meets its rook on d1 and may
+    // turn north up the d-file; the a-file is open as usual.
+    const fen = '7k/8/3p4/8/8/8/7K/R2R4 w - - 0 1';
+    expect(on(fen)).toEqual([...A_FILE, 'b1', 'c1', 'd2', 'd3', 'd4', 'd5', 'd6'].sort());
+    expect(on(fen, PLAIN)).toEqual([...A_FILE, 'b1', 'c1'].sort());
+    // A queen on d1 is a corner for the rook too; it may not continue along rank 1 past it.
+    expect(on('7k/8/3p4/8/8/8/7K/R2Q4 w - - 0 1')).toEqual(
+      [...A_FILE, 'b1', 'c1', 'd2', 'd3', 'd4', 'd5', 'd6'].sort(),
     );
   });
 
-  it('R-ELEM-003 DD-106 a slider never turns at a pawn: behind its pawns a Storm rook and bishop have their plain moves, and a pawn ends a turned path', () => {
-    // The rook geometry above with pawns on a4 and d4 (and the king off the rook's rays, since a
-    // king is a corner): no turn, so a4 blocks as in chess.
-    const rook = setup({ fen: '7k/8/8/8/P2P4/8/7K/R7 w - - 0 1', white: STORM });
-    expect(dests(rook.engine, rook.state, 'white', 'a1')).toEqual(
-      ['a2', 'a3', 'b1', 'c1', 'd1', 'e1', 'f1', 'g1', 'h1'].sort(),
-    );
-    const bishop = setup({ fen: '7k/8/8/8/8/4P3/8/K1B5 w - - 0 1', white: STORM });
-    expect(dests(bishop.engine, bishop.state, 'white', 'c1')).toEqual(['a3', 'b2', 'd2'].sort());
-    // After a turn at the knight a4 the rook runs east along rank 4 and the pawn d4 ends the path.
-    const mixed = setup({ fen: '7k/8/8/8/N2P4/8/7K/R7 w - - 0 1', white: STORM });
-    const r = dests(mixed.engine, mixed.state, 'white', 'a1');
+  it('R-ELEM-003 DD-97 DD-111 a rook never turns at a knight, bishop or pawn (lower rank) nor at the king', () => {
+    for (const corner of ['N', 'B', 'P']) {
+      const fen = `7k/8/3p4/8/8/8/7K/R2${corner}4 w - - 0 1`;
+      expect(on(fen), corner).toEqual([...A_FILE, 'b1', 'c1'].sort());
+    }
+    // The king on d1 (white king there, not on h2): no turn at it.
+    expect(on('7k/8/3p4/8/8/8/8/R2K4 w - - 0 1')).toEqual([...A_FILE, 'b1', 'c1'].sort());
+  });
+
+  it('R-ELEM-003 DD-97 DD-111 a bishop turns once at a knight (equal rank), a bishop, a rook or the queen, never at a pawn or the king', () => {
+    // Bc1 meets the piece on e3: it may turn NW (d4..a7) or SE (f2, g1), never continue to f4.
+    const plain = ['a3', 'b2', 'd2'];
+    const turned = [...plain, 'a7', 'b6', 'c5', 'd4', 'f2', 'g1'].sort();
+    for (const corner of ['N', 'B', 'R', 'Q']) {
+      expect(on(`7k/8/8/8/8/4${corner}3/8/K1B5 w - - 0 1`, STORM, 'c1'), corner).toEqual(turned);
+    }
+    expect(on('7k/8/8/8/8/4P3/8/K1B5 w - - 0 1', STORM, 'c1')).toEqual(plain.sort());
+    expect(on('7k/8/8/8/8/4K3/8/2B5 w - - 0 1', STORM, 'c1')).toEqual(plain.sort());
+    expect(on('7k/8/8/8/8/4N3/8/K1B5 w - - 0 1', PLAIN, 'c1')).toEqual(plain.sort());
+  });
+
+  it('R-ELEM-003 DD-111 the queen turns twice, at allied rooks and bishops only: never at a knight, another queen, a pawn or the king', () => {
+    // Qd1 with the rook d4 up the file and the bishop g4 along rank 4: d1-d4 turns east, g4 turns
+    // north to g8 or north-west towards c8; a knight on g4 is no corner for the queen.
+    const two = on('7k/8/8/8/3R2B1/8/8/K2Q4 w - - 0 1', STORM, 'd1');
+    expect(two).toEqual(expect.arrayContaining(['e4', 'f4', 'g5', 'g6', 'g7', 'g8', 'f5', 'e6']));
+    expect(two).not.toContain('d4');
+    expect(two).not.toContain('g4');
+    const knight = on('7k/8/8/8/3R2N1/8/8/K2Q4 w - - 0 1', STORM, 'd1');
+    expect(knight).toEqual(expect.arrayContaining(['e4', 'f4']));
+    expect(knight).not.toContain('g5');
+    expect(knight).not.toContain('g8');
+    // A second queen is not a corner for a queen, nor is the king.
+    for (const corner of ['Q', 'N', 'P']) {
+      const d = on(`7k/8/8/8/8/3${corner}4/8/K2Q4 w - - 0 1`, STORM, 'd1');
+      expect(d, corner).not.toContain('e4');
+      expect(d, corner).not.toContain('c4');
+    }
+    expect(on('7k/8/8/8/8/3K4/8/3Q4 w - - 0 1', STORM, 'd1')).not.toContain('e4');
+    // Unattuned, the queen has the plain queen's moves.
+    expect(on('7k/8/8/8/3R2B1/8/8/K2Q4 w - - 0 1', PLAIN, 'd1')).not.toContain('e4');
+  });
+
+  it('R-ELEM-003 DD-106 DD-111 a pawn ends a turned path like any non-corner: after the turn at its rook the Storm rook stops before its pawn', () => {
+    const r = on('7k/8/8/8/R2P4/8/7K/R7 w - - 0 1');
+    // a1-a4 is a rook corner: along rank 4 the rook reaches b4 and c4, and the pawn d4 ends the path.
     expect(r).toEqual(expect.arrayContaining(['b4', 'c4']));
     expect(r).not.toContain('d4');
     expect(r).not.toContain('e4');
   });
 
-  it('R-RULES-001 DD-106 from the opening position a Storm army has exactly the twenty chess moves and no capture', () => {
-    // With pawns as corners the c1 bishop took g7 on move 1 and the queen reached seven pawns
-    // (docs/BALANCE_BASELINE.md finding 1); pawns do not conduct, so the back rank is shut as in
-    // chess until a piece moves.
+  it('R-RULES-001 DD-106 DD-111 from the opening position a Storm army has exactly the twenty chess moves and no capture', () => {
+    // Pawns never conduct and the back rank offers no turn that reaches a new square: Ra1's
+    // neighbour is a knight, Qd1's corners (Bc1) lead only into its own pawns.
     const { engine, state } = setup({ white: STORM, black: STORM });
     const moves = legal(engine, state, 'white');
     expect(moves).toHaveLength(20);
@@ -192,68 +195,57 @@ describe('Electric Slide (5.8, DD-104)', () => {
     ).toBe(false);
   });
 
-  it("R-ELEM-006 DD-106 attacks follow the same rule: a pawn stepping onto the rook's rank gives no check through it, a knight does", () => {
-    // White Ra4, Kh1 and a pawn d3 (or a knight b3); black king d8. The pawn reaches d4 and the
-    // rook's rank-4 ray stops at it; the knight on d4 is a corner and the rook checks along the
-    // d-file.
-    const pawn = scenario({
-      fen: '3k4/8/8/8/R7/3P4/8/7K w - - 0 1',
-      white: STORM,
-      moves: ['d3d4'],
-    });
-    expect(eventsOf(pawn.events, 'Check')).toEqual([]);
-    expect(pawn.state.inCheck).toBeNull();
-    expect(legal(pawn.engine, pawn.state, 'black')).toContain('d8d7');
-    expect(eventsOf(pawn.events, 'Revealed')).toEqual([]);
+  it("R-ELEM-006 DD-97 DD-111 attacks follow the same rule: a knight stepping onto the rook's rank is no corner for it and gives no check through it", () => {
+    // White Ra4, Kh1 and a knight b3; black king d8. The knight reaches d4 and the rook's rank-4
+    // ray stops at it: a knight ranks below a rook, so it is no corner for one.
     const knight = scenario({
       fen: '3k4/8/8/8/R7/1N6/8/7K w - - 0 1',
       white: STORM,
       moves: ['b3d4'],
     });
-    expect(eventsOf(knight.events, 'Check')).toEqual([expect.objectContaining({ side: 'black' })]);
-    expect(legal(knight.engine, knight.state, 'black')).not.toContain('d8d7');
+    expect(eventsOf(knight.events, 'Check')).toEqual([]);
+    expect(knight.state.inCheck).toBeNull();
+    expect(legal(knight.engine, knight.state, 'black')).toContain('d8d7');
+    expect(eventsOf(knight.events, 'Revealed')).toEqual([]);
   });
 
-  it('R-ELEM-006 R-RULES-005 attacks follow the turns: a knight landing on d1 lets the rook check the king on d7, the king may not stay on the file, and the rule is revealed', () => {
-    // Ra1, Nb2, Ka2; black king d7. Nb2-d1 opens the rook's turn north along the d-file.
-    const r = scenario({ fen: '8/3k4/8/8/8/8/KN6/R7 w - - 0 1', white: STORM, moves: ['b2d1'] });
+  it('R-ELEM-006 R-RULES-005 attacks follow the turns: a knight landing on e3 lets the c1 bishop check the king on b6 through the turn, the king may not step along the turned diagonal, and the rule is revealed', () => {
+    // Bc1, Nd1, Ka1; black king b6. Nd1-e3 puts a knight (equal rank) on the bishop's diagonal, and
+    // the bishop turns north-west from e3: d4, c5, b6. The knight itself does not attack b6.
+    const fen = '8/8/1k6/8/8/8/8/K1BN4 w - - 0 1';
+    const r = scenario({ fen, white: STORM, moves: ['d1e3'] });
     expect(eventsOf(r.events, 'Check')).toEqual([expect.objectContaining({ side: 'black' })]);
     expect(r.state.inCheck).toBe('black');
     const moves = legal(r.engine, r.state, 'black');
-    expect(moves).not.toContain('d7d6');
-    expect(moves).not.toContain('d7d8');
-    expect(moves).toContain('d7e6');
+    expect(moves).not.toContain('b6c5');
+    expect(moves).toContain('b6a6');
     expect(eventsOf(r.events, 'Revealed')).toEqual([
       expect.objectContaining({
         side: 'white',
-        info: { kind: 'ability', pieceType: 'rook', ability: 'electric_slide' },
+        info: { kind: 'ability', pieceType: 'bishop', ability: 'electric_slide' },
         cause: 'observed',
       }),
     ]);
     // Control: unattuned, the knight move gives no check.
-    const plain = scenario({
-      fen: '8/3k4/8/8/8/8/KN6/R7 w - - 0 1',
-      white: PLAIN,
-      moves: ['b2d1'],
-    });
+    const plain = scenario({ fen, white: PLAIN, moves: ['d1e3'] });
     expect(eventsOf(plain.events, 'Check')).toEqual([]);
+    expect(plain.state.inCheck).toBeNull();
   });
 
   it('INV-03 the mover may not expose their own king to a turned attack', () => {
-    // Black Ka8 and pawn a5; white Ra1 (Storm) turns at its knight... the black pawn a7 is pinned
-    // along the turned path: Rc1, Nc5? Simpler: white Rh1, Nd1 and black Kd7 with a black knight d6
-    // that may not move away from the file (it shields the king from the turned rook).
-    const { engine, state } = setup({ fen: '8/3k4/3n4/8/8/8/K7/3N3R b - - 0 1', white: STORM });
-    const moves = legal(engine, state, 'black');
-    expect(moves.filter((m) => m.startsWith('d6'))).toEqual([]);
-    const plain = setup({ fen: '8/3k4/3n4/8/8/8/K7/3N3R b - - 0 1', white: PLAIN });
-    expect(legal(plain.engine, plain.state, 'black').filter((m) => m.startsWith('d6'))).not.toEqual(
+    // White Bc1 and Re3 (a corner for the bishop), Ka1; black Kb6 with a knight on c5 that shields
+    // the king from the bishop's turned path c1-e3-d4-c5-b6: the knight may not move.
+    const fen = '8/8/1k6/2n5/8/4R3/8/K1B5 b - - 0 1';
+    const { engine, state } = setup({ fen, white: STORM });
+    expect(legal(engine, state, 'black').filter((m) => m.startsWith('c5'))).toEqual([]);
+    const plain = setup({ fen, white: PLAIN });
+    expect(legal(plain.engine, plain.state, 'black').filter((m) => m.startsWith('c5'))).not.toEqual(
       [],
     );
   });
 
   it('DD-99 DD-104 a turned capture approaches from the last corner: a Block Path pawn facing south blocks the rook arriving from d1', () => {
-    const fen = '7k/8/3p4/8/8/8/K7/R2N4 w - - 0 1';
+    const fen = '7k/8/3p4/8/8/8/K7/R2R4 w - - 0 1';
     const guarded = setup({ fen, white: STORM, black: { abilities: ['block_path'] } });
     expect(dests(guarded.engine, guarded.state, 'white', 'a1')).not.toContain('d6');
     const open = setup({ fen, white: STORM });
@@ -267,7 +259,7 @@ describe('Electric Slide (5.8, DD-104)', () => {
       items: ['attunement_charm'],
       itemParams: { attunement_charm: { element: 'storm' } },
     };
-    const fen = '7k/8/3p4/8/8/8/K7/R2N4 w - - 0 1';
+    const fen = '7k/8/3p4/8/8/8/K7/R2R4 w - - 0 1';
     const { engine, state } = setup({ fen, white: charm });
     expect(dests(engine, state, 'white', 'a1')).toContain('d6');
     const r = scenario({ fen, white: charm, moves: ['a1d6'] });
@@ -282,10 +274,10 @@ describe('Electric Slide (5.8, DD-104)', () => {
   });
 
   it('R-ELEM-005 a turning slider still may not stop on a burning square but passes over it', () => {
-    // Black Ember knight took on d3 and left: d3 burns. The white Storm rook a1 turns at d1 and
-    // may reach d4 past the fire but not d3.
+    // Black Ember knight took on d2 and left: d2 burns. The white Storm rook a1 turns at its rook
+    // d1 and may reach d3 and beyond past the fire but not d2.
     const burn = scenario({
-      fen: '7k/8/8/8/2n5/8/3P4/R2NK3 b - - 0 1',
+      fen: '7k/8/8/8/2n5/8/3P4/R2RK3 b - - 0 1',
       white: STORM,
       black: { elements: ['ember'] },
       moves: ['c4d2', 'e1e2', 'd2b3'],

@@ -44,6 +44,7 @@ export {
   mPromo,
   dirFrom,
   dirBit,
+  PASS_UNLIMITED,
   type MoveRules,
 } from './movegen.ts';
 export { canonicalJson, fnv1a64 } from './hash.ts';

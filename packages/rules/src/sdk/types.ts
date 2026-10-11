@@ -26,7 +26,12 @@ import type {
 /** `venom`: an effect capture that even Stalwart's protection does not stop (DD-102). */
 export type AbilityTag = 'replay' | 'revive' | 'venom';
 export type Status = 'COMMITTED' | 'PROVISIONAL' | 'PLAYTEST';
-export type SilenceScope = 'ALL_TRIGGERS' | 'REACTIONS_ONLY' | 'OFF';
+/**
+ * The silence rule's scope (6.2, PLAYTEST): ALL_TRIGGERS silences every trigger of the weaker piece,
+ * REACTIONS_ONLY spares Capturing abilities, ONCE_PER_ABILITY silences each ability on each piece
+ * type once per battle (DD-108), OFF disables the advantage for testing.
+ */
+export type SilenceScope = 'ALL_TRIGGERS' | 'REACTIONS_ONLY' | 'ONCE_PER_ABILITY' | 'OFF';
 
 // ---- caps (values live in packages/content/config.ts) --------------------------------------------
 
@@ -53,6 +58,20 @@ export interface Caps {
   MAX_EVENTS_PER_ACTION: number;
   /** Most pieces in one twin group, the original included (Schrödinger's Joker, DD-101). */
   TWIN_GROUP_MAX: number;
+  /**
+   * Trait numbers (6.1; the identities are COMMITTED, these values PLAYTEST: designer brief, plan
+   * item B4). The trait modules read them; the simulator and fuzzer override them with `--caps`.
+   */
+  TRAITS: {
+    /** Flow: allied pieces a Tide slider or double push may pass in one move; 0 means no limit. */
+    FLOW_PASS_LIMIT: number;
+    /** Bulwark: whether Stone pawns get the first-effect-capture fizzle too. */
+    BULWARK_PAWNS: boolean;
+    /** Overabundance: extra charges per consumable ability on a Grove piece. */
+    OVERABUNDANCE: { mode: 'add' | 'multiply'; amount: number };
+    /** Hot Foot: opponent turns a square burns after it ignites. */
+    HOT_FOOT_TURNS: number;
+  };
 }
 
 // ---- effect data (5.2) ----------------------------------------------------------------------------
@@ -393,7 +412,14 @@ export interface RuleHooks {
   };
   onBattleStart(ctx: SetupCtx): void;
   moveFilter: {
-    passThrough?(ctx: ReadCtx, piece: PieceView): boolean;
+    /**
+     * May this piece pass through its own side's pieces while sliding, double-pushing or attacking
+     * (Flow)? `true`: no limit; `false` or `0`: none; a positive number: the most allied pieces it
+     * may pass in one move (an Electric Slide turn adds its crossings to the count; the corner
+     * itself is not one). It never ends a move on an ally. When several hooks answer for one
+     * piece, the largest limit stands (DD-112).
+     */
+    passThrough?(ctx: ReadCtx, piece: PieceView): boolean | number;
     blockedSquares?(ctx: ReadCtx, piece: PieceView): readonly Square[] | null;
     kingMode?(ctx: ReadCtx, king: PieceView): 'stalwart' | undefined;
     /**
@@ -409,11 +435,13 @@ export interface RuleHooks {
     /** Redirects per move this slider may make at allied squares (0, 1 or 2; Electric Slide). */
     redirects?(ctx: ReadCtx, slider: PieceView): number;
     /**
-     * May this allied piece serve as a corner for its side's turning sliders? Every ally does unless
-     * a hook of its own side answers `false`; a non-corner blocks the slider like any ally (Electric
-     * Slide: never a pawn, DD-106).
+     * May this allied piece serve as a corner for a turning `slider` (bishop, rook or queen) of its
+     * side? Every ally does unless a hook of its own side answers `false`; a non-corner blocks that
+     * slider like any ally. Asked once per ally and slider type when the rules are assembled
+     * (Electric Slide: an ally of equal or higher rank than the slider, never the king; the queen
+     * turns at rooks and bishops; DD-106, DD-111).
      */
-    redirectCorner?(ctx: ReadCtx, ally: PieceView): boolean;
+    redirectCorner?(ctx: ReadCtx, ally: PieceView, slider: PieceType): boolean;
   };
   queueOrder(ctx: ReadCtx, queue: QueuedTrigger[]): QueuedTrigger[];
   triggerFilter(ctx: MutCtx, trigger: TriggerInfo): 'allow' | 'silence' | 'negate';

@@ -251,6 +251,13 @@ export interface GameState {
   history?: RewindPoint[];
   /** Twin groups (Schrödinger's Joker, DD-101); absent until one is spawned. */
   links?: TwinGroup[];
+  /**
+   * Under silenceScope ONCE_PER_ABILITY (6.2, DD-108): per side, the `<pieceType>:<abilityId>`
+   * pairs the foil has silenced once this battle; those abilities fire from then on. Absent under
+   * the other scopes. Like the usage counters it survives a rewind, and like them it is projected
+   * only where the viewer knows the ability (a silence reveals it, Veil excepted).
+   */
+  silenced?: Record<Side, string[]>;
 }
 
 export type MoveInput = { kind: 'move'; side: Side; move: Move; choices?: ChoiceOption[] };

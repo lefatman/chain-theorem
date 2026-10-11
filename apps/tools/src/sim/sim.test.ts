@@ -14,18 +14,45 @@ import {
   cardLoadouts,
   elementLoadout,
   pickAbilities,
+  setKing,
   setPool,
+  setPrefer,
+  setWithout,
 } from './builds.ts';
 import { decisiveAbilities, playSim } from './play.ts';
+import { capsOverrides } from '../lib/caps.ts';
 
 const ELEMENTS = CAPS.ENABLED_ELEMENTS as readonly ElementId[];
 const affinity = new Map(abilities.map((a) => [a.id, a.affinity]));
 const category = new Map(abilities.map((a) => [a.id, a.category]));
 const eligibleFor = new Map(abilities.map((a) => [a.id, a.eligible]));
 
-afterEach(() => setPool('any'));
+afterEach(() => {
+  setPool('any');
+  setPrefer([]);
+  setWithout([]);
+  setKing('stalwart');
+});
+
+/** Every ordered pair of distinct enabled elements. */
+const PAIRS: [ElementId, ElementId][] = ELEMENTS.flatMap((a) =>
+  ELEMENTS.filter((b) => b !== a).map((b): [ElementId, ElementId] => [a, b]),
+);
 
 describe('balance simulator (R-TEST-002)', () => {
+  it('R-TEST-002 --caps overrides merge object-valued caps one level deep onto the defaults', () => {
+    expect(capsOverrides('')).toEqual({});
+    expect(capsOverrides('{"TRAITS":{"HOT_FOOT_TURNS":3}}')).toEqual({
+      TRAITS: { ...CAPS.TRAITS, HOT_FOOT_TURNS: 3 },
+    });
+    expect(capsOverrides('{"SILENCE_SCOPE":"OFF","TWIN_GROUP_MAX":2}')).toEqual({
+      SILENCE_SCOPE: 'OFF',
+      TWIN_GROUP_MAX: 2,
+    });
+    // A misspelt cap would silently measure the defaults.
+    expect(() => capsOverrides('{"NOPE":1}')).toThrow(/unknown cap/);
+  });
+
   it('R-TEST-002 the archetype suite plays every element pair with both colour assignments', () => {
     for (const els of [ELEMENTS, ELEMENTS.slice(0, 3)]) {
       const colours = new Map<string, Set<boolean>>();
@@ -87,7 +114,8 @@ describe('balance simulator (R-TEST-002)', () => {
     }
   });
 
-  it('R-TEST-002 DD-102 R-RULES-004 the king set from level 16 is Stalwart and passives: no Captured, Capturing or Captures card and no Obstinate', () => {
+  it('R-TEST-002 DD-102 R-RULES-004 with --king stalwart the king set from level 16 is Stalwart and passives: no Captured, Capturing or Captures card and no Obstinate', () => {
+    setKing('stalwart');
     for (const e of ELEMENTS) {
       const king = pickAbilities(e, 5, 25, 'king');
       expect(king[0], e).toBe('stalwart');
@@ -102,6 +130,45 @@ describe('balance simulator (R-TEST-002)', () => {
     expect(young).not.toContain('stalwart');
     expect(young.some((id) => category.get(id) === 'CAPTURES')).toBe(true);
     expect(young.some((id) => category.get(id) === 'CAPTURED')).toBe(false);
+  });
+
+  it('R-TEST-002 with --king plain every archetype build for every element pair is legal at level 25 and no set holds Stalwart', () => {
+    setKing('plain');
+    for (const [a, b] of PAIRS) {
+      for (const arch of ARCHETYPES) {
+        const l = buildLoadout(arch, a, b);
+        expect(() => assertValid(l, 25), `${arch} ${a} ${b}`).not.toThrow();
+        for (const set of l.sets) expect(set, `${arch} ${a} ${b}`).not.toContain('stalwart');
+      }
+    }
+  });
+
+  it('R-TEST-002 DD-102 with --king stalwart (the default) the Maximum and Flexible king sets lead with Stalwart, the 7.3 item lists are unchanged and the other five sets never hold it', () => {
+    for (const [a, b] of PAIRS) {
+      const tag = `${a} ${b}`;
+      for (const arch of ARCHETYPES)
+        expect(() => assertValid(buildLoadout(arch, a, b), 25), `${arch} ${tag}`).not.toThrow();
+      const maximum = buildLoadout('maximum', a, b);
+      expect(maximum.elements, tag).toEqual([a, b]);
+      expect(maximum.items, tag).toEqual([
+        'headmaster_ring',
+        'multitaskers_schedule',
+        'blended_family',
+      ]);
+      expect(maximum.sets[5]?.[0], tag).toBe('stalwart');
+      const flexible = buildLoadout('flexible', a, b);
+      expect(flexible.items, tag).toEqual([
+        'journeymans_medallion',
+        'multitaskers_schedule',
+        'blended_family',
+        'resonance_crystal',
+      ]);
+      expect(flexible.sets[5]?.[0], tag).toBe('stalwart');
+      for (const l of [maximum, flexible])
+        for (const set of l.sets.slice(0, 5)) expect(set, tag).not.toContain('stalwart');
+      for (const arch of ['focused', 'starter'] as const)
+        for (const set of buildLoadout(arch, a, b).sets) expect(set, tag).not.toContain('stalwart');
+    }
   });
 
   it('R-TEST-002 17.2 card mirror builds: for every card both sides are legal at level 25, the card leads one side and is missing from the other, and the other cards match', () => {
@@ -216,6 +283,36 @@ describe('balance simulator (R-TEST-002)', () => {
       'snowdrift',
     ]);
     expect([...decisiveAbilities(acted, 'black')]).toEqual(['last_word']);
+  });
+
+  it('R-TEST-002 --prefer deals the listed cards ahead of the rest of their category; the signature still leads', () => {
+    setPrefer(['pierce', 'riposte']);
+    for (const e of ELEMENTS) {
+      const set = elementLoadout(e).sets[0] ?? [];
+      expect(affinity.get(set[0] ?? ''), e).toBe(e);
+      expect(set, e).toContain('pierce');
+      // Riposte takes the Captured slot unless the signature is the element's Captured card and the
+      // second Captured pick goes elsewhere; either way Scout is out, Pierce is in.
+      expect(set, e).not.toContain('scout');
+      expect(() => assertValid(elementLoadout(e), 25), e).not.toThrow();
+    }
+    setPrefer([]);
+    expect(elementLoadout('ember').sets[0]).toContain('scout');
+  });
+
+  it('R-TEST-002 --without leaves the listed items out of every build and the builds stay legal', () => {
+    setWithout(['resonance_crystal']);
+    for (const arch of ARCHETYPES) {
+      const l = buildLoadout(arch, 'ember', 'tide');
+      expect(l.items, arch).not.toContain('resonance_crystal');
+      expect(() => assertValid(l, 25), arch).not.toThrow();
+    }
+    expect(buildLoadout('focused', 'ember', 'ember').items).toEqual([
+      'headmaster_ring',
+      'scouts_lens',
+    ]);
+    setWithout([]);
+    expect(buildLoadout('focused', 'ember', 'ember').items).toContain('resonance_crystal');
   });
 
   it('R-TEST-002 a simulated battle between new elements is deterministic', () => {

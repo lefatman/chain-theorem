@@ -4,10 +4,10 @@
  * wearer's pieces. Storm's tempo (6.1) as a build choice for any element.
  *
  * `modifyCharges` hooks chain after the traits (13.5 hook order), so a Grove piece's Overabundance
- * doubles first and the Mainspring adds one: Momentum 2 -> 5 on a Grove piece. The extra charge
- * becomes observable in the public remaining count of a `ChargeSpent` event for an ability the
- * opponent can name (8.2, R-INFO-002), so the item is revealed then (DD-30); a Veiled ability's count
- * is not public and keeps it hidden.
+ * adds its charge first and the Mainspring one more: Momentum 2 -> 4 on a Grove piece (DD-114).
+ * The extra charge becomes observable in the public remaining count of a `ChargeSpent` event for
+ * an ability the opponent can name (8.2, R-INFO-002), so the item is revealed then (DD-30); a
+ * Veiled ability's count is not public and keeps it hidden.
  */
 import { defineItem } from '@chain-theorem/rules/sdk';
 

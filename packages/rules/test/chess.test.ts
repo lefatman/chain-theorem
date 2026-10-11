@@ -65,6 +65,12 @@ const caps: Caps = {
   FORMATS,
   MAX_EVENTS_PER_ACTION: 512,
   TWIN_GROUP_MAX: 3,
+  TRAITS: {
+    FLOW_PASS_LIMIT: 0,
+    BULWARK_PAWNS: true,
+    OVERABUNDANCE: { mode: 'multiply', amount: 2 },
+    HOT_FOOT_TURNS: 3,
+  },
 };
 
 const engine = createEngine(emptyRegistry, caps);

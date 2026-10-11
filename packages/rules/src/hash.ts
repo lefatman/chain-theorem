@@ -170,8 +170,10 @@ export function stateHashOf(
       : waiting.length
         ? { w: waiting }
         : {};
+  // The once-per-ability silence record decides future triggers, so it is position too (DD-108).
+  const silenced = state.silenced ? { q: state.silenced } : {};
   const [xh, xl] = fnv1a64(
-    canonicalJson({ r: state.reveals, u: state.usage, s: slices, ...extra }),
+    canonicalJson({ r: state.reveals, u: state.usage, s: slices, ...extra, ...silenced }),
   );
   return hex(bh ^ xh) + hex(bl ^ xl);
 }

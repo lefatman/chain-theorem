@@ -98,9 +98,9 @@ const KEY_OUTCOME: Record<WorkedExampleId, (r: ScenarioResult) => void> = {
   E15: (r) =>
     expect([
       eventsOf(r.events, 'Check').map((e) => e.side),
-      r.state.reveals.white.abilities.rook,
-      r.engine.legalMoves(r.state, 'black').some((m) => m.from === sq('d7') && m.to === sq('d6')),
-      r.engine.legalMoves(r.state, 'black').some((m) => m.from === sq('d7') && m.to === sq('e6')),
+      r.state.reveals.white.abilities.bishop,
+      r.engine.legalMoves(r.state, 'black').some((m) => m.from === sq('b6') && m.to === sq('c5')),
+      r.engine.legalMoves(r.state, 'black').some((m) => m.from === sq('b6') && m.to === sq('a6')),
     ]).toEqual([['black'], ['electric_slide'], false, true]),
   E16: (r) =>
     expect([

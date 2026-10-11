@@ -3,7 +3,7 @@
  * revive, 1 charge. After capturing a victim of equal or higher rank than this piece, revive one
  * of your captured pieces of rank at most this piece's (never a king): on its starting square if
  * that is empty, otherwise on any empty square of your back rank. The `revive` tag puts it under
- * Warden's Stopwatch (D-39); Overabundance doubles the charge on a Grove piece.
+ * Warden's Stopwatch (D-39); Overabundance adds a charge on a Grove piece.
  */
 import { defineAbility, fx, NON_KING, square, target } from '@chain-theorem/rules/sdk';
 

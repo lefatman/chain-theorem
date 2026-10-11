@@ -23,7 +23,14 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   catalogue at or below it; nothing is recorded. A2b adds the way to put it on Cloudflare without a
   domain or PostgreSQL (`DEPLOY.md` section 0: the `alpha` environment on workers.dev with D1 and
   R2; a custom domain registered elsewhere moves only its nameservers) and the alpha call to action
-  on the title page. Next run: B3 (the silence scope), then B4–B8.
+  on the title page. B3 (DD-108) adds the `ONCE_PER_ABILITY` silence scope, measurable at last
+  with Pierce in the builds (`--prefer`): it comes closest to the Full Battle target (61.7%) as long
+  as Resonance Crystal does not mean never under it; the default stays `ALL_TRIGGERS` and the
+  Crystal question goes to B5. B3b measured two designer answers (DD-109, DD-110); the designer
+  then overruled both the same day (B3c, DD-111): Stalwart costs one ability slot and nothing else
+  (rule 9 reverted), and Electric Slide follows the designer's own rule (rooks and bishops turn once
+  at an ally of equal or higher rank, the queen twice at rooks and bishops, never the king or a
+  pawn). B4 makes the four trait numbers config knobs. Next run: B5, then C6–B8.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
   know), Storm, Stone and Frost with 12 abilities, 2 items and Highcairn Pass.
@@ -163,19 +170,34 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
       workflow; the title page carries the pitch, an alpha call to action when the server offers
       guest play, the menu and three "how it plays" cards; the alpha screen gains a "have a code?"
       box; screenshots refreshed. Done 2026-10-09 (evidence log).
-- [ ] B3 Silence scope `ONCE_PER_ABILITY` as a PLAYTEST knob (the foil silences each ability on each
-      piece type once per battle); Resonance Crystal "not even once" under it; sim run; DD row.
-      First add a `--prefer` list to the simulator so the Focused builds carry Pierce or Phalanx and
-      re-run the `REACTIONS_ONLY` pair (B1 found the knob inert with Scout as the only Capturing
-      card).
-- [ ] B4 Trait numbers as config knobs (Flow: at most one allied piece passed per move; Bulwark:
-      non-pawns only; Overabundance: +1 charge, not x2; Hot Foot: 4 turns); re-measure Storm vs Stone
-      first; one sim run per change; DD row. Identities (6.1) stay COMMITTED.
+- [x] B3 Silence scope `ONCE_PER_ABILITY` as a PLAYTEST knob (the foil silences each ability on each
+      piece type once per battle); Resonance Crystal "not even once" under it; sim run; DD-108.
+      Simulator `--prefer` and `--without`, fuzzer `--silence`. Done 2026-10-09 (evidence log): the
+      default stays `ALL_TRIGGERS`; `docs/BALANCE_BASELINE.md` section 8 favours `ONCE_PER_ABILITY`
+      provided the Crystal does not mean never under it (a B5 decision).
+- [x] B4 Trait numbers as config knobs (`CAPS.TRAITS`: Flow passes at most one allied piece per
+      move, Bulwark covers non-pawns only, Overabundance adds one charge, Hot Foot burns 4 turns);
+      the modules read them, the launch values are one `--caps` line away; DD-112 to DD-115.
+      Identities (6.1) stay COMMITTED. Done 2026-10-10 (evidence log): each knob measured alone
+      against the launch values and all four together, `docs/BALANCE_BASELINE.md` section 10.
+- [x] B3b Designer answers of 2026-10-09 (DD-109, DD-110): Stalwart on a king costs an item slot
+      and Storm's signature ships its most balanced measured turn (bishops only). Done and measured
+      2026-10-09 (`docs/BALANCE_BASELINE.md` section 9), then overruled by the designer the same
+      day: see B3c. The simulator keeps `--king stalwart|plain`, `--caps` and `--tag`.
+- [x] B3c Designer rulings of 2026-10-09 (DD-111): rule 9 reverted (Stalwart costs one ability
+      slot; a Stalwart piece is removed only by a direct capture, as DD-102 built it); Electric
+      Slide's attuned turn is the designer's rule: rooks and bishops turn once at an allied piece
+      of equal or higher rank (5.1), the queen twice at allied rooks and bishops, never at the king
+      or a pawn (engine corners are now per slider type). Done 2026-10-09 (evidence log);
+      measurements in `docs/BALANCE_BASELINE.md` section 10.
 - [ ] B5 Per-card changes and loadout rule 9: Redo non-pawn; Obstinate ignored by kings, 2 slots;
       Block Path 2 slots and a king's facing resets to forward after it moves; rule 9 at most two
       Passive abilities per set; Pierce 2 charges; Scout's Lens reveals the whole pawn set; sim run;
-      DD rows. B1's baseline backs Obstinate at 2 slots and rule 9 (which also cuts the Stalwart
-      king set to two cards); whether Stalwart on a king should cost one slot is a designer question.
+      DD rows. B1's baseline backs Obstinate at 2 slots and the two-passive rule (which also cuts
+      the Stalwart king set to two cards; the Stalwart king decides Full Battle between archetypes,
+      section 9.3 of the baseline, and the designer has ruled out pricing it). From B3: Resonance
+      Crystal's reading under `ONCE_PER_ABILITY` (one spared silence per battle as DD-30 had it, or
+      a higher slot cost for "never") and Storm's passive slot.
 - [ ] C6 Three neutral abilities: Cornered (Captured, L4, 1 charge, rim squares), Ricochet (Captures,
       sliders, L8, 2 charges, continue past the capture), Overwhelm (Capturing, L9, 2 charges, negate
       a lower-ranked victim's Captured abilities); primitives logged; golden examples; fuzz; sim.
@@ -210,6 +232,53 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 - Arcane Chess codebase path for step 2.8 (optional).
 
 ## Evidence log
+
+- 2026-10-10 B3c and B4 (DD-111 to DD-115; R-LOAD-004, R-RULES-003, R-ELEM-001, R-ELEM-003,
+  R-ELEM-005, R-ELEM-006, R-ELEM-007, R-FMT-005, R-TEST-002): rule 9 reverted to the pre-B3b
+  code (DD-109 overruled); Electric Slide v5 with the designer's rank rule and per-slider-type
+  corners (`MoveRules.conducts` bitmask, `redirectCorner(ctx, ally, slider)`), 17 module tests, E15
+  kept (a bishop at its rook); `CAPS.TRAITS` with Flow v2 (pass limit through the engine's crossing
+  counts, 16 tests), Bulwark v2 (NPC model and Masquerade Mask follow the knob, 11 tests), Overabundance
+  v3 (10 tests), Hot Foot v3 (25 tests, golden E7 re-derived). `pnpm check` 1,616 unit tests,
+  `req:coverage` 84/84; `pnpm test:fuzz` 500 games clean after each commit. Simulator (20,000 nodes,
+  Trainer): Electric Slide under DD-111 alone 82.5% First Blood (300 games, median 12 plies) and 62.3%
+  Full Battle (200); trait knobs, each alone against the launch values (elements suite, 40 games First Blood / 30 Full
+  Battle): Flow one ally moves the aggregate 52.1% to 50.6% and 69.2% to 72.2% (Tide over Ember 76% to
+  69% in First Blood, Grove over Tide 73% to 85% in Full Battle), Bulwark non-pawns and Hot Foot 4
+  turns leave the aggregates at 52.1% / 69.2% and 52.1% / 68.9%, Overabundance +1 changes no game (no
+  Focused build carries a consumable); all four at 60 / 40 games: advantaged 48.3% / 73.5%, White
+  54.4% / 51.5%, surprise 9.6% / 1.1%, medians 23 / 66 plies; archetypes 60 / 24 games: Maximum and
+  Flexible over Focused 58.3% / 58.3% in First Blood and 81.3% / 87.5% in Full Battle. Findings in `docs/BALANCE_BASELINE.md` section 10.
+
+- 2026-10-09 B3b Designer answers (DD-109, DD-110; R-LOAD-004, R-RULES-003, R-INFO-001, R-INFO-003,
+  R-INFO-004, R-ELEM-003, R-TEST-002): loadout rule 9 (`kingItemSlots`, Stalwart v3) through the
+  validator, the public consumed total, deductions (range walk), previews, the loadout builder
+  (meter, block reasons, dossier), the content validator and the simulator (`--king`, the Stalwart
+  mirror pays Scout's Lens); `CAPS.ELECTRIC_SLIDE` knob (module v4) with simulator and fuzzer
+  `--caps`/`--tag`; bishops-only default; E15 rewritten. `pnpm check` 1,616 unit tests (property
+  checker and arbitraries know rule 9), `req:coverage` 84/84; `pnpm test:fuzz` 500 games clean under
+  the new defaults. Simulator (20,000 nodes, Trainer): Electric Slide variant matrix at 120/80 games
+  and finalists at 300/200 (shipped rule 57.8% First Blood, 64.0% Full Battle; rook turns 68–70%
+  Full, bishops through knights 88% First Blood, leap alone 57.5%/57.5%); Stalwart mirror paying
+  its slot 61.1% / 81.3%; archetypes First Blood 60 and Full Battle 24 games under `--king plain`
+  (Maximum and Flexible over Focused 65–69% in Full Battle, 50/50 between them) and `--king
+stalwart` (81–88% over Focused, `stalwart_captured` 13 of 144); elements First Blood 60 games
+  (advantaged 46.9%, Storm's row 18–42%, surprise losses 10.2%, median 25 plies) and Full Battle 40 games (advantaged 69.4%, Storm's row 0–24%, surprise losses 0.5%, median 68 plies).
+  Findings in `docs/BALANCE_BASELINE.md` section 9. Review of the diff by a separate agent found no
+  R-SEC-001 or R-INFO-003 defect; its three nits (a hint overstating at zero consumed slots, a test
+  name's requirement ID, a stale handoff line) are fixed.
+
+- 2026-10-09 B3 Silence scope (DD-108; R-ELEM-002, R-LOAD-002, R-SEC-001, R-TEST-002): engine
+  `ONCE_PER_ABILITY` with the `silenced` record (hashed, kept through a rewind, projected only where
+  the viewer knows the ability), belief state and Trainer model, Resonance Crystal v2 ("never" under
+  the scope), simulator `--prefer` and `--without`, fuzzer `--silence`. `pnpm check` 1,600 unit
+  tests (elements 2, Crystal 1, AI 1, sim 2 new), `req:coverage` 84/84; `pnpm test:fuzz` 500 games
+  under `ALL_TRIGGERS` and 500 under `ONCE_PER_ABILITY`, replays identical, projection scans clean.
+  `pnpm sim` elements with Pierce in every build (40 games per pairing in First Blood, 30 in Full
+  Battle): advantaged element First Blood 50.6% / 47.5% / 47.9% and Full Battle 66.7% / 53.9% /
+  44.4% for `ALL_TRIGGERS` / `REACTIONS_ONLY` / `ONCE_PER_ABILITY`; without Resonance Crystal
+  55.2% / 53.5% (First Blood) and 71.4% / 61.7% (Full Battle) for `ALL_TRIGGERS` / `ONCE_PER_ABILITY`.
+  Findings in `docs/BALANCE_BASELINE.md` section 8.
 
 - 2026-10-09 A2b Cloudflare alpha path and title page: `apps/server/wrangler.jsonc` env `alpha`
   (D1 `chain-theorem-alpha`, R2 `chain-theorem-alpha-battle-logs`, workers.dev origin, flag on),

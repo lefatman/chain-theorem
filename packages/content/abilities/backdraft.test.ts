@@ -79,6 +79,8 @@ function offeredPieces(req: ChoiceRequest): number[] {
 
 // e1 K=0, a2 P=1, c3 N=2, e4 P=3, d5 p=4, e8 k=5. Only the e4 pawn is adjacent to d5.
 const FEN = '4k3/8/8/3p4/4P3/2N5/P7/4K3 w - - 0 1';
+// As FEN with a bishop on e4 (same ids): a Stone pawn carries no Bulwark by default (DD-113).
+const BISHOP_FEN = '4k3/8/8/3p4/4B3/2N5/P7/4K3 w - - 0 1';
 
 describe('Backdraft', () => {
   it('R-ABIL-005 R-ABIL-001 DD-98 module data matches the 5.7 catalogue row (Captured, neutral, all, level 4, 1 slot)', () => {
@@ -382,7 +384,7 @@ describe('Backdraft', () => {
 
   it('R-ABIL-005 R-ELEM-001 DD-19 DD-35 a Stone target is still chosen, and Bulwark makes the capture fizzle', () => {
     const r = scenario({
-      fen: FEN,
+      fen: BISHOP_FEN,
       white: { elements: ['stone'] },
       black: { elements: ['neutral'], abilities: ['backdraft'] },
       moves: ['c3d5'],
@@ -393,6 +395,22 @@ describe('Backdraft', () => {
     ]);
     expect(idAt(r.state, 'e4')).toBe(3);
     expect((r.state.slices['bulwark'] as BulwarkState).spent).toEqual([3]);
+  });
+
+  it('R-ABIL-005 R-ELEM-001 DD-113 a Stone pawn target has no Bulwark by default: Backdraft removes it and spends nothing', () => {
+    const r = scenario({
+      fen: FEN,
+      white: { elements: ['stone'] },
+      black: { elements: ['neutral'], abilities: ['backdraft'] },
+      moves: ['c3d5'],
+    });
+    expect(eventsOf(r.events, 'EffectFizzled')).toEqual([]);
+    expect(eventsOf(r.events, 'Captured')).toMatchObject([
+      { by: 'move', victim: 4 },
+      { by: 'effect', victim: 3 },
+    ]);
+    expect(pieceAt(r.state, 'e4')).toBeUndefined();
+    expect((r.state.slices['bulwark'] as BulwarkState).spent).toEqual([]);
   });
 
   it('R-ABIL-005 R-ABIL-004 an effect-captured Backdraft carrier does not trigger (effect captures do not chain)', () => {

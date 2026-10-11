@@ -471,7 +471,7 @@ describe('E7 Hot Foot: an Ember knight captures on e5, then leaves it', () => {
   const e5 = sq('e5');
   const toE5 = (moves: string[]) => moves.filter((m) => m.slice(2, 4) === 'e5');
 
-  it('E7 R-ELEM-005 e5 ignites for 3 opponent turns: non-Ember pieces may not enter or capture there, sliders pass over, then it goes out', () => {
+  it('E7 R-ELEM-005 e5 ignites for 4 opponent turns: non-Ember pieces may not enter or capture there, sliders pass over, then it goes out', () => {
     const s0 = setup({ fen, white: { elements: ['ember'] }, black: { elements: [...NEUTRAL] } });
     const { engine } = s0;
     let state = s0.state;
@@ -495,8 +495,8 @@ describe('E7 Hot Foot: an Ember knight captures on e5, then leaves it', () => {
     // Ply 1: black waits. Ply 2 ("two turns later"): the knight moves to f3 and e5 ignites.
     step('a8b8');
     ev = step('e5f3');
-    expect(eventsOf(ev, 'SquareIgnited')).toMatchObject([{ square: e5, side: 'white', turns: 3 }]);
-    expect(hotFoot(state)).toEqual({ burning: [{ sq: e5, side: 'white', turns: 3 }], pending: [] });
+    expect(eventsOf(ev, 'SquareIgnited')).toMatchObject([{ square: e5, side: 'white', turns: 4 }]);
+    expect(hotFoot(state)).toEqual({ burning: [{ sq: e5, side: 'white', turns: 4 }], pending: [] });
 
     // Opponent turn 1: no non-Ember piece may move to e5, but the rook may slide over it.
     expect(state.turn).toBe('black');
@@ -522,18 +522,25 @@ describe('E7 Hot Foot: an Ember knight captures on e5, then leaves it', () => {
     expect(eventsOf(ev, 'SquareExtinguished')).toEqual([]);
     ev = step('e5f3');
     expect(eventsOf(ev, 'SquareIgnited')).toEqual([]);
-    expect(hotFoot(state).burning).toEqual([{ sq: e5, side: 'white', turns: 1 }]);
+    expect(hotFoot(state).burning).toEqual([{ sq: e5, side: 'white', turns: 2 }]);
 
-    // Opponent turn 3: still blocked; the square goes out after this turn.
+    // Opponent turn 3: still blocked, one turn left (the launch count of 3 would have ended here).
     expect(blackToE5()).toEqual([]);
     ev = step('a8b8');
+    expect(eventsOf(ev, 'SquareExtinguished')).toEqual([]);
+    step('g1g2');
+    expect(hotFoot(state).burning).toEqual([{ sq: e5, side: 'white', turns: 1 }]);
+
+    // Opponent turn 4: still blocked; the square goes out after this turn.
+    expect(blackToE5()).toEqual([]);
+    ev = step('b8a8');
     expect(eventsOf(ev, 'SquareExtinguished')).toMatchObject([{ square: e5 }]);
     expect(hotFoot(state).burning).toEqual([]);
     expect(eventsOf(all, 'SquareExtinguished')).toHaveLength(1);
     expect(eventsOf(all, 'SquareIgnited')).toHaveLength(1);
 
-    // Opponent turn 4: e5 is an ordinary square again.
-    step('g1g2');
+    // Opponent turn 5: e5 is an ordinary square again.
+    step('g2g1');
     expect(blackToE5()).toEqual(['c6e5', 'e4e5']);
     expect(state.result).toBeNull();
     expect(all).toMatchSnapshot();
@@ -618,7 +625,7 @@ describe('E9 Overabundance: a Grove bishop with Rebirth is captured three times'
       prompts.push(...p.step.prompts);
       return p.step;
     };
-    // Overabundance doubles Rebirth's single charge on the Grove bishop.
+    // Overabundance adds one charge to Rebirth's single charge on the Grove bishop (DD-114).
     expect(engine.remainingCharges(state, bishop, 'rebirth')).toBe(2);
 
     // Capture 1: Bc1-d2, Rd8xd2. Rebirth is neutral (DD-98): no prompt, the bishop returns to

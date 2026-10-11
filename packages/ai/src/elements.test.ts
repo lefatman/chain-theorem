@@ -17,8 +17,8 @@ import {
   parseSquare,
   uciToMove,
 } from '@chain-theorem/rules';
-import { abilityById, engine } from '../../content/index.ts';
-import { scenario, setup } from '../../content/src/testing.ts';
+import { CAPS, abilityById, engine, makeEngine } from '../../content/index.ts';
+import { type ArmySpec, idAt, scenario, setup } from '../../content/src/testing.ts';
 import { type Profile, profileOf, silenced, traitEffects } from './knowledge.ts';
 import { chooseOption, play, searchContext, unplay } from './index.ts';
 
@@ -87,6 +87,26 @@ describe('profiles of the Storm, Stone and Frost abilities (R-FMT-005, R-ABIL-00
     expect(probe(state, 'e4d5', 'white').played.killed).toBe(-1);
   });
 
+  it('R-FMT-005 R-ELEM-002 DD-108 under ONCE_PER_ABILITY the searcher expects a reaction the foil already silenced once to fire', () => {
+    // Ember beats Grove: the knight's capture of a known Poisoned Meat pawn is silenced the first
+    // time (the captor survives in the model), and fires once the public record names the pair.
+    const once = makeEngine({ SILENCE_SCOPE: 'ONCE_PER_ABILITY' });
+    const { state } = setup({
+      fen: KNIGHT,
+      white: { elements: ['ember'] },
+      black: { elements: ['grove'], abilities: ['poisoned_meat'] },
+      caps: { SILENCE_SCOPE: 'ONCE_PER_ABILITY' },
+    });
+    const first = play(searchContext(once, state, 'white'), encoded(state, 'c3d5'));
+    expect(first.killed).toBe(-1);
+    const spent = { ...state, silenced: { white: [], black: ['pawn:poisoned_meat'] } };
+    const second = play(searchContext(once, spent, 'white'), encoded(spent, 'c3d5'));
+    expect(second.killed).toBe(idAt(state, 'c3'));
+    // A different piece type of the victim's is still silenced.
+    const other = { ...state, silenced: { white: [], black: ['knight:poisoned_meat'] } };
+    expect(play(searchContext(once, other, 'white'), encoded(other, 'c3d5')).killed).toBe(-1);
+  });
+
   it('R-FMT-005 R-ELEM-002 silence follows the second triangle too (Storm > Frost > Stone > Storm); cross-triangle pairs are even', () => {
     expect(silenced('storm', 'frost')).toEqual({ victim: true, captor: false });
     expect(silenced('frost', 'stone')).toEqual({ victim: true, captor: false });
@@ -96,15 +116,18 @@ describe('profiles of the Storm, Stone and Frost abilities (R-FMT-005, R-ABIL-00
     expect(silenced('tide', 'stone')).toEqual({ victim: false, captor: false });
   });
 
-  it('R-FMT-005 R-ELEM-001 trait effects on a capture: Always First, Stillness, Bulwark', () => {
-    expect(traitEffects('storm', 'ember')).toEqual({
+  it('R-FMT-005 R-ELEM-001 DD-113 trait effects on a capture: Always First, Stillness, Bulwark (pawns only under BULWARK_PAWNS)', () => {
+    expect(traitEffects('storm', 'ember', 'knight', false)).toEqual({
       stormFirst: true,
       stillness: false,
       captorBulwark: false,
     });
-    expect(traitEffects('storm', 'storm').stormFirst).toBe(false);
-    expect(traitEffects('ember', 'frost').stillness).toBe(true);
-    expect(traitEffects('stone', 'tide').captorBulwark).toBe(true);
+    expect(traitEffects('storm', 'storm', 'knight', false).stormFirst).toBe(false);
+    expect(traitEffects('ember', 'frost', 'knight', false).stillness).toBe(true);
+    expect(traitEffects('stone', 'tide', 'knight', false).captorBulwark).toBe(true);
+    expect(traitEffects('stone', 'tide', 'pawn', false).captorBulwark).toBe(false);
+    expect(traitEffects('stone', 'tide', 'pawn', true).captorBulwark).toBe(true);
+    expect(traitEffects('tide', 'tide', 'knight', true).captorBulwark).toBe(false);
   });
 });
 
@@ -142,6 +165,27 @@ describe('the fast search plays the new reactions (R-FMT-005)', () => {
       slices: { ...state.slices, bulwark: { spent: [knight] } },
     };
     expect(probe(spent, 'c3d5', 'black').played.killed).toBe(knight);
+  });
+
+  it('R-FMT-005 R-ELEM-001 DD-113 Bulwark: a Stone pawn captor is expected to die to a known Poisoned Meat by default, and to survive under BULWARK_PAWNS', () => {
+    // Spec 6.1 (B4): Bulwark covers Stone pieces other than pawns unless the knob restores the
+    // launch rule. The knob is public config, so the searcher may read it (R-FMT-005).
+    const PAWN = '4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1';
+    const armies: { white: ArmySpec; black: ArmySpec } = {
+      white: { elements: ['stone'] },
+      black: { elements: ['tide'], abilities: ['poisoned_meat'] },
+    };
+    const { state } = setup({ fen: PAWN, ...armies });
+    const pawn = state.board[sq('e4')] as number;
+    expect(probe(state, 'e4d5', 'black').played.killed).toBe(pawn);
+    const pawnsToo = { TRAITS: { ...CAPS.TRAITS, BULWARK_PAWNS: true } };
+    const launch = makeEngine(pawnsToo);
+    const { state: launchState } = setup({ fen: PAWN, ...armies, caps: pawnsToo });
+    const ctx = searchContext(launch, launchState, 'black');
+    expect(ctx.bulwarkPawns).toBe(true);
+    const p = play(ctx, encoded(launchState, 'e4d5'));
+    expect(p.killed).toBe(-1);
+    unplay(ctx, p);
   });
 
   it('R-FMT-005 R-ELEM-001 Stillness and a known Stonewall cancel the captor’s follow-up bonus; Always First keeps it', () => {

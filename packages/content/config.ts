@@ -34,7 +34,8 @@ export const CAPS = {
   BASE_ABILITY_CAPACITY: 1,
   MAX_ABILITY_CAPACITY: 5,
   MAX_CHAIN_DEPTH: 3,
-  // R-ELEM-002 tuning knob: 'ALL_TRIGGERS' (default) | 'REACTIONS_ONLY' | 'OFF'.
+  // R-ELEM-002 tuning knob: 'ALL_TRIGGERS' (default) | 'REACTIONS_ONLY' | 'ONCE_PER_ABILITY'
+  // (each ability on each piece type is silenced once per battle, DD-108) | 'OFF'.
   SILENCE_SCOPE: 'ALL_TRIGGERS',
   // 6.5 (COMMITTED rollout): the MVP shipped Ember, Tide and Grove; M7 7.3 adds Storm, Stone and
   // Frost, each with its accents and emblem and at least four affinity abilities.
@@ -43,6 +44,16 @@ export const CAPS = {
   MAX_EVENTS_PER_ACTION: 512,
   // 5.8 Schrödinger's Joker (DD-101, PLAYTEST): a twin group holds at most this many pieces.
   TWIN_GROUP_MAX: 3,
+  // 6.1 trait numbers (PLAYTEST; designer brief, plan item B4): Flow passes at most one allied
+  // piece per move (0: no limit), Bulwark covers non-pawns only, Overabundance adds one charge
+  // (the launch values were no limit, every piece and double charges), Hot Foot burns for 4
+  // opponent turns (was 3, D-40). `pnpm sim --caps '{"TRAITS":{...}}'` measures other values.
+  TRAITS: {
+    FLOW_PASS_LIMIT: 1,
+    BULWARK_PAWNS: false,
+    OVERABUNDANCE: { mode: 'add', amount: 1 },
+    HOT_FOOT_TURNS: 4,
+  },
 } as const satisfies Caps;
 
 /**
@@ -54,8 +65,6 @@ export const PLAYTEST_FLAGS = {
   schrodingers_joker: true,
 } as const;
 
-/** Hot Foot burns for this many turns of the igniting player's opponent (D-40, COMMITTED). */
-export const HOT_FOOT_TURNS = 3;
 /** Saved loadouts per player (7.4, PROVISIONAL). */
 export const MAX_SAVED_LOADOUTS = 5;
 /** Mid-action choice prompt, charged to the chooser's clock (5.4). */
