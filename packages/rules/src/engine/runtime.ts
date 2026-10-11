@@ -503,7 +503,11 @@ class Ctx implements ChoiceCtx {
     return this.host.s.armies[piece.side].sets[piece.type];
   }
   hasAbility(piece: PieceView, abilityId: string): boolean {
-    return this.abilitiesOf(piece).includes(abilityId);
+    if (!this.abilitiesOf(piece).includes(abilityId)) return false;
+    // A card ineligible for the piece's type idles there (7.3, R-LOAD-003): a hook that asks
+    // whether the piece "has" it gets no, exactly as a trigger on such a piece never fires.
+    const def = this.rt.ability(abilityId);
+    return def !== undefined && (def.eligible === 'all' || def.eligible.includes(piece.type));
   }
   attuned(piece: PieceView, abilityId: string): boolean {
     const def = this.rt.ability(abilityId);

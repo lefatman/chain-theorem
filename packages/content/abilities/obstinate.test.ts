@@ -1,5 +1,5 @@
 /**
- * Obstinate (5.8): Passive, neutral, all. "Cannot be move-captured by a piece of higher rank; kings
+ * Obstinate (5.8): Passive, neutral, pawn/knight/bishop/rook. "Cannot be move-captured by a piece of higher rank; kings
  * ignore it. Effect captures are unaffected. Costs two ability slots. Revealed the first time it
  * changes which captures are legal."
  *
@@ -17,12 +17,12 @@ const legal = (engine: Engine, state: GameState, side: Side): string[] =>
   engine.legalMoves(state, side).map(moveToUci);
 
 describe('Obstinate (5.8, DD-97, DD-99)', () => {
-  it('R-ABIL-005 module data: Passive, neutral, all, level 9, 2 slots (B5), a captureFilter hook', () => {
+  it('R-ABIL-005 module data: Passive, neutral, pawn to rook (DD-116), level 9, 2 slots (B5), a captureFilter hook', () => {
     const def = abilityById.get('obstinate');
     expect(def).toMatchObject({
       category: 'PASSIVE',
       affinity: 'neutral',
-      eligible: 'all',
+      eligible: ['pawn', 'knight', 'bishop', 'rook'],
       tags: [],
       minLevel: 9,
       slotCost: 2,

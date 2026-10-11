@@ -23,7 +23,7 @@ import {
   decodeMove,
   uciToMove,
 } from '@chain-theorem/rules';
-import { sideKnowledge } from './knowledge.ts';
+import { negateCharges, sideKnowledge } from './knowledge.ts';
 import { type SearchCtx, VALUE, WIN, evalPos, negamax, play, quiesce, unplay } from './fast.ts';
 import type { EffectSpec, Engine } from './types.ts';
 
@@ -108,6 +108,8 @@ function makeCtx(
     start: state.pieces.map((p) => p.start),
     bulwarkSpent,
     bulwarkPawns: engine.caps.TRAITS.BULWARK_PAWNS,
+    // Own Pierce charges from the public usage counters (DD-120); the opponent's are not read.
+    negateCharges: negateCharges(engine, state, viewer),
     know: [
       sideKnowledge(engine, state, 'white', viewer),
       sideKnowledge(engine, state, 'black', viewer),

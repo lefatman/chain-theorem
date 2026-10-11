@@ -1,6 +1,6 @@
 # DD-108: silenceScope gains ONCE_PER_ABILITY (6.2, PLAYTEST knob, default unchanged at ALL_TRIGGERS): the foil silences each ability on each piece type once per battle, the first time, which reveals it as any silence does; from then on that ability fires against the foil like any other
 
-Status: binding under D-37 (designer may overrule).
+Status: binding under D-37 (designer may overrule). Amended by DD-122 (B5, 2026-10-11): Resonance Crystal spares one silence under every scope; the "never" reading was withdrawn after section 8 of docs/BALANCE_BASELINE.md.
 Spec: 6.2, 7.2, 17.2, R-ELEM-002, R-LOAD-002, R-SEC-001, DD-30, DD-98
 
 ## Decision

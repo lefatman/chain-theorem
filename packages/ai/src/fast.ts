@@ -70,6 +70,13 @@ export interface SearchCtx {
   bulwarkSpent: Uint8Array;
   /** Whether Stone pawns carry Bulwark too (`caps.TRAITS.BULWARK_PAWNS`, public config; DD-113). */
   bulwarkPawns: boolean;
+  /**
+   * Negating captures left per piece (DD-120): the charges of the viewer's own Capturing negation
+   * (Pierce) from the public usage counters, spent as the search plays its captures; `Infinity`
+   * where no charge limit applies or the piece is the opponent's (its counters are not read,
+   * R-FMT-005). From `negateCharges` (knowledge.ts).
+   */
+  negateCharges: number[];
   know: [Record<PieceType, PieceKnowledge>, Record<PieceType, PieceKnowledge>];
   abilityAware: boolean;
   /** Fraction of the captor's value charged for capturing a piece with unknown abilities. */
@@ -118,6 +125,8 @@ export interface Played {
   /** A captor pushed back or sent home by a known reaction (Frost Heave, Permafrost), or -1. */
   pushed: number;
   pushedTo: number;
+  /** A captor whose negation charge (Pierce, DD-120) this capture spent, or -1. */
+  charged: number;
   bias: number;
   obj: [number, number];
   terminal: number;
@@ -150,6 +159,7 @@ export function play(ctx: SearchCtx, m: number): Played {
     killedSq: -1,
     pushed: -1,
     pushedTo: -1,
+    charged: -1,
     bias: 0,
     obj: [ctx.objective[0], ctx.objective[1]],
     terminal: 0,
@@ -183,7 +193,14 @@ export function play(ctx: SearchCtx, m: number): Played {
       ctx.bulwarkPawns,
     );
     const capturingSilenced = sil.captor && ctx.silence !== 'REACTIONS_ONLY';
-    const negated = !capturingSilenced && cK.capturing.negatesVictim;
+    // A negation with its charges spent lets the reactions resolve (DD-120); one that fires spends
+    // a charge whether or not the victim had anything to negate (DD-17).
+    const charges = ctx.negateCharges[captor] ?? Infinity;
+    const negated = !capturingSilenced && cK.capturing.negatesVictim && charges > 0;
+    if (negated && Number.isFinite(charges)) {
+      ctx.negateCharges[captor] = charges - 1;
+      out.charged = captor;
+    }
     // Always First (6.1): a Storm captor's own After-capturing guard resolves before retaliation.
     const protectedSelf =
       (!capturingSilenced && cK.capturing.protectsSelf) ||
@@ -260,6 +277,7 @@ export function unplay(ctx: SearchCtx, p: Played): void {
     pos.psq[p.pushed] = to;
   }
   pos.unmake(p.undo);
+  if (p.charged >= 0) ctx.negateCharges[p.charged] = (ctx.negateCharges[p.charged] ?? 0) + 1;
   ctx.objective[0] = p.obj[0];
   ctx.objective[1] = p.obj[1];
 }

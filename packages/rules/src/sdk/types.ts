@@ -270,6 +270,10 @@ export interface ReadCtx {
   slice<T>(id?: string): T;
   /** Ability ids in the piece's current set, in order (ineligible ones included). */
   abilitiesOf(piece: PieceView): readonly string[];
+  /**
+   * Is the ability in the piece's set and eligible for the piece's type? A card ineligible for the
+   * type idles there (7.3), so hook-based passives (Obstinate, Block Path, Stalwart) read false.
+   */
   hasAbility(piece: PieceView, abilityId: string): boolean;
   /**
    * Is the ability attuned on this piece (6.3): the piece's element matches the ability's affinity,

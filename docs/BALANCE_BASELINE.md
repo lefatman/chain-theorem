@@ -992,6 +992,4 @@ Passive abilities per set (`CAPS.MAX_PASSIVES_PER_SET`), which cuts the Stalwart
 plus one. The simulator's picker deals a `--prefer` card right after the signature, so `--prefer
 obstinate` puts Obstinate into every Focused build, Storm's included (section 7's finding 2).
 
-@@B5_TABLES@@
-
-@@B5_FINDINGS@@
+_The `b5` simulator batch (the four changed cards alone, the element suites at the defaults, with `--prefer obstinate`, under `ONCE_PER_ABILITY` with `--prefer pierce`, and the archetypes) was still running at this commit; its tables and findings follow in the next commit._

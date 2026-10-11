@@ -190,14 +190,13 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
       of equal or higher rank (5.1), the queen twice at allied rooks and bishops, never at the king
       or a pawn (engine corners are now per slider type). Done 2026-10-09 (evidence log);
       measurements in `docs/BALANCE_BASELINE.md` section 10.
-- [ ] B5 Per-card changes and loadout rule 9: Redo non-pawn; Obstinate ignored by kings, 2 slots;
-      Block Path 2 slots and a king's facing resets to forward after it moves; rule 9 at most two
-      Passive abilities per set; Pierce 2 charges; Scout's Lens reveals the whole pawn set; sim run;
-      DD rows. B1's baseline backs Obstinate at 2 slots and the two-passive rule (which also cuts
-      the Stalwart king set to two cards; the Stalwart king decides Full Battle between archetypes,
-      section 9.3 of the baseline, and the designer has ruled out pricing it). From B3: Resonance
-      Crystal's reading under `ONCE_PER_ABILITY` (one spared silence per battle as DD-30 had it, or
-      a higher slot cost for "never") and Storm's passive slot.
+- [x] B5 Per-card changes and loadout rule 9 (DD-116 to DD-122): Obstinate two slots and kings
+      ignore it; Block Path two slots and a moved king faces forward without a prompt; Redo not on
+      pawns; Pierce two charges; Scout's Lens reveals the whole pawn set; Resonance Crystal spares one
+      silence under every scope (the B3 condition); rule 9, at most `CAPS.MAX_PASSIVES_PER_SET` (2)
+      Passive abilities per set, which cuts the Stalwart king set to Stalwart plus one; simulator
+      picker under rule 9 with `--prefer` dealt after the signature (Storm gets Obstinate). Done
+      2026-10-11 (evidence log); measurements in `docs/BALANCE_BASELINE.md` section 11.
 - [ ] C6 Three neutral abilities: Cornered (Captured, L4, 1 charge, rim squares), Ricochet (Captures,
       sliders, L8, 2 charges, continue past the capture), Overwhelm (Capturing, L9, 2 charges, negate
       a lower-ranked victim's Captured abilities); primitives logged; golden examples; fuzz; sim.
@@ -232,6 +231,14 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 - Arcane Chess codebase path for step 2.8 (optional).
 
 ## Evidence log
+
+- 2026-10-11 B5 (DD-116 to DD-122; R-LOAD-004, R-ABIL-003, R-ABIL-005, R-RULES-001, R-ELEM-002,
+  R-LOAD-002, R-INFO-002, R-TEST-002): rule 9 through the validator (`passives_exceeded`), the
+  builder, the property checker and spec 7.4; Obstinate v2, Block Path v2, Redo v2, Pierce v3, Scout's
+  Lens v2, Resonance Crystal v3; golden E2 carries Pierce's ChargeSpent; simulator picker and mirror
+  builds under rule 9 and slot costs. `pnpm check` 1,634 unit tests, `req:coverage` 84/84; `pnpm
+test:fuzz` 500 games clean. Simulator (20,000 nodes, Trainer): batch running at this commit, results in the next commit. Findings in
+  `docs/BALANCE_BASELINE.md` section 11.
 
 - 2026-10-10 B3c and B4 (DD-111 to DD-115; R-LOAD-004, R-RULES-003, R-ELEM-001, R-ELEM-003,
   R-ELEM-005, R-ELEM-006, R-ELEM-007, R-FMT-005, R-TEST-002): rule 9 reverted to the pre-B3b

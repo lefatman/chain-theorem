@@ -8,6 +8,7 @@
  */
 import {
   beats,
+  eligibleFor,
   type ElementId,
   type GameState,
   type PieceType,
@@ -177,6 +178,30 @@ export function sideKnowledge(
     out[t] = k;
   }
   return out;
+}
+
+/**
+ * Negating captures left per piece (DD-120, R-FMT-005): for a piece of the viewer's own side, the
+ * largest number of charges left on a CAPTURING ability of its type that negates the victim's
+ * reactions (Pierce: 2, plus the engine's trait adjustments such as Overabundance), read from the
+ * public usage counters through `engine.remainingCharges`; `Infinity` when one of them has no charge
+ * limit (Phalanx) or the type carries no such ability. Every opponent piece is `Infinity` too: its
+ * counters are not read, so its known negation keeps the per-type treatment.
+ */
+export function negateCharges(engine: Engine, state: GameState, viewer: Side): number[] {
+  const abilities = new Map(engine.registry.abilities.map((a) => [a.id, a]));
+  const sets = state.armies[viewer].sets;
+  return state.pieces.map((p) => {
+    if (p.side !== viewer) return Infinity;
+    let left = -Infinity;
+    for (const id of sets[p.type]) {
+      const def = abilities.get(id);
+      if (!def || def.category !== 'CAPTURING' || !eligibleFor(def, p.type)) continue;
+      if (!profileOf(def).negatesVictim) continue;
+      left = Math.max(left, engine.remainingCharges(state, p.id, def.id));
+    }
+    return left === -Infinity ? Infinity : Math.max(0, left);
+  });
 }
 
 export function silenced(

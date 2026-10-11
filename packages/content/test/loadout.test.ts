@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   type ElementId,
+  type Engine,
   type Loadout,
   type LoadoutValidation,
   type PieceType,
@@ -593,6 +594,31 @@ describe('R-LOAD-003 ability sets and builds', () => {
     ]);
     expect(pieceAt(r.state, 'c3')).toMatchObject({ side: 'white', type: 'knight' });
     expect(pieceAt(r.state, 'd5')).toBeUndefined();
+  });
+
+  it('R-LOAD-003 an ineligible passive does nothing there: Obstinate restricted to pawns guards the pawn, not the knight (7.3, DD-116)', () => {
+    // Obstinate's real eligibility (pawn to rook) leaves no observable idle case, since nothing it
+    // could stop can take a queen or a king; a copy eligible on pawns only shows the rule for
+    // hook-based passives: in an army-wide set the card sits on the knight too, yet the rook may
+    // take the knight (rank 2) while the pawn (rank 1) stays out of reach.
+    const pawnsOnly = createEngine(
+      {
+        ...registry,
+        abilities: registry.abilities.map((a) =>
+          a.id === 'obstinate' ? { ...a, eligible: ['pawn' as const] } : a,
+        ),
+      },
+      CAPS,
+    );
+    // Rooks a1 and d1 look at the pawn a4 and the knight d5.
+    const fen = '4k3/8/8/3n4/p7/8/8/R2RK3 w - - 0 1';
+    const s = setup({ fen, black: { abilities: ['obstinate'] } });
+    const legal = (e: Engine) => e.legalMoves(s.state, 'white').map((m) => `${m.from}-${m.to}`);
+    expect(legal(pawnsOnly)).toContain(`${sq('d1')}-${sq('d5')}`);
+    expect(legal(pawnsOnly)).not.toContain(`${sq('a1')}-${sq('a4')}`);
+    // Control: eligible as shipped, the same set guards the knight as well.
+    expect(legal(engine)).not.toContain(`${sq('d1')}-${sq('d5')}`);
+    expect(legal(engine)).not.toContain(`${sq('a1')}-${sq('a4')}`);
   });
 
   it('R-LOAD-003 R-ABIL-004 the order within a set is the resolution order', () => {

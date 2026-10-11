@@ -8,6 +8,7 @@ import { loadoutShape, type BattleEvent, type ElementId, type Loadout } from '@c
 import { CAPS, abilities, engine, items } from '@chain-theorem/content';
 import {
   ARCHETYPES,
+  AS_WIDE,
   archetypeElements,
   assertValid,
   buildLoadout,
@@ -117,9 +118,11 @@ describe('balance simulator (R-TEST-002)', () => {
       const cats = new Set(set.map((id) => category.get(id)));
       expect([...cats].sort(), e).toEqual(['CAPTURED', 'CAPTURES', 'CAPTURING', 'PASSIVE']);
       // The signature leads; the rest of an army-wide set is army-wide (7.3: a type-bound card
-      // idles on the other types but still uses the slot).
+      // idles on the other types but still uses the slot), or a card the picker deals like one
+      // because the types it leaves out are ones it could never act on (Obstinate, DD-116).
       expect(affinity.get(set[0] ?? ''), e).toBe(e);
-      for (const id of set.slice(1)) expect(eligibleFor.get(id), `${e} ${id}`).toBe('all');
+      for (const id of set.slice(1))
+        expect(eligibleFor.get(id) === 'all' || AS_WIDE.has(id), `${e} ${id}`).toBe(true);
     }
   });
 

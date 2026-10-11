@@ -188,6 +188,74 @@ describe('the fast search plays the new reactions (R-FMT-005)', () => {
     unplay(ctx, p);
   });
 
+  it('R-FMT-005 R-ABIL-003 DD-120 the search knows its own Pierce charges: with both spent, capturing a known Poisoned Meat pawn is rated as killing the captor; with one left it is rated safe', () => {
+    // Pierce (5.7, DD-120) negates a victim's Captured abilities twice per piece; a side's own usage
+    // counters are public to it (`PublicState.usage`), so the search reads them and nothing else.
+    // The knight on d5 then reaches f6: a line in which the same piece captures twice.
+    const TWO = '4k3/8/5p2/3p4/8/2N5/8/4K3 w - - 0 1';
+    const { state } = setup({
+      fen: TWO,
+      white: { abilities: ['pierce'] },
+      black: { abilities: ['poisoned_meat'] },
+    });
+    const knight = idAt(state, 'c3');
+    const used = (n: number): GameState => ({
+      ...state,
+      usage: { ...state.usage, [`${knight}:pierce`]: n },
+    });
+    expect(probe(state, 'c3d5', 'white').played.killed).toBe(-1);
+    expect(probe(used(1), 'c3d5', 'white').played.killed).toBe(-1);
+    expect(probe(used(2), 'c3d5', 'white').played.killed).toBe(knight);
+    // The NPC's real input is its belief state built from its projection (the pawn's Poisoned Meat
+    // revealed, its own counters public): same answer.
+    const belief = (s: GameState) => {
+      const black = { ...s.reveals.black, abilities: { pawn: ['poisoned_meat'] } };
+      const seen = { ...s, reveals: { ...s.reveals, black } };
+      return engine.beliefState(engine.project(seen, 'white'), s.armies.white.loadout);
+    };
+    expect(belief(used(2)).usage[`${knight}:pierce`]).toBe(2);
+    expect(probe(belief(used(2)), 'c3d5', 'white').played.killed).toBe(knight);
+    expect(probe(belief(used(1)), 'c3d5', 'white').played.killed).toBe(-1);
+    // A capture spends a charge inside the search tree too (DD-17: the negate resolves whenever
+    // Pierce fires), so with one left the knight's second capture in the line dies; undo restores it.
+    const line = (s: GameState) => {
+      const ctx = searchContext(engine, s, 'white');
+      const next = (uci: string) => {
+        const mv = uciToMove(uci);
+        const m = ctx.pos
+          .legal(ctx.pos.turn)
+          .find((x) => (x & 63) === mv.from && ((x >> 6) & 63) === mv.to);
+        if (m === undefined) throw new Error(`illegal ${uci}`);
+        return play(ctx, m);
+      };
+      const first = next('c3d5');
+      const reply = next('e8d8');
+      const second = next('d5f6');
+      const killed = second.killed;
+      unplay(ctx, second);
+      unplay(ctx, reply);
+      unplay(ctx, first);
+      return { first: first.killed, killed, left: ctx.negateCharges[knight] };
+    };
+    expect(line(used(1))).toEqual({ first: -1, killed: knight, left: 1 });
+    expect(line(state)).toEqual({ first: -1, killed: -1, left: 2 });
+    // Overabundance (R-ELEM-007): a Grove knight's Pierce has a third charge, so two spent still negate.
+    const grove = setup({
+      fen: TWO,
+      white: { elements: ['grove'], abilities: ['pierce'] },
+      black: { abilities: ['poisoned_meat'] },
+    }).state;
+    const groveKnight = idAt(grove, 'c3');
+    const groveUsed = (n: number): GameState => ({
+      ...grove,
+      usage: { ...grove.usage, [`${groveKnight}:pierce`]: n },
+    });
+    expect(probe(groveUsed(2), 'c3d5', 'white').played.killed).toBe(-1);
+    expect(probe(groveUsed(3), 'c3d5', 'white').played.killed).toBe(groveKnight);
+    expect(probe(belief(groveUsed(2)), 'c3d5', 'white').played.killed).toBe(-1);
+    expect(probe(belief(groveUsed(3)), 'c3d5', 'white').played.killed).toBe(groveKnight);
+  });
+
   it('R-FMT-005 R-ELEM-001 Stillness and a known Stonewall cancel the captor’s follow-up bonus; Always First keeps it', () => {
     const bias = (
       white: Loadout['elements'][number],

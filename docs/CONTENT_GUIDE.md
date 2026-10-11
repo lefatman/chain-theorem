@@ -1005,19 +1005,19 @@ hook and PROTECT registrations after them (DD-35).
 Every hook receives a context. Read-only hooks get a `ReadCtx`; hooks that may change state get a
 `MutCtx` (`SetupCtx` is the same type).
 
-| `ReadCtx` member        | Returns                                                                         |
-| ----------------------- | ------------------------------------------------------------------------------- |
-| `state`                 | `Readonly<GameState>`: the true state, hidden data included. Never mutate it    |
-| `caps`, `registry`      | The engine's `Caps` and `ContentRegistry`                                       |
-| `owner`                 | The equipping side for items and abilities; `null` for traits and slice init    |
-| `piece(id)`             | A `PieceView` (on or off the board)                                             |
-| `pieceAt(square)`       | The `PieceView` on a square, or `null`                                          |
-| `pieces(side?)`         | Pieces on the board, optionally of one side                                     |
-| `slice<T>(id?)`         | A state slice; defaults to this module's own                                    |
-| `abilitiesOf(piece)`    | Ability ids of the piece's current type set, in order, ineligible ones included |
-| `hasAbility(piece, id)` | Whether that set contains the id                                                |
-| `hasItem(side, id)`     | Whether that side equips the item                                               |
-| `itemParam(side, id)`   | The item's loadout parameter, e.g. `{ element: 'tide' }`                        |
+| `ReadCtx` member        | Returns                                                                                                                                              |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `state`                 | `Readonly<GameState>`: the true state, hidden data included. Never mutate it                                                                         |
+| `caps`, `registry`      | The engine's `Caps` and `ContentRegistry`                                                                                                            |
+| `owner`                 | The equipping side for items and abilities; `null` for traits and slice init                                                                         |
+| `piece(id)`             | A `PieceView` (on or off the board)                                                                                                                  |
+| `pieceAt(square)`       | The `PieceView` on a square, or `null`                                                                                                               |
+| `pieces(side?)`         | Pieces on the board, optionally of one side                                                                                                          |
+| `slice<T>(id?)`         | A state slice; defaults to this module's own                                                                                                         |
+| `abilitiesOf(piece)`    | Ability ids of the piece's current type set, in order, ineligible ones included                                                                      |
+| `hasAbility(piece, id)` | Whether that set contains the id and the card is eligible on the piece's type (7.3: an ineligible card idles, so hook passives read false there; B5) |
+| `hasItem(side, id)`     | Whether that side equips the item                                                                                                                    |
+| `itemParam(side, id)`   | The item's loadout parameter, e.g. `{ element: 'tide' }`                                                                                             |
 
 | `MutCtx` adds                        | Does                                                                                              |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------- |

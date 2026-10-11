@@ -72,12 +72,19 @@ function eligible(a: AbilityDef, t: PieceType | 'all'): boolean {
 
 /**
  * A card that can never act on the piece type is not dealt to that type's set: a Captured card on
- * the king (a king is never captured; a Stalwart king's capture ends the battle, R-RULES-004) and
- * Obstinate on the king (it guards against higher ranks, and nothing outranks a king, DD-97).
+ * the king (a king is never captured; a Stalwart king's capture ends the battle, R-RULES-004).
+ * Obstinate needs no such rule since DD-116 made queens and kings ineligible (`eligible`).
  */
 function inert(a: AbilityDef, t: PieceType | 'all'): boolean {
-  return t === 'king' && (a.category === 'CAPTURED' || a.id === 'obstinate');
+  return t === 'king' && a.category === 'CAPTURED';
 }
+
+/**
+ * Cards whose eligibility leaves out only types they could never act on, so an army-wide set loses
+ * nothing by their absence there: Obstinate on the queen and king (DD-116: only a king outranks a
+ * queen and kings ignore the card). The picker deals them like army-wide cards.
+ */
+export const AS_WIDE: ReadonlySet<string> = new Set(['obstinate']);
 
 function score(a: AbilityDef, element: ElementId, type: PieceType | 'all'): number {
   const affinity = a.affinity === element ? 10 : a.affinity === 'neutral' ? 2 : 0;
@@ -85,7 +92,7 @@ function score(a: AbilityDef, element: ElementId, type: PieceType | 'all'): numb
   // A card built for a few piece types is the natural pick for one of those types' sets (Pawn Storm
   // on pawns, Afterimage on knights) and a poor one for an army-wide set, where it idles on the
   // other types but still uses the slot (7.3); there it ranks below every army-wide card.
-  const fit = a.eligible === 'all' ? 0 : type === 'all' ? -1 : 0.75;
+  const fit = a.eligible === 'all' || AS_WIDE.has(a.id) ? 0 : type === 'all' ? -1 : 0.75;
   // A preferred card outranks every other neutral card, never the signature (whose +10 affinity
   // beats a neutral card's 2 + 5 at any category and fit); among preferred cards the +5 keeps
   // their natural order, which is the order `pickAbilities` deals them in.

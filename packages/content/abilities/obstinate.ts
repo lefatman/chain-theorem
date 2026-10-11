@@ -1,11 +1,13 @@
 /**
  * Obstinate (5.8, PLAYTEST; designer brief 2026-10-06, DD-97; B5 brief 2026-10-11): Passive,
- * neutral, all. This piece cannot be move-captured by an enemy piece of higher rank (5.1: pawn 1 <
- * knight = bishop 2 < rook 3 < queen 4), except by a king: kings ignore it and may move-capture an
- * Obstinate piece of any rank. Effect captures are unaffected. A Stalwart attacker ignores the
- * restriction (DD-102). Costs two ability slots (B5: on its own it scored 89% and 96% in the two
- * formats, docs/BALANCE_BASELINE.md section 5). The engine reveals it the first time it changes
- * which captures are legal (DD-99).
+ * neutral, pawn/knight/bishop/rook. This piece cannot be move-captured by an enemy piece of higher
+ * rank (5.1: pawn 1 < knight = bishop 2 < rook 3 < queen 4), except by a king: kings ignore it and
+ * may move-capture an Obstinate piece of any rank. Effect captures are unaffected. A Stalwart
+ * attacker ignores the restriction (DD-102). Costs two ability slots (B5: on its own it scored 89%
+ * and 96% in the two formats, docs/BALANCE_BASELINE.md section 5). Queens and kings are not
+ * eligible (DD-116): nothing but a king outranks a queen and kings ignore the card, so on either it
+ * could never change a capture and would only waste two slots. The engine reveals it the first time
+ * it changes which captures are legal (DD-99).
  */
 import { defineAbility, fx, pieceRank } from '@chain-theorem/rules/sdk';
 
@@ -14,10 +16,10 @@ const ID = 'obstinate';
 export default defineAbility({
   id: ID,
   name: 'Obstinate',
-  version: 2,
+  version: 3,
   category: 'PASSIVE',
   affinity: 'neutral',
-  eligible: 'all',
+  eligible: ['pawn', 'knight', 'bishop', 'rook'],
   tags: [],
   minLevel: 9,
   slotCost: 2,
