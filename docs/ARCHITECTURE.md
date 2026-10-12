@@ -311,7 +311,7 @@ export function defineTrait(def: TraitDef): TraitDef;
 export const fx: EffectBuilders; // effectCapture, negate, protect, move, revive, bonusAction,
 // reveal, modifyRule, when (conditional), atChainEnd
 export const target: TargetBuilders; // self, captor, victim, chosen(filter), mostRecentCaptured(type)
-export const square: SquareBuilders; // origin, start, chosen(filter)
+export const square: SquareBuilders; // origin, start, chosen(filter), startElse(filter), continue
 
 export interface ContentRegistry {
   abilities: readonly AbilityDef[];

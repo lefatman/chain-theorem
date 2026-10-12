@@ -320,8 +320,15 @@ export type Condition =
   | { victimTypeNot: PieceType }
   | { victimTypeIs: PieceType[] }
   | { captorTypeIs: PieceType[] }
-  | { captorTypeNot: PieceType };
+  | { captorTypeNot: PieceType }
+  | { rank: { of: 'victim' | 'captor'; cmp: RankCmp; to: 'victim' | 'captor' } }
+  | { zone: { of: 'victim' | 'captor'; is: 'rim' } };
 ```
+
+`rank` compares the two pieces' ranks (5.1, DD-97; Redo, Necromancer, Quantum Kill, Overwhelm).
+`zone` tests a square (DD-123): `rim` is the a- and h-files and the first and eighth ranks; a captured
+piece uses the square it was captured on (5.4), the captor the square it stands on when the trigger is
+evaluated (Cornered: `{ zone: { of: 'victim', is: 'rim' } }`).
 
 When a condition fails the ability simply does not trigger: no event, no reveal, no charge. Compare
 `fx.when` (§4.7), which is evaluated when the ability resolves: the ability has already triggered and
@@ -531,12 +538,13 @@ fx.effectCapture(
 
 ### 4.4 Square selectors
 
-| Builder                    | Resolves to                                                                                                                 |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `square.origin()`          | The square the captor moved from in the capture that triggered the ability (for every category)                             |
-| `square.start()`           | The starting square of the piece being moved or revived (its identity's start, DD-22)                                       |
-| `square.chosen(filter)`    | An empty square matching `filter`, chosen by the ability's owner (§4.6)                                                     |
-| `square.startElse(filter)` | The piece's starting square when it is empty, otherwise an empty square matching `filter` chosen by the owner (Necromancer) |
+| Builder                    | Resolves to                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `square.origin()`          | The square the captor moved from in the capture that triggered the ability (for every category)                                                                                                                                                                                                                                                                             |
+| `square.start()`           | The starting square of the piece being moved or revived (its identity's start, DD-22)                                                                                                                                                                                                                                                                                       |
+| `square.chosen(filter)`    | An empty square matching `filter`, chosen by the ability's owner (§4.6)                                                                                                                                                                                                                                                                                                     |
+| `square.startElse(filter)` | The piece's starting square when it is empty, otherwise an empty square matching `filter` chosen by the owner (Necromancer)                                                                                                                                                                                                                                                 |
+| `square.continue()`        | One step beyond the capture square along the line from the square the captor moved from (Ricochet, DD-124); only when that line is one the moved piece slides on (rank or file for a rook, diagonal for a bishop, either for a queen), else the move fizzles `no_target`; off the board also `no_target`, occupied `occupied`, burning `burning`, an uncovered king `inv03` |
 
 `SquareFilter` fields (the builder always adds `empty: true`):
 

@@ -63,6 +63,11 @@ export const square = {
     s: 'startElse',
     filter: { empty: true, ...filter },
   }),
+  /**
+   * One step beyond the capture square, along the line the captor moved in (Ricochet, DD-124); no
+   * square when the move was not along a line the piece slides on or the step leaves the board.
+   */
+  continue: (): SquareSpec => ({ s: 'continue' }),
 };
 
 const selfLike = (t: TargetSpec): 'captor' | 'victim' | 'self' => {

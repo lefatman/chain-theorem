@@ -121,7 +121,15 @@ export type SquareSpec =
   | { s: 'start' }
   | { s: 'chosen'; filter: SquareFilter }
   /** The piece's starting square when empty, otherwise the owner chooses from the filter. */
-  | { s: 'startElse'; filter: SquareFilter };
+  | { s: 'startElse'; filter: SquareFilter }
+  /**
+   * CONTINUE (DD-124, Ricochet): the square one step beyond the capture square along the line from
+   * the square the captor moved from to the capture square. There is no such square (the move
+   * fizzles `no_target`) when that line is not one the moved piece slides along (a knight's jump, a
+   * turned Electric Slide path, a bishop's origin and landing on one file) or the step leaves the
+   * board; an occupied square fizzles `occupied`, burning and INV-03 as for every move.
+   */
+  | { s: 'continue' };
 
 export interface BonusSpec {
   /** Who may make the bonus move. */
@@ -170,6 +178,12 @@ export type EffectSpec =
   | { op: 'when'; cond: EffectCondition; then: EffectSpec[] }
   | { op: 'atChainEnd'; effects: EffectSpec[] };
 
+/**
+ * Board zones a trigger condition may name (DD-123): `rim` is the 28 squares of the a- and h-files
+ * and the first and eighth ranks.
+ */
+export type Zone = 'rim';
+
 /** Trigger conditions (5.6 `conditions`). All must hold for the ability to trigger. */
 export type Condition =
   | { victimTypeNot: PieceType }
@@ -177,7 +191,13 @@ export type Condition =
   | { captorTypeIs: PieceType[] }
   | { captorTypeNot: PieceType }
   /** Compare the victim's and the captor's ranks (5.1, DD-97): `of cmp to`. */
-  | { rank: { of: 'victim' | 'captor'; cmp: RankCmp; to: 'victim' | 'captor' } };
+  | { rank: { of: 'victim' | 'captor'; cmp: RankCmp; to: 'victim' | 'captor' } }
+  /**
+   * ZONE (DD-123, Cornered): the victim's or the captor's square lies in the zone. A captured piece
+   * uses the square it was captured on (its last known square, 5.4); the captor the square it stands
+   * on when the trigger is evaluated.
+   */
+  | { zone: { of: 'victim' | 'captor'; is: Zone } };
 
 // ---- module definitions ---------------------------------------------------------------------------
 

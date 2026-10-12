@@ -66,8 +66,11 @@ import {
   type Side,
   type SourceRef,
   type Square,
+  compassFrom,
+  isRim,
   rankCompare,
   RulesError,
+  stepTowards,
 } from '../types.ts';
 import { beats } from './elements.ts';
 import { EventHost } from './host.ts';
@@ -132,6 +135,28 @@ interface Protection {
   piece: PieceId;
   remaining: number;
   source: SourceRef;
+}
+
+/**
+ * CONTINUE (DD-124): the square one step beyond `to` along the line from `from` to `to`, when that
+ * line is one `type` slides on (a rank or file for a rook, a diagonal for a bishop, either for a
+ * queen; nothing else slides), else -1. A turned Electric Slide path whose ends are not on such a
+ * line, a knight's jump and a step off the board all give -1.
+ */
+function continueSquare(from: Square, to: Square, type: PieceType): Square {
+  const df = (to & 7) - (from & 7);
+  const dr = (to >> 3) - (from >> 3);
+  const diagonal = df !== 0 && Math.abs(df) === Math.abs(dr);
+  const straight = (df === 0) !== (dr === 0);
+  const slides =
+    type === 'queen'
+      ? diagonal || straight
+      : type === 'rook'
+        ? straight
+        : type === 'bishop' && diagonal;
+  if (!slides) return -1;
+  const dir = compassFrom(from, to);
+  return dir === null ? -1 : stepTowards(to, dir);
 }
 
 function near(pattern: Pattern, a: Square, b: Square): boolean {
@@ -722,7 +747,7 @@ export class ActionRun extends EventHost {
 
   private condHolds(c: Condition, cap: Cap): boolean {
     const victim = this.s.pieces[cap.victim] as { type: PieceType };
-    const captor = this.s.pieces[cap.captor] as { type: PieceType };
+    const captor = this.s.pieces[cap.captor] as { type: PieceType; square: number };
     if ('victimTypeNot' in c) return victim.type !== c.victimTypeNot;
     if ('victimTypeIs' in c) return c.victimTypeIs.includes(victim.type);
     if ('captorTypeIs' in c) return c.captorTypeIs.includes(captor.type);
@@ -730,6 +755,12 @@ export class ActionRun extends EventHost {
       const of = c.rank.of === 'victim' ? victim.type : captor.type;
       const to = c.rank.to === 'victim' ? victim.type : captor.type;
       return rankCompare(of, c.rank.cmp, to);
+    }
+    if ('zone' in c) {
+      // The victim's square is the one it was captured on (5.4); the captor stands where it is now
+      // (the capture square unless an effect has moved it), or where it was captured (DD-123).
+      const sq = c.zone.of === 'victim' || captor.square < 0 ? cap.to : captor.square;
+      return isRim(sq);
     }
     return captor.type !== c.captorTypeNot;
   }
@@ -1176,6 +1207,7 @@ export class ActionRun extends EventHost {
   ): Square | null {
     if (spec.s === 'origin') return tc.cap.from;
     if (spec.s === 'start') return piece.start;
+    if (spec.s === 'continue') return continueSquare(tc.cap.from, tc.cap.to, piece.type);
     if (spec.s === 'startElse' && (this.s.board[piece.start] as number) < 0) return piece.start;
     const options = this.squareOptions(spec.filter, piece, tc, kind);
     const choice = this.chooseFor(tc.owner, 'square', options, tc, false, { subject: piece.id });

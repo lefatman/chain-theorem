@@ -30,7 +30,7 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   then overruled both the same day (B3c, DD-111): Stalwart costs one ability slot and nothing else
   (rule 9 reverted), and Electric Slide follows the designer's own rule (rooks and bishops turn once
   at an ally of equal or higher rank, the queen twice at rooks and bishops, never the king or a
-  pawn). B4 makes the four trait numbers config knobs. Next run: B5, then C6–B8.
+  pawn). B4 makes the four trait numbers config knobs. B5 prices the per-card changes and rule 9 (`docs/BALANCE_BASELINE.md` section 11). C6 ships Cornered, Ricochet and Overwhelm (DD-123 to DD-125) with the ZONE trigger condition and the CONTINUE square selector. Next run: C7 (three items), then B8.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
   know), Storm, Stone and Frost with 12 abilities, 2 items and Highcairn Pass.
@@ -197,9 +197,11 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
       Passive abilities per set, which cuts the Stalwart king set to Stalwart plus one; simulator
       picker under rule 9 with `--prefer` dealt after the signature (Storm gets Obstinate). Done
       2026-10-11 (evidence log); measurements in `docs/BALANCE_BASELINE.md` section 11.
-- [ ] C6 Three neutral abilities: Cornered (Captured, L4, 1 charge, rim squares), Ricochet (Captures,
+- [x] C6 Three neutral abilities: Cornered (Captured, L4, 1 charge, rim squares), Ricochet (Captures,
       sliders, L8, 2 charges, continue past the capture), Overwhelm (Capturing, L9, 2 charges, negate
-      a lower-ranked victim's Captured abilities); primitives logged; golden examples; fuzz; sim.
+      a lower-ranked victim's Captured abilities); primitives logged; golden examples; fuzz; sim. Done
+      2026-10-12 (DD-123 to DD-125; evidence log): the ZONE trigger condition and the CONTINUE square
+      selector are the two new primitives, golden E18–E20, the NPC honours trigger conditions.
 - [ ] C7 Three items: Duelist's Gauntlet (L10), Reliquary (L12, revive), Herald's Horn (L7); fuzz; sim.
 - [ ] B8 Final balance report against 17.2 on the finished catalogue, 3,000-game fuzz, PROGRESS
       handoff.
@@ -231,6 +233,14 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 - Arcane Chess codebase path for step 2.8 (optional).
 
 ## Evidence log
+
+- 2026-10-12 C6 (DD-123 to DD-125; R-ABIL-002, R-ABIL-003, R-ABIL-004, R-ABIL-005, R-LOAD-002,
+  R-LOAD-003, R-ELEM-005, R-RULES-004, R-FMT-005, R-TEST-001, R-TEST-002): Cornered (Captured, L4,
+  1 charge, ZONE condition on the victim's rim square), Ricochet (Captures, sliders, L8, 2 charges,
+  CONTINUE selector) and Overwhelm (Capturing, L9, 2 charges, rank condition + NEGATE); two engine
+  primitives (`Condition.zone`, `SquareSpec.continue`, `isRim`), 29 module tests, golden E18–E20
+  with controls, spec 5.2/5.5/5.6/5.7/5.8 and the content guide; the NPC evaluates trigger
+  conditions per capture (`conditionsHold` and `effectiveProfile` in `packages/ai/src/knowledge.ts`: Cornered is a threat on the rim only, Overwhelm negates only when outranking and spends only then, Redo's and Phalanx's conditions are honoured; 22 new AI tests, 173 passing). `pnpm check` 1,705 unit tests (141 files), `req:coverage` 84/84; `pnpm test:fuzz` 500 games clean (44,432 plies, replays identical). Simulator (20,000 nodes, Trainer; mirror tests, 36 and 24 games): Overwhelm 63.9% / 64.6% (above the 60% line in both formats), Cornered 50.0% / 56.3%, Ricochet 50.0% / 39.6% (the search does not model the continuation); the default builds are unchanged. Findings in `docs/BALANCE_BASELINE.md` section 12.
 
 - 2026-10-11 B5 (DD-116 to DD-122; R-LOAD-004, R-ABIL-003, R-ABIL-005, R-RULES-001, R-ELEM-002,
   R-LOAD-002, R-INFO-002, R-TEST-002): rule 9 through the validator (`passives_exceeded`), the

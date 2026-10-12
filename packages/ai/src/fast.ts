@@ -14,7 +14,7 @@ import {
   mTo,
   mPromo,
 } from '@chain-theorem/rules';
-import { type PieceKnowledge, silenced, traitEffects } from './knowledge.ts';
+import { type PieceKnowledge, effectiveProfile, silenced, traitEffects } from './knowledge.ts';
 
 export const WIN = 1_000_000;
 const TYPES: PieceType[] = ['pawn', 'knight', 'bishop', 'rook', 'queen', 'king'];
@@ -172,8 +172,17 @@ export function play(ctx: SearchCtx, m: number): Played {
   if (victimType !== 0) ctx.objective[mover] = (ctx.objective[mover] ?? 0) + 1;
   if (ctx.abilityAware) {
     const vSide = pos.pside[victim] as 0 | 1;
-    const vK = ctx.know[vSide][TYPES[victimType] as PieceType];
-    const cK = ctx.know[mover as 0 | 1][TYPES[captorType] as PieceType];
+    const vType = TYPES[victimType] as PieceType;
+    // The captor's type at capture (a promoting pawn is still a pawn here), as for its knowledge.
+    const cType = TYPES[captorType] as PieceType;
+    const vK = ctx.know[vSide][vType];
+    const cK = ctx.know[mover as 0 | 1][cType];
+    // Known abilities with trigger conditions (5.6) count only for the captures they admit: Cornered
+    // on the rim (DD-123), Overwhelm against a lower rank (DD-125), Redo against an equal or higher
+    // rank (DD-100), Phalanx for minor pieces. A type without any reads its merged profile as it is.
+    const capturing = effectiveProfile(cK, 'CAPTURING', cType, vType, to);
+    const captures = effectiveProfile(cK, 'CAPTURES', cType, vType, to);
+    const captured = effectiveProfile(vK, 'CAPTURED', cType, vType, to);
     const captorEl = ctx.elem[captor] ?? 'neutral';
     const victimEl = ctx.elem[victim] ?? 'neutral';
     const base =
@@ -186,26 +195,22 @@ export function play(ctx: SearchCtx, m: number): Played {
             captor: base.captor && !ctx.silenceSpent.has(`${mover}:${captorType}`),
           }
         : base;
-    const trait = traitEffects(
-      captorEl,
-      victimEl,
-      TYPES[captorType] as PieceType,
-      ctx.bulwarkPawns,
-    );
+    const trait = traitEffects(captorEl, victimEl, cType, ctx.bulwarkPawns);
     const capturingSilenced = sil.captor && ctx.silence !== 'REACTIONS_ONLY';
     // A negation with its charges spent lets the reactions resolve (DD-120); one that fires spends
-    // a charge whether or not the victim had anything to negate (DD-17).
+    // a charge whether or not the victim had anything to negate (DD-17). A conditional negation
+    // (Overwhelm, DD-125) fires, and so spends, only when its conditions hold for this capture.
     const charges = ctx.negateCharges[captor] ?? Infinity;
-    const negated = !capturingSilenced && cK.capturing.negatesVictim && charges > 0;
+    const negated = !capturingSilenced && capturing.negatesVictim && charges > 0;
     if (negated && Number.isFinite(charges)) {
       ctx.negateCharges[captor] = charges - 1;
       out.charged = captor;
     }
     // Always First (6.1): a Storm captor's own After-capturing guard resolves before retaliation.
     const protectedSelf =
-      (!capturingSilenced && cK.capturing.protectsSelf) ||
-      (trait.stormFirst && !sil.captor && !trait.stillness && cK.captures.protectsSelf);
-    const reactions = sil.victim || negated ? null : vK.captured;
+      (!capturingSilenced && capturing.protectsSelf) ||
+      (trait.stormFirst && !sil.captor && !trait.stillness && captures.protectsSelf);
+    const reactions = sil.victim || negated ? null : captured;
     // Bulwark (6.1, DD-113): a Stone captor's first effect capture fizzles; pawns need the knob.
     const bulwark = trait.captorBulwark && ctx.bulwarkSpent[captor] !== 1;
     if (reactions?.killsCaptor && captorType !== 5 && !protectedSelf && !bulwark) {
@@ -234,23 +239,23 @@ export function play(ctx: SearchCtx, m: number): Played {
     // illusory and the tempo is lost.
     if (reactions?.undoesCapture) out.bias -= (VALUE[victimType] as number) + 15;
     // Buttress: the captor's CAPTURING guard shields a neighbour from Backdraft-style captures.
-    const guarded = !capturingSilenced && cK.capturing.protectsFriend;
+    const guarded = !capturingSilenced && capturing.protectsFriend;
     if (reactions?.killsOther && !guarded) out.bias -= 70;
     // Squall: the victim's side gets a free move (Riposte's recapture is a capture, not tempo).
     if (reactions?.bonus && !reactions.recaptures) out.bias -= 15;
     if (reactions?.movesEnemy) out.bias -= 25;
-    if (!capturingSilenced && cK.capturing.movesEnemy) out.bias += 30;
+    if (!capturingSilenced && capturing.movesEnemy) out.bias += 30;
     // Stillness negates the captor's After-capturing abilities; so does a Stonewall-style reaction,
     // unless Always First resolves them before it.
     const capturesNegated =
       trait.stillness || (reactions?.negatesCaptor === true && !trait.stormFirst);
     if (!sil.captor && !capturesNegated) {
-      if (cK.captures.killsOther) out.bias += 70;
-      if (cK.captures.reviveFriendly) out.bias += 60;
-      if (cK.captures.bonus) out.bias += 20;
+      if (captures.killsOther) out.bias += 70;
+      if (captures.reviveFriendly) out.bias += 60;
+      if (captures.bonus) out.bias += 20;
       // A twin is a second piece of this type that moves every turn (DD-101).
-      if (cK.captures.spawns) out.bias += Math.round((VALUE[captorType] as number) * 0.5);
-      if (cK.captures.movesEnemy) out.bias += 25;
+      if (captures.spawns) out.bias += Math.round((VALUE[captorType] as number) * 0.5);
+      if (captures.movesEnemy) out.bias += 25;
     }
     if (vK.uncertain) out.bias -= Math.round(ctx.risk * (VALUE[captorType] as number));
   }

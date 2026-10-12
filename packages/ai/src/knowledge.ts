@@ -4,15 +4,23 @@
  * changes. Only information the NPC may see is used: its own loadout and the opponent's revealed
  * abilities (the belief state). M7 7.3 adds the patterns of the Storm, Stone and Frost catalogue
  * (negating the captor, pushing it back or home, guarding a friend, moving an enemy piece) and the
- * three new traits' public effects on a capture (`traitEffects`).
+ * three new traits' public effects on a capture (`traitEffects`). Trigger conditions (5.6) stay with
+ * the profile of the ability that carries them and are decided per capture (`conditionsHold`,
+ * `effectiveProfile`): Cornered bites only on the rim (DD-123), Overwhelm negates only a lower rank
+ * (DD-125), Redo rewinds only a capture by an equal or higher rank (DD-100).
  */
 import {
   beats,
   eligibleFor,
+  isRim,
+  rankCompare,
+  type Condition,
   type ElementId,
   type GameState,
   type PieceType,
   type Side,
+  type Square,
+  type Zone,
 } from '@chain-theorem/rules';
 import type { AbilityDef, EffectSpec, Engine } from './types.ts';
 
@@ -95,6 +103,7 @@ function scan(effects: readonly EffectSpec[], p: Profile, cat: AbilityDef['categ
           p.protectsFriend = true;
         break;
       case 'move':
+        // Self-moves after a capture (Hit and Run, Afterimage, Ricochet's CONTINUE) are not modelled.
         if (e.piece.t === 'captor' && cat === 'CAPTURED') {
           if (e.to.s === 'start') p.sendsCaptorHome = true;
           else p.pushesCaptor = true;
@@ -132,11 +141,83 @@ export function profileOf(def: AbilityDef): Profile {
   return p;
 }
 
+/**
+ * Do an ability's trigger conditions (5.6) all hold for a capture of a `victimType` piece by a
+ * `captorType` piece on `captureSquare`? The engine's test (action.ts `condHolds`) from what the
+ * search knows at that point: a ZONE condition resolves either subject to the capture square, since
+ * a captured piece uses the square it was captured on (5.4) and the captor stands there when its
+ * triggers are evaluated (DD-123). Data only, never ability ids; the chain over `Condition` is
+ * exhaustive, so a new variant is a type error here rather than a condition silently ignored.
+ */
+export function conditionsHold(
+  conditions: readonly Condition[] | undefined,
+  captorType: PieceType,
+  victimType: PieceType,
+  captureSquare: Square,
+): boolean {
+  if (conditions === undefined) return true;
+  for (const c of conditions) {
+    if (!conditionHolds(c, captorType, victimType, captureSquare)) return false;
+  }
+  return true;
+}
+
+function conditionHolds(
+  c: Condition,
+  captorType: PieceType,
+  victimType: PieceType,
+  captureSquare: Square,
+): boolean {
+  if ('victimTypeNot' in c) return victimType !== c.victimTypeNot;
+  if ('victimTypeIs' in c) return c.victimTypeIs.includes(victimType);
+  if ('captorTypeIs' in c) return c.captorTypeIs.includes(captorType);
+  if ('captorTypeNot' in c) return captorType !== c.captorTypeNot;
+  if ('rank' in c) {
+    const of = c.rank.of === 'victim' ? victimType : captorType;
+    const to = c.rank.to === 'victim' ? victimType : captorType;
+    return rankCompare(of, c.rank.cmp, to);
+  }
+  if ('zone' in c) return inZone(c.zone.is, captureSquare);
+  return unknownCondition(c);
+}
+
+/** Exhaustiveness sink: compiles only while every `Condition` variant is handled above. */
+function unknownCondition(c: never): never {
+  throw new Error(`unknown trigger condition ${JSON.stringify(c)}`);
+}
+
+/** Exhaustive over `Zone` (DD-123): a new zone fails to compile here. */
+function inZone(zone: Zone, sq: Square): boolean {
+  switch (zone) {
+    case 'rim':
+      return isRim(sq);
+  }
+}
+
+/** The trigger categories a capture resolves (PASSIVE abilities have no capture profile). */
+export type TriggerCategory = 'CAPTURING' | 'CAPTURES' | 'CAPTURED';
+
+/** A known ability with trigger conditions (5.6): its profile counts only when they hold. */
+export interface ConditionalKnowledge {
+  category: TriggerCategory;
+  profile: Profile;
+  conditions: readonly Condition[];
+}
+
 export interface PieceKnowledge {
+  /** Merged profile of the type's known unconditional CAPTURING abilities. */
   capturing: Profile;
+  /** Merged profile of the type's known unconditional CAPTURES abilities. */
   captures: Profile;
+  /** Merged profile of the type's known unconditional CAPTURED abilities. */
   captured: Profile;
-  /** Number of known triggered abilities (board presence value). */
+  /**
+   * The type's known abilities that carry trigger conditions, one entry each; `effectiveProfile`
+   * adds each to the merged profile of its category for the captures its conditions admit. Empty
+   * for most types, which then read their merged profiles as they are.
+   */
+  conditional: readonly ConditionalKnowledge[];
+  /** Number of known triggered abilities (board presence value), conditional ones included. */
   count: number;
   /** Opponent piece whose type set is not fully known while slots may hide more abilities. */
   uncertain: boolean;
@@ -144,6 +225,32 @@ export interface PieceKnowledge {
 
 function merge(into: Profile, p: Profile): void {
   for (const k of Object.keys(p) as (keyof Profile)[]) if (p[k]) into[k] = true;
+}
+
+/**
+ * The profile of `category` that applies to one capture: the merged profile of the type's
+ * unconditional abilities plus every conditional one whose trigger conditions hold for this captor,
+ * victim and capture square (Cornered DD-123, Overwhelm DD-125, Redo DD-100, Phalanx, Reinforce).
+ * Returns the merged profile itself, with no allocation, when nothing conditional applies.
+ */
+export function effectiveProfile(
+  k: PieceKnowledge,
+  category: TriggerCategory,
+  captorType: PieceType,
+  victimType: PieceType,
+  captureSquare: Square,
+): Profile {
+  const base =
+    category === 'CAPTURING' ? k.capturing : category === 'CAPTURES' ? k.captures : k.captured;
+  if (k.conditional.length === 0) return base;
+  let out: Profile | null = null;
+  for (const c of k.conditional) {
+    if (c.category !== category) continue;
+    if (!conditionsHold(c.conditions, captorType, victimType, captureSquare)) continue;
+    out ??= { ...base };
+    merge(out, c.profile);
+  }
+  return out ?? base;
 }
 
 /** Knowledge per piece type for one side of a (belief) state. */
@@ -158,21 +265,29 @@ export function sideKnowledge(
   const reveals = state.reveals[side];
   const abilities = new Map(engine.registry.abilities.map((a) => [a.id, a]));
   for (const t of ['pawn', 'knight', 'bishop', 'rook', 'queen', 'king'] as PieceType[]) {
+    const conditional: ConditionalKnowledge[] = [];
     const k: PieceKnowledge = {
       capturing: { ...EMPTY },
       captures: { ...EMPTY },
       captured: { ...EMPTY },
+      conditional,
       count: 0,
       uncertain: false,
     };
     for (const id of army.sets[t]) {
       const def = abilities.get(id);
-      if (!def || (def.eligible !== 'all' && !def.eligible.includes(t))) continue;
+      if (!def || !eligibleFor(def, t)) continue;
+      const cat = def.category;
+      if (cat === 'PASSIVE') continue;
+      k.count++;
       const p = profileOf(def);
-      if (def.category === 'CAPTURING') merge(k.capturing, p);
-      if (def.category === 'CAPTURES') merge(k.captures, p);
-      if (def.category === 'CAPTURED') merge(k.captured, p);
-      if (def.category !== 'PASSIVE') k.count++;
+      // An attuned piece may trigger under `def.attuned.conditions` instead; the search ignores
+      // attunement for profiles (both effect lists are scanned), so the base conditions stand.
+      const conditions = def.conditions ?? [];
+      if (conditions.length > 0) conditional.push({ category: cat, profile: p, conditions });
+      else if (cat === 'CAPTURING') merge(k.capturing, p);
+      else if (cat === 'CAPTURES') merge(k.captures, p);
+      else merge(k.captured, p);
     }
     k.uncertain = side !== viewer && !reveals.complete.includes(t);
     out[t] = k;
@@ -186,7 +301,10 @@ export function sideKnowledge(
  * reactions (Pierce: 2, plus the engine's trait adjustments such as Overabundance), read from the
  * public usage counters through `engine.remainingCharges`; `Infinity` when one of them has no charge
  * limit (Phalanx) or the type carries no such ability. Every opponent piece is `Infinity` too: its
- * counters are not read, so its known negation keeps the per-type treatment.
+ * counters are not read, so its known negation keeps the per-type treatment. A negation with trigger
+ * conditions (Overwhelm, DD-125; Phalanx) counts here whenever it has charges left: whether it
+ * applies to a given capture is decided there (`effectiveProfile` in fast.ts `play`), and a charge
+ * is spent only when it does.
  */
 export function negateCharges(engine: Engine, state: GameState, viewer: Side): number[] {
   const abilities = new Map(engine.registry.abilities.map((a) => [a.id, a]));

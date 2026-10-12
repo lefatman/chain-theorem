@@ -119,10 +119,30 @@ const KEY_OUTCOME: Record<WorkedExampleId, (r: ScenarioResult) => void> = {
       idAt(r.state, 'd5'),
       r.state.links,
     ]).toEqual([[[5, 1]], [[5, 'd5']], 1, 5, [{ ability: 'schrodingers_joker', members: [1, 5] }]]),
+  E18: (r) =>
+    expect([
+      idAt(r.state, 'a5'),
+      r.state.pieces[0]?.square,
+      eventsOf(r.events, 'ChargeSpent').map((e) => [e.ability, e.remaining]),
+      r.state.reveals.black.abilities.pawn,
+    ]).toEqual([-1, -1, [['cornered', 0]], ['cornered']]),
+  E19: (r) =>
+    expect([
+      idAt(r.state, 'd6'),
+      idAt(r.state, 'd5'),
+      eventsOf(r.events, 'ChargeSpent').map((e) => [e.ability, e.remaining]),
+      r.state.reveals.white.abilities.rook,
+    ]).toEqual([0, -1, [['ricochet', 1]], ['ricochet']]),
+  E20: (r) =>
+    expect([
+      idAt(r.state, 'd5'),
+      eventsOf(r.events, 'AbilityNegated').map((e) => e.ability),
+      eventsOf(r.events, 'ChargeSpent').map((e) => [e.ability, e.remaining]),
+    ]).toEqual([0, ['poisoned_meat'], [['overwhelm', 1]]]),
 };
 
 describe('R-TEST-001 worked examples as lab data (spec 5.5)', () => {
-  it('R-TEST-001 lists E1 to E17 once each, in order, with the spec result text', () => {
+  it('R-TEST-001 lists E1 to E20 once each, in order, with the spec result text', () => {
     expect(WORKED_EXAMPLES.map((e) => e.id)).toEqual([
       'E1',
       'E2',
@@ -141,6 +161,9 @@ describe('R-TEST-001 worked examples as lab data (spec 5.5)', () => {
       'E15',
       'E16',
       'E17',
+      'E18',
+      'E19',
+      'E20',
     ]);
     for (const e of WORKED_EXAMPLES) expect(e.specText.length).toBeGreaterThan(20);
   });
@@ -162,5 +185,33 @@ describe('R-TEST-001 worked examples as lab data (spec 5.5)', () => {
   it('R-TEST-001 E8 variant: a neutral rook is blocked by its own pawn (no check)', () => {
     const r = scenario(workedExample('E8').variants?.[0]?.setup ?? {});
     expect([eventsOf(r.events, 'Check').length, r.state.inCheck]).toEqual([0, null]);
+  });
+
+  it('R-TEST-001 DD-123 E18 variant: the same capture in the centre triggers nothing', () => {
+    const r = scenario(workedExample('E18').variants?.[0]?.setup ?? {});
+    expect([
+      idAt(r.state, 'd5'),
+      eventsOf(r.events, 'AbilityTriggered').length,
+      eventsOf(r.events, 'ChargeSpent').length,
+      r.state.reveals.black.abilities.pawn ?? [],
+    ]).toEqual([0, 0, 0, []]);
+  });
+
+  it('R-TEST-001 DD-124 E19 variant: a knight on d6 blocks the continuation (occupied, charge kept)', () => {
+    const r = scenario(workedExample('E19').variants?.[0]?.setup ?? {});
+    expect([idAt(r.state, 'd5'), fizzles(r), eventsOf(r.events, 'ChargeSpent').length]).toEqual([
+      0,
+      ['ricochet:occupied'],
+      0,
+    ]);
+  });
+
+  it('R-TEST-001 DD-125 E20 variant: a knight of equal rank does not trigger Overwhelm and dies', () => {
+    const r = scenario(workedExample('E20').variants?.[0]?.setup ?? {});
+    expect([
+      idAt(r.state, 'd5'),
+      eventsOf(r.events, 'AbilityNegated').length,
+      eventsOf(r.events, 'ChargeSpent').length,
+    ]).toEqual([-1, 0, 0]);
   });
 });

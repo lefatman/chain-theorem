@@ -30,7 +30,7 @@ rank, DD-111: 82.5% and 62.3% on its own) and the four trait numbers of B4 as co
 measured alone: Flow's one-ally cap does not tame Tide (aggregate 52.1% to 50.6% in First Blood,
 69.2% to 72.2% in Full Battle), Bulwark's pawn exclusion and Hot Foot's fourth turn are inert at 40
 and 30 games, and Overabundance's extra charge changes no game because no Focused build carries a
-consumable; at the shipped defaults the advantaged element reads 48.3% and 73.5%. Section 11 measures B5's per-card changes and loadout rule 9: Obstinate at two slots still reads 79% and 73% on its own and the defaults 51.2% and 72.5%; Storm with Obstinate turns First Blood on its head (63–85% row) and brings the Full Battle aggregate to 64.0%; `ONCE_PER_ABILITY` with the shipped Crystal reads 57.9% and 62.5%, the closest any scope has come in both formats; and rule 9 brings Flexible against Focused (52.1%) and Maximum against Flexible (47.9%) into the band in Full Battle while Maximum over Focused keeps 72.9%. Scout's Lens now reveals a one-set army whole, so surprise losses read 0% in the element suites by construction.
+consumable; at the shipped defaults the advantaged element reads 48.3% and 73.5%. Section 11 measures B5's per-card changes and loadout rule 9: Obstinate at two slots still reads 79% and 73% on its own and the defaults 51.2% and 72.5%; Storm with Obstinate turns First Blood on its head (63–85% row) and brings the Full Battle aggregate to 64.0%; `ONCE_PER_ABILITY` with the shipped Crystal reads 57.9% and 62.5%, the closest any scope has come in both formats; and rule 9 brings Flexible against Focused (52.1%) and Maximum against Flexible (47.9%) into the band in Full Battle while Maximum over Focused keeps 72.9%. Scout's Lens now reveals a one-set army whole, so surprise losses read 0% in the element suites by construction. Section 12 measures C6's three neutral cards alone: Overwhelm 63.9% and 64.6% (the one above the line), Cornered 50.0% and 56.3%, Ricochet 50.0% and 39.6%, the last a card the NPC does not plan for.
 
 ## 1. Method
 
@@ -1183,3 +1183,64 @@ White 55.6%, surprise losses 12.9%, median 78 plies. Result reasons: stalwart_ca
    Overabundance's) from the public usage counters and stops counting on a negation once they are
    spent, so the Trainer plays Pierce v3 as written (DD-120; opponent counters are not read,
    R-FMT-005).
+
+## 12. Three new neutral cards (C6; DD-123 to DD-125)
+
+Plan item C6, the three neutral abilities of the designer brief of 2026-10-09, each measured on its
+own in the mirror test (the card in front of the best other cards of its element's Focused build,
+against those cards plus the next best one): Cornered (Captured, level 4, one charge; effect-captures
+the captor when taken on a rim square), Ricochet (Captures, bishops, rooks and queens, level 8, two
+charges; continues one square past the capture) and Overwhelm (Capturing, level 9, two charges;
+negates the Captured abilities of a lower-ranked victim). The default picker deals none of them into
+a Focused, Maximum or Flexible build at level 25 (the builds of section 11 are unchanged), so the
+element and archetype tables stand as measured there.
+
+**The three cards alone, First Blood** — `pnpm sim --suite cards --cards cornered,ricochet,overwhelm --format first_blood --games 36 --nodes 20000`
+
+| Overwhelm | CAPTURING | 9 | 63.9% | 36 | 19 | **above 60%** |
+| Cornered | CAPTURED | 4 | 50.0% | 36 | 16 | |
+| Ricochet | CAPTURES | 8 | 50.0% | 36 | 16 | |
+
+**The three cards alone, Full Battle** — `pnpm sim --suite cards --cards cornered,ricochet,overwhelm --format full --games 24 --nodes 20000`
+
+| Overwhelm | CAPTURING | 9 | 64.6% | 24 | 80 | **above 60%** |
+| Cornered | CAPTURED | 4 | 56.3% | 24 | 104 | |
+| Ricochet | CAPTURES | 8 | 39.6% | 24 | 80 | below 40% (a liability) |
+
+**What the data says.**
+
+1. **Overwhelm is the one that wins on its own.** 63.9% in First Blood and 64.6% in Full Battle (36
+   and 24 games), above the 60% line in both formats; Pierce at two charges reads 69.4% and 54.2%
+   (section 11). The rank condition costs it little in the short format, where the first exchange is
+   usually a higher rank taking a pawn or a minor piece, and in Full Battle the NPC that knows when
+   its negation applies spends its two charges on captures that matter, where Pierce spends them on
+   the first two. A rank-conditioned Pierce is still a Pierce for a rook or a queen; the brake it has
+   that Pierce lacks is that pawns, knights and bishops get nothing from it against equal rank. It
+   goes to B8 as a candidate for one charge or a higher level, measured in the element suites with
+   `--prefer overwhelm`.
+2. **Cornered is neutral in First Blood and modest in Full Battle.** 50.0% and 56.3%: a Captured card
+   that fires on 28 squares, measured against fillers (Snowdrift, Reinforce) that work everywhere. In
+   Full Battle the deterrent shows (the NPC that has seen it bite stops taking Cornered pieces on the
+   rim: median 104 plies against 80 for the other two cards); in First Blood the first capture is
+   rarely on the rim. Its partners (Snowdrift, Snowbound and Frost Heave, which move enemies to the
+   edge) are not in the mirror build; B8 measures the pair with `--prefer cornered,snowdrift`.
+3. **Ricochet is tempo the NPC cannot plan, and reads as a liability in Full Battle.** 50.0% and
+   39.6%: the search does not model the captor's continuation (self-moves after a capture, like Hit
+   and Run's return, are outside its capture model), so the carrier never chooses a capture for where
+   it lands, and the continuation puts the slider on a square the search did not pick, often beside
+   the pieces it just hit, where it is retaken. The number says what Ricochet does for a player who
+   ignores it; a deliberate measurement needs the NPC to search the continuation square (a `Played`
+   relocation like the Frost Heave push, one line each in `play` and `unplay`), which goes to B8 with
+   the card. Every engine brake showed in the module tests: an occupied square, the board's edge, a
+   turned Electric Slide path, a burning square and INV-03.
+4. **The NPC's new awareness moved the numbers.** An earlier run on the same seeds, made while the
+   trigger-condition change to the search (`conditionsHold`, `effectiveProfile`) was still being
+   written, read 58.3% / 52.1% for Overwhelm and 52.8% / 39.6% for Cornered (Ricochet 47.2% / 43.8%).
+   The difference is an indication, not a measurement, of what knowing when a card applies is worth:
+   five to twelve points for the two conditional cards, within noise for Ricochet, which the search
+   does not model either way. The same change makes the NPC honour Redo's and Phalanx's conditions,
+   which it had read as unconditional until now.
+5. **Builds and surprise losses.** The picker deals none of the three into a default build (their
+   scores sit below Last Word, Scout, Snowdrift and Obstinate in the category spread), so the element
+   and archetype tables of section 11 stand. Surprise losses read 0% in the mirror suite, as in
+   section 11 (Scout's Lens on both sides).

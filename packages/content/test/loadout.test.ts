@@ -149,11 +149,18 @@ const ABILITIES_5_8: { id: string; minLevel: number; slotCost?: number }[] = [
   { id: 'redo', minLevel: 15 },
   { id: 'schrodingers_joker', minLevel: 20 },
 ];
+/** The three neutral cards of the 2026-10-09 brief (plan item C6; DD-123 to DD-125). */
+const ABILITIES_C6: { id: string; minLevel: number; slotCost?: number }[] = [
+  { id: 'cornered', minLevel: 4 },
+  { id: 'ricochet', minLevel: 8 },
+  { id: 'overwhelm', minLevel: 9 },
+];
 /** Every ability with its PLAYTEST level and slot cost (1 unless the row says otherwise). */
 const ALL_ABILITIES: { id: string; minLevel: number; slotCost?: number }[] = [
   ...ABILITIES_5_7,
   ...ABILITIES_M7,
   ...ABILITIES_5_8,
+  ...ABILITIES_C6,
 ];
 
 /** A loadout holding only `id`, with what the item needs to be valid (6.4, DD-29). */

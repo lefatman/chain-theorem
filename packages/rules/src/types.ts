@@ -71,6 +71,12 @@ const COMPASS_STEP: Readonly<Record<Compass, [number, number]>> = {
   NW: [-1, 1],
 };
 /** The adjacent square in that direction, or -1 off the board. */
+/** The 28 squares of the a- and h-files and the first and eighth ranks (zone `rim`, DD-123). */
+export function isRim(sq: Square): boolean {
+  const f = sq & 7;
+  const r = sq >> 3;
+  return f === 0 || f === 7 || r === 0 || r === 7;
+}
 export function stepTowards(sq: Square, dir: Compass): Square {
   const [df, dr] = COMPASS_STEP[dir];
   const f = (sq & 7) + df;

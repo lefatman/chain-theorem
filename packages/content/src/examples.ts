@@ -28,7 +28,10 @@ export type WorkedExampleId =
   | 'E14'
   | 'E15'
   | 'E16'
-  | 'E17';
+  | 'E17'
+  | 'E18'
+  | 'E19'
+  | 'E20';
 
 export interface WorkedExampleVariant {
   /** Short label, e.g. 'Stalwart king'. */
@@ -356,6 +359,88 @@ export const WORKED_EXAMPLES: readonly WorkedExample[] = [
       moves: ['c3d5', 'h7h6', 'e1f1'],
       answers: [{ kind: 'move', from: sq('d5'), to: sq('f6') }],
     },
+  },
+  {
+    id: 'E18',
+    title: 'Cornered: the pawn taken on the a-file takes the rook with it',
+    setupText: 'White rook a1, king e1; Black pawn a5 (Cornered), king e8. White a1xa5',
+    specText:
+      "The pawn is taken on the a-file, a rim square: Cornered effect-captures the rook (both gone), spends its one charge and is revealed on Black's pawns. The same capture on d5 triggers nothing: no event, no reveal, no charge (DD-123).",
+    note: 'Ids: a1 R=0, e1 K=1, a5 p=2, e8 k=3. No prompt (DD-123).',
+    setup: {
+      fen: '4k3/8/8/p7/8/8/8/R3K3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'] },
+      black: { elements: ['neutral'], abilities: ['cornered'] },
+      moves: ['a1a5'],
+    },
+    variants: [
+      {
+        label: 'Centre capture (control): d1xd5 triggers nothing',
+        setup: {
+          fen: '4k3/8/8/3p4/8/8/8/3RK3 w - - 0 1',
+          format: 'full',
+          white: { elements: ['neutral'] },
+          black: { elements: ['neutral'], abilities: ['cornered'] },
+          moves: ['d1d5'],
+        },
+      },
+    ],
+  },
+  {
+    id: 'E19',
+    title: 'Ricochet: the rook takes on d5 and carries on to d6',
+    setupText: 'White rook d1 (Ricochet), king e1; Black pawn d5, king e8. White d1xd5',
+    specText:
+      "The rook takes on d5 and continues one square along its file to d6, spending one of two charges; Ricochet is revealed on White's rooks. With a black knight on d6 the move fizzles occupied and the charge is kept (DD-124).",
+    note: 'Ids: d1 R=0, e1 K=1, d5 p=2, e8 k=3. No prompt (DD-124).',
+    setup: {
+      fen: '4k3/8/8/3p4/8/8/8/3RK3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'], abilities: ['ricochet'] },
+      black: { elements: ['neutral'] },
+      moves: ['d1d5'],
+    },
+    variants: [
+      {
+        label: 'Blocked continuation: a knight on d6, the move fizzles occupied',
+        setup: {
+          fen: '4k3/8/3n4/3p4/8/8/8/3RK3 w - - 0 1',
+          format: 'full',
+          white: { elements: ['neutral'], abilities: ['ricochet'] },
+          black: { elements: ['neutral'] },
+          moves: ['d1d5'],
+        },
+      },
+    ],
+  },
+  {
+    id: 'E20',
+    title: 'Overwhelm: the rook outranks the Poisoned Meat knight and negates it',
+    setupText:
+      'White rook d1 (Overwhelm), king e1; Black knight d5 (Poisoned Meat), king e8. White d1xd5',
+    specText:
+      'Rank 3 > rank 2: Overwhelm negates Poisoned Meat (revealed as negated), the rook survives on d5 and one of two charges is spent. A knight making the same capture does not trigger Overwhelm and is taken by Poisoned Meat (DD-125).',
+    note: 'Ids: d1 R=0, e1 K=1, d5 n=2, e8 k=3. No prompt (DD-97, DD-125).',
+    setup: {
+      fen: '4k3/8/8/3n4/8/8/8/3RK3 w - - 0 1',
+      format: 'full',
+      white: { elements: ['neutral'], abilities: ['overwhelm'] },
+      black: { elements: ['neutral'], abilities: ['poisoned_meat'] },
+      moves: ['d1d5'],
+    },
+    variants: [
+      {
+        label: 'Equal rank (control): the knight c3xd5 does not trigger Overwhelm and dies',
+        setup: {
+          fen: '4k3/8/8/3n4/8/2N5/8/4K3 w - - 0 1',
+          format: 'full',
+          white: { elements: ['neutral'], abilities: ['overwhelm'] },
+          black: { elements: ['neutral'], abilities: ['poisoned_meat'] },
+          moves: ['c3d5'],
+        },
+      },
+    ],
   },
 ];
 
