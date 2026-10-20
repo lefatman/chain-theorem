@@ -95,7 +95,13 @@ const ITEMS_M7: { id: string; slotCost: number; minLevel: number; capacity?: num
   { id: 'mooring_chain', slotCost: 1, minLevel: 8 },
   { id: 'mainspring', slotCost: 1, minLevel: 11 },
 ];
-const ALL_ITEMS = [...ITEMS_7_2, ...ITEMS_M7];
+/** The three items of the 2026-10-09 brief (plan item C7; DD-126 to DD-128): utility items, 1 slot each. */
+const ITEMS_C7: { id: string; slotCost: number; minLevel: number; capacity?: number }[] = [
+  { id: 'duelists_gauntlet', slotCost: 1, minLevel: 10 },
+  { id: 'reliquary', slotCost: 1, minLevel: 12 },
+  { id: 'heralds_horn', slotCost: 1, minLevel: 7 },
+];
+const ALL_ITEMS = [...ITEMS_7_2, ...ITEMS_M7, ...ITEMS_C7];
 
 /** Spec 5.7 starter catalogue: level requirements (DD-05); every starter ability costs 1 slot. */
 const ABILITIES_5_7: { id: string; minLevel: number }[] = [

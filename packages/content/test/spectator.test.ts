@@ -553,6 +553,42 @@ describe('M7 7.2 spectator payload scanner (R-SEC-001)', () => {
     expect(scanSpectatorPayload([{ ...promoted, element: 'ember' }], known)).toMatch(/Mask/);
     expect(scanSpectatorPayload([{ ...promoted, element: 'tide' }], known)).toBeNull();
   });
+
+  it('R-SEC-001 R-INFO-005 a replay is judged event by event against the state each was projected with (stateAt): a source on a pawn that promoted since is known on the pawn, not on the queen', () => {
+    const state = battle();
+    const pawn = idAt(state, 'd5');
+    const known: GameState = {
+      ...state,
+      reveals: {
+        ...state.reveals,
+        black: { ...state.reveals.black, abilities: { pawn: ['rebirth'] } },
+      },
+    };
+    // The end state of a replay in which the same piece has promoted since the event.
+    const later: GameState = {
+      ...known,
+      pieces: known.pieces.map((p) => (p.id === pawn ? { ...p, type: 'queen' as const } : p)),
+    };
+    const revived = {
+      i: 5,
+      depth: 0,
+      k: 'PieceRevived',
+      piece: 3,
+      side: 'black',
+      square: 60,
+      source: { kind: 'ability', id: 'rebirth', side: 'black', piece: pawn },
+    };
+    expect(scanSpectatorPayload([revived], known)).toBeNull();
+    expect(scanSpectatorPayload([revived], later)).toMatch(/not known to both/);
+    const asked: number[] = [];
+    expect(
+      scanSpectatorPayload([revived], later, (i) => {
+        asked.push(i);
+        return known;
+      }),
+    ).toBeNull();
+    expect(asked).toEqual([5]);
+  });
 });
 
 // ---- properties -----------------------------------------------------------------------------------

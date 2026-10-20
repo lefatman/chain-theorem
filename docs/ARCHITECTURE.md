@@ -262,10 +262,12 @@ export type FizzleReason =
   Slices reach spectators only through the module's own `stateSlice.spectate(value, ctx)` (never
   derived from `project`; omitted means hidden): Hot Foot shows its burning squares (6.1, public)
   and never a pending burn; Bulwark's spent list is public; the Mask, Crystal and Overabundance
-  slices are private. `scanSpectatorPayload(payload, state)` (`packages/content/src/scan.ts`) is the
-  R-SEC-001 check for anything a spectator receives: no id of either army that its opponent has not
-  seen (unless the other army revealed the same id), every named ability, item and source pinned to
-  its owner's reveal log (per piece type), no loadout, legal move, prompt request, `ChoiceMade`,
+  slices are private. `scanSpectatorPayload(payload, state, stateAt?)` in
+  `packages/content/src/scan.ts` is the R-SEC-001 check for anything a spectator receives: no id of
+  either army that its opponent has not seen (unless the other army revealed the same id), every
+  named ability, item and source pinned to its owner's reveal log (per piece type, at the state the
+  event was projected with: `stateAt(i)` when one payload replays several records), no loadout,
+  legal move, prompt request, `ChoiceMade`,
   unnamed fizzle or charge, private slice or pending burn, and masked elements shown as masked. The
   fuzzer runs it on every scanned game; the property tests check that a spectator never learns
   more than either player (`packages/content/test/spectator.test.ts`).
@@ -388,7 +390,8 @@ export interface RuleHooks {
   };
   queueOrder(ctx: ReadCtx, queue: QueuedTrigger[]): QueuedTrigger[]; // Always First
   triggerFilter(ctx: MutCtx, t: TriggerInfo): 'allow' | 'silence' | 'negate'; // Stillness, Stopwatch
-  silenceOverride✚(ctx: MutCtx, t: TriggerInfo): boolean;             // Resonance Crystal
+  silenceOverride✚(ctx: MutCtx, t: TriggerInfo): boolean;             // Resonance Crystal, Duelist's Gauntlet
+  // MutCtx.revive(piece, to): a hook's revive through the revive intercepts (Reliquary, DD-127)
   effectIntercept(ctx: MutCtx, e: EffectInfo): 'allow' | { fizzle: FizzleReason }; // Bulwark, Hot Foot
   onPieceMoved(ctx: MutCtx, m: PieceMovedInfo): void;                 // Hot Foot ignition
   onTurnEnd(ctx: MutCtx, info: { side: Side }): void;                 // Hot Foot countdown

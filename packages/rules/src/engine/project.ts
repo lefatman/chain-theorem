@@ -340,6 +340,8 @@ export function projectEvent(
       };
     }
     case 'EffectFizzled': {
+      // A hook's own effect (an item's revive, DD-127) is its owner's business until the item is known.
+      if (ev.item !== undefined && !knownItem(state, ev.side, viewer, ev.item)) return null;
       if (!knownAbility(state, ev.side, viewer, ev.ability, ev.pieceType)) return null;
       const out = { ...ev };
       const src = maskSource(state, viewer, ev.source);

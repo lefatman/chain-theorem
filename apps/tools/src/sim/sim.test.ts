@@ -19,6 +19,8 @@ import {
   setPool,
   setPrefer,
   setWithout,
+  itemLoadouts,
+  setItems,
 } from './builds.ts';
 import { decisiveAbilities, playSim } from './play.ts';
 import { capsOverrides } from '../lib/caps.ts';
@@ -52,6 +54,7 @@ afterEach(() => {
   setPool('any');
   setPrefer([]);
   setWithout([]);
+  setItems([]);
   setKing('stalwart');
 });
 
@@ -212,6 +215,43 @@ describe('balance simulator (R-TEST-002)', () => {
       for (const arch of ['focused', 'starter'] as const)
         for (const set of buildLoadout(arch, a, b).sets) expect(set, tag).not.toContain('stalwart');
     }
+  });
+
+  it('R-TEST-002 C7 --items appends the items to every Focused build and to nothing else', () => {
+    setItems(['reliquary']);
+    for (const e of ELEMENTS) {
+      expect(elementLoadout(e).items).toEqual([
+        'headmaster_ring',
+        'resonance_crystal',
+        'scouts_lens',
+        'reliquary',
+      ]);
+      expect(buildLoadout('maximum', e, e).items).not.toContain('reliquary');
+      expect(buildLoadout('flexible', e, e).items).not.toContain('reliquary');
+    }
+    // The Focused build is full at level 25, so an extra item without --without fails validation.
+    expect(() => assertValid(elementLoadout('ember'), 25)).toThrow();
+    setWithout(['scouts_lens']);
+    expect(assertValid(elementLoadout('ember'), 25).items).toEqual([
+      'headmaster_ring',
+      'resonance_crystal',
+      'reliquary',
+    ]);
+  });
+
+  it("R-TEST-002 17.2 C7 item mirror builds: both sides are legal at level 25, the item sits on one side, Scout's Lens on neither, and the sets are the same", () => {
+    setItems(['duelists_gauntlet', 'reliquary', 'heralds_horn']);
+    for (const id of ['duelists_gauntlet', 'reliquary', 'heralds_horn']) {
+      for (const e of ELEMENTS) {
+        const { withItem, without } = itemLoadouts(id, e);
+        expect(() => assertValid(withItem, 25), `${id} ${e}`).not.toThrow();
+        expect(() => assertValid(without, 25), `${id} ${e}`).not.toThrow();
+        expect(withItem.items, `${id} ${e}`).toEqual([...without.items, id]);
+        expect(without.items, `${id} ${e}`).toEqual(['headmaster_ring', 'resonance_crystal']);
+        expect(withItem.sets).toEqual(without.sets);
+      }
+    }
+    expect(() => itemLoadouts('no_such_item', 'ember')).toThrow(/unknown item/);
   });
 
   it('R-TEST-002 17.2 B5 card mirror builds: for every card both sides are legal at level 25 and use the whole capacity, the card leads one side, and the other side carries the same other cards plus the next best in the slots the card used', () => {

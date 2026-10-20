@@ -123,6 +123,30 @@ describe('Scenario Lab frames (R-ART-002 step-through replay)', () => {
     ).toBe('knight');
   });
 
+  it("R-ART-002 R-SEC-001 DD-26 a twin shows what its original shows: the opponent's frame has the Masquerade Mask element, the owner's the true one", () => {
+    // White pawn e4 takes the knight d5 (a higher rank), so Schrödinger's Joker spawns a twin; the
+    // Mask shows white's stone army as frost to black.
+    const s = runScenario({
+      fen: '4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1',
+      white: {
+        elements: ['stone'],
+        items: ['masquerade_mask'],
+        itemParams: { masquerade_mask: { element: 'frost' } },
+        abilities: ['schrodingers_joker'],
+      },
+      moves: ['e4d5'],
+    });
+    expect(s.error).toBeNull();
+    expect(drifts(s)).toEqual([]);
+    const twinOf = (viewer: Side) => {
+      const f = sessionFrames(s, viewer).find((fr) => fr.event.k === 'Spawned');
+      if (!f || f.event.k !== 'Spawned') throw new Error('no twin spawned');
+      return f.pub.pieces[f.event.piece];
+    };
+    expect(twinOf('black')).toMatchObject({ type: 'pawn', element: 'frost', square: -1 });
+    expect(twinOf('white')).toMatchObject({ type: 'pawn', element: 'stone', square: -1 });
+  });
+
   it('R-ART-002 applyEventToPublic is pure and stamps eventSeq', () => {
     const s = runScenario(WORKED_EXAMPLES[0]?.setup ?? {});
     const action = s.actions[1];

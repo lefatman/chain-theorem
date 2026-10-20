@@ -12,6 +12,9 @@
  *            spread, when they fit: so `--prefer obstinate` reaches every Focused build, Storm's
  *            included, whose signature is itself the passive; B5)
  *            [--without id,id,...] (leave these items out of every build)
+ *            [--items id,id,...] (add these items to every Focused build; with `--suite items` the items
+ *            under test, each in a mirror test with Scout's Lens left out of both sides; combine with
+ *            `--without scouts_lens` in the element suites, since the Focused build is full at level 25)
  *            [--caps '{"ELECTRIC_SLIDE":{"turners":["rook"]}}'] (CAPS overrides for a variant run;
  *            object-valued caps merge one level deep) [--tag name] (report file suffix for it)
  *            [--king stalwart|plain] (stalwart, the default: Stalwart leads the Maximum and Flexible
@@ -31,18 +34,20 @@
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { CAPS, abilities, makeEngine } from '@chain-theorem/content';
+import { CAPS, abilities, makeEngine, items as itemDefs } from '@chain-theorem/content';
 import type { Caps, SilenceScope } from '@chain-theorem/rules/sdk';
 import { capsOverrides } from '../lib/caps.ts';
 import { beats, type ElementId, type FormatId, type Side } from '@chain-theorem/rules';
 import type { Tier } from '@chain-theorem/ai';
 import {
-  ARCHETYPES,
   archetypeElements,
+  ARCHETYPES,
   assertValid,
   buildLoadout,
   cardLoadouts,
   elementLoadout,
+  itemLoadouts,
+  setItems,
   setKing,
   setPool,
   setPrefer,
@@ -57,6 +62,8 @@ interface Options {
   pool: Pool;
   prefer: string[];
   without: string[];
+  /** Extra items on every Focused build (`--items`); the items under test for `--suite items`. */
+  items: string[];
   /** CAPS overrides (`--caps`), object-valued caps merged one level deep onto the defaults. */
   caps: Partial<Caps>;
   /** The king's set (`--king`): 'stalwart' (default) carries Stalwart on the Schedule builds. */
@@ -64,7 +71,7 @@ interface Options {
 }
 
 interface Job {
-  suite: 'elements' | 'archetypes' | 'cards';
+  suite: 'elements' | 'archetypes' | 'cards' | 'items';
   a: string;
   b: string;
   /** Which of a/b plays white. */
@@ -86,6 +93,7 @@ if (!isMainThread) {
   setPool(options.pool);
   setPrefer(options.prefer);
   setWithout(options.without);
+  setItems(options.items);
   setKing(options.king);
   const engine = makeEngine({ ...options.caps, SILENCE_SCOPE: options.silence });
   const done: Done[] = [];
@@ -119,6 +127,9 @@ if (!isMainThread) {
     without: arg('without', '')
       .split(',')
       .filter((x) => x !== ''),
+    items: arg('items', '')
+      .split(',')
+      .filter((x) => x !== ''),
     caps: capsOverrides(arg('caps', '')),
     king: arg('king', 'stalwart') as King,
   };
@@ -126,6 +137,7 @@ if (!isMainThread) {
   setPool(options.pool);
   setPrefer(options.prefer);
   setWithout(options.without);
+  setItems(options.items);
   setKing(options.king);
   const jobs: Job[] = [];
   let seed = seed0;
@@ -213,6 +225,34 @@ if (!isMainThread) {
         jobs.push({
           suite: 'cards',
           a: card.id,
+          b: element,
+          aWhite,
+          game: {
+            format,
+            white: { loadout: aWhite ? la : lb, level: 25, tier },
+            black: { loadout: aWhite ? lb : la, level: 25, tier },
+            nodes,
+            maxPlies,
+            seed: seed++,
+          },
+        });
+      }
+    }
+  }
+  if (suite === 'items' || (suite === 'all' && options.items.length > 0)) {
+    // Item mirror tests (plan item C7): the item against its absence on the element's Focused build,
+    // Scout's Lens left out of both sides to free the slot; the elements cycle two games at a time.
+    if (options.items.length === 0) throw new Error('--suite items needs --items id,id,...');
+    for (const id of options.items) {
+      for (let i = 0; i < games; i++) {
+        const aWhite = i % 2 === 0;
+        const element = els[Math.floor(i / 2) % els.length] as ElementId;
+        const { withItem, without } = itemLoadouts(id, element);
+        const la = assertValid(withItem, 25);
+        const lb = assertValid(without, 25);
+        jobs.push({
+          suite: 'items',
+          a: id,
           b: element,
           aWhite,
           game: {
@@ -373,6 +413,33 @@ if (!isMainThread) {
     }
     lines.push('');
   }
+  const it = results.filter((r) => r.job.suite === 'items');
+  if (it.length > 0) {
+    lines.push('## Items (mirror tests, level 25)', '');
+    lines.push(
+      "Score of the Focused build carrying the item against the same build without it, with Scout's Lens left out of both sides to free the slot (same element both sides, so no silence and the same trait: an item that acts on silence, such as Duelist's Gauntlet, reads 50% here by construction and is measured in the element suites with `--items`). An item above 60% wins on its own; the 17.2 proxy is a pick rate under 40% in top loadouts.",
+      '',
+    );
+    lines.push(
+      '| Item | Level | Score with the item | Games | Median plies | Note |',
+      '| --- | --- | --- | --- | --- | --- |',
+    );
+    const rows = [...new Set(it.map((r) => r.job.a))].map((id) => {
+      const rs = it.filter((r) => r.job.a === id);
+      const s = rs.reduce((sum, r) => sum + scoreFor(r, 'a'), 0) / rs.length;
+      const ps = rs.map((r) => r.out.plies).sort((x, y) => x - y);
+      const def = itemDefs.find((i) => i.id === id);
+      return { id, s, n: rs.length, plies: ps[Math.floor(ps.length / 2)] ?? 0, def };
+    });
+    rows.sort((x, y) => y.s - x.s || (x.id < y.id ? -1 : 1));
+    for (const r of rows) {
+      const note = r.s > 0.6 ? '**above 60%**' : r.s < 0.4 ? 'below 40% (a liability)' : '';
+      lines.push(
+        `| ${r.def?.name ?? r.id} | ${r.def?.minLevel ?? ''} | ${pct(r.s)} | ${r.n} | ${r.plies} | ${note} |`,
+      );
+    }
+    lines.push('');
+  }
   const decided = results.filter((r) => r.out.winner !== null);
   const whiteScore =
     results.reduce(
@@ -402,7 +469,7 @@ if (!isMainThread) {
   const md = lines.join('\n');
   mkdirSync('reports/sim', { recursive: true });
   const onlyCardsTag = arg('cards', '');
-  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}${only ? `-${els.join('_')}` : ''}${onlyCardsTag ? `-${onlyCardsTag.replace(/,/g, '_')}` : ''}${options.prefer.length ? `-prefer_${options.prefer.join('_')}` : ''}${options.without.length ? `-without_${options.without.join('_')}` : ''}${options.king === 'plain' ? '-king_plain' : ''}${runTag ? `-${runTag}` : ''}`;
+  const tag = `${format}-${tier}-${options.silence}-${options.pool}-${suite}${only ? `-${els.join('_')}` : ''}${onlyCardsTag ? `-${onlyCardsTag.replace(/,/g, '_')}` : ''}${options.prefer.length ? `-prefer_${options.prefer.join('_')}` : ''}${options.without.length ? `-without_${options.without.join('_')}` : ''}${options.items.length ? `-items_${options.items.join('_')}` : ''}${options.king === 'plain' ? '-king_plain' : ''}${runTag ? `-${runTag}` : ''}`;
   writeFileSync(`reports/sim/${tag}.md`, md + '\n');
   writeFileSync(
     `reports/sim/${tag}.json`,

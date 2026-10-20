@@ -75,6 +75,7 @@ const FIZZLE: Record<string, string> = {
   bonus_in_bonus: 'bonus actions cannot grant bonus actions',
   already_on_board: 'the piece is already on the board',
   condition: 'its condition is not met',
+  negated: 'it was negated',
 };
 
 export function describe(ev: PublicEvent, pub: PublicState): string {
@@ -107,7 +108,7 @@ export function describe(ev: PublicEvent, pub: PublicState): string {
     case 'AbilityNegated':
       return `${pieceLabel(pub, ev.piece)}: ${abilityName(ev.ability)} is negated by ${sourceName(ev.source)}.`;
     case 'EffectFizzled':
-      return `${abilityName(ev.ability)} fizzles: ${FIZZLE[ev.reason] ?? ev.reason}.`;
+      return `${ev.item !== undefined ? (itemById.get(ev.item)?.name ?? ev.item) : abilityName(ev.ability)} fizzles: ${FIZZLE[ev.reason] ?? ev.reason}.`;
     case 'ChargeSpent':
       return ev.remaining >= 0
         ? `${abilityName(ev.ability)} spends a charge (${ev.remaining} left).`

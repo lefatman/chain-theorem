@@ -168,8 +168,15 @@ function checkSpectatorEvent(e: Record<string, unknown>, state: GameState): stri
     return `event ${k} names ${ability} on ${side} ${pieceType ?? ''}, not known to both players`;
   if (side && ability === null && (e.category != null || e.attuned != null))
     return `event ${k} carries category or attuned for a hidden ability`;
-  if ((k === 'EffectFizzled' || k === 'ChargeSpent') && side && ability === null)
-    return `event ${k} of an unnamed ability reached a spectator`;
+  if ((k === 'EffectFizzled' || k === 'ChargeSpent') && side && ability === null) {
+    // An item's own effect (a hook's revive, DD-127) names the item instead of an ability; it may
+    // reach a spectator only once both players know the item.
+    const item = e.item as string | undefined;
+    if (k !== 'EffectFizzled' || typeof item !== 'string')
+      return `event ${k} of an unnamed ability reached a spectator`;
+    if (!state.reveals[side].items.includes(item))
+      return `event ${k} names unrevealed item ${item}`;
+  }
   const src = e.source as { kind?: string; id?: string; side?: Side; piece?: number } | undefined;
   if (src?.side && typeof src.id === 'string') {
     if (src.kind === 'item' && !state.reveals[src.side].items.includes(src.id))
@@ -251,9 +258,19 @@ function checkSpectatorProjection(p: Record<string, unknown>, state: GameState):
  * projected events, or a whole socket frame holding them. A spectator may see about each army only
  * what that army's opponent knows. `state` is the full state the payload was projected from (or any
  * later state of the same battle: knowledge only grows, so a later state never flags a clean
- * payload). Returns the first leak found, or null.
+ * payload, except that a piece may have changed type since, which `stateAt` settles: the state
+ * event `i` was projected with, for a payload that replays several records). Returns the first leak
+ * found, or null.
  */
-export function scanSpectatorPayload(payload: unknown, state: GameState): string | null {
+export function scanSpectatorPayload(
+  payload: unknown,
+  state: GameState,
+  stateAt?: (eventIndex: number) => GameState,
+): string | null {
+  // A replay spans several log records; the hidden set of its last state is never smaller than
+  // an earlier one's (reveals only grow), so the string scan keeps it, while each event is judged
+  // against the state it was projected with (`stateAt`): a source on a pawn that later promoted
+  // names the ability as known on the pawn, not on the queen.
   const hidden = spectatorHiddenIds(state);
   let leak: string | null = null;
   const walk = (v: unknown, path: string): void => {
@@ -277,7 +294,7 @@ export function scanSpectatorPayload(payload: unknown, state: GameState): string
     }
     if (leak) return;
     if (typeof o.k === 'string' && typeof o.i === 'number') {
-      const bad = checkSpectatorEvent(o, state);
+      const bad = checkSpectatorEvent(o, stateAt?.(o.i) ?? state);
       if (bad) leak = `${path}: ${bad}`;
     } else if (o.armies && o.pieces) {
       const bad = checkSpectatorProjection(o, state);

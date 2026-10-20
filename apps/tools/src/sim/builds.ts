@@ -50,6 +50,22 @@ export function setWithout(ids: readonly string[]): void {
 }
 const items = (ids: string[]): string[] => ids.filter((id) => !WITHOUT.has(id));
 /**
+ * Extra items on every Focused build (`--items reliquary`, plan item C7): appended after the
+ * `--without` filter, so `--items duelists_gauntlet --without scouts_lens` swaps the Lens for the
+ * Gauntlet. The Focused build is full at level 25 (ring 4, Crystal 1, Lens 1 of 6 slots), so an item
+ * added without one taken out fails loadout validation (`assertValid`), loudly, when the jobs are
+ * built.
+ */
+let EXTRA_ITEMS: readonly string[] = [];
+export function setItems(ids: readonly string[]): void {
+  EXTRA_ITEMS = [...ids];
+}
+const FOCUSED_ITEMS = ['headmaster_ring', 'resonance_crystal', 'scouts_lens'];
+const focusedItems = (): string[] => [
+  ...items(FOCUSED_ITEMS),
+  ...EXTRA_ITEMS.filter((id) => !WITHOUT.has(id)),
+];
+/**
  * The king's set (`--king`): 'stalwart' (the default) puts Stalwart on it from its level (16) with
  * the Schedule builds, followed by what rule 9 allows (one more passive at the shipped cap, see
  * `pickAbilities`); 'plain' deals the king passives like any other type and never Stalwart. Focused
@@ -204,7 +220,7 @@ export function buildLoadout(arch: Archetype, a: ElementId, b: ElementId, level 
     case 'focused':
       return {
         elements: [a],
-        items: items(['headmaster_ring', 'resonance_crystal', 'scouts_lens']),
+        items: focusedItems(),
         sets: [pickAbilities(a, 5, level)],
       };
     case 'starter':
@@ -286,6 +302,25 @@ export function cardLoadouts(
     withCard: { ...base, sets: [[id, ...rest.map((a) => a.id)]] },
     without: { ...base, sets: [[...rest, ...filler].map((a) => a.id)] },
   };
+}
+
+/**
+ * The two builds of an item's mirror test (`--suite items`, plan item C7): the element's Focused build
+ * with Scout's Lens left out of both sides to free the slot (and without the `--items` extras, which
+ * name the items under test), the item on one side and the same sets on both. Same element both
+ * sides, so no silence: an item that acts on silence (Duelist's Gauntlet) reads 50% here by
+ * construction and is measured in the element suites with `--items` instead.
+ */
+export function itemLoadouts(
+  id: string,
+  element: ElementId,
+): { withItem: Loadout; without: Loadout } {
+  if (!ITEMS.has(id)) throw new Error(`unknown item ${id}`);
+  const base = elementLoadout(element);
+  const rest = base.items.filter(
+    (i) => i !== 'scouts_lens' && i !== id && !EXTRA_ITEMS.includes(i),
+  );
+  return { withItem: { ...base, items: [...rest, id] }, without: { ...base, items: rest } };
 }
 
 export function assertValid(l: Loadout, level: number): Loadout {

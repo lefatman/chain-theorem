@@ -127,6 +127,9 @@ const SPEC_ITEMS: Record<
   scouts_lens: { cost: 1 },
   mooring_chain: { cost: 1 },
   mainspring: { cost: 1 },
+  duelists_gauntlet: { cost: 1 },
+  reliquary: { cost: 1 },
+  heralds_horn: { cost: 1 },
 };
 const specItem = (id: string) => {
   const s = SPEC_ITEMS[id];
@@ -468,6 +471,8 @@ function eventsWithoutOwnData(events: readonly PublicEvent[], viewer: Side): unk
   return events.map((e) => {
     const c = json(e) as unknown as Record<string, unknown>;
     if (c.side === viewer && 'ability' in c) c.ability = null;
+    // An item's own effect names the item (EffectFizzled.item, DD-127): the viewer's own data too.
+    if (c.side === viewer && 'item' in c) delete c.item;
     if (c.k === 'Revealed' && c.side === viewer) c.info = null;
     const src = c.source as { side?: Side } | undefined;
     if (src && src.side === viewer) c.source = { ...src, id: '' };

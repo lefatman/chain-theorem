@@ -89,6 +89,15 @@ function moveKey(m: Move): number {
   return m.from * 64 + m.to + (m.promotion ? m.promotion.length * 4096 : 0);
 }
 
+/**
+ * Does the viewer know `side` wears `item`? Its own items always; the opponent's only through the
+ * reveal log, never the true loadout (R-FMT-005, R-SEC-001).
+ */
+function knownItem(state: GameState, viewer: Side, side: Side, item: string): boolean {
+  if (side === viewer) return state.armies[viewer].loadout.items.includes(item);
+  return state.reveals[side].items.includes(item);
+}
+
 function makeCtx(
   engine: Engine,
   state: GameState,
@@ -110,6 +119,14 @@ function makeCtx(
     bulwarkPawns: engine.caps.TRAITS.BULWARK_PAWNS,
     // Own Pierce charges from the public usage counters (DD-120); the opponent's are not read.
     negateCharges: negateCharges(engine, state, viewer),
+    gauntlet: [
+      knownItem(state, viewer, 'white', 'duelists_gauntlet'),
+      knownItem(state, viewer, 'black', 'duelists_gauntlet'),
+    ],
+    reliquary: [
+      knownItem(state, viewer, 'white', 'reliquary'),
+      knownItem(state, viewer, 'black', 'reliquary'),
+    ],
     know: [
       sideKnowledge(engine, state, 'white', viewer),
       sideKnowledge(engine, state, 'black', viewer),

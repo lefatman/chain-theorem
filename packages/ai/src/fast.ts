@@ -77,6 +77,17 @@ export interface SearchCtx {
    * R-FMT-005). From `negateCharges` (knowledge.ts).
    */
   negateCharges: number[];
+  /**
+   * Per side (0 white, 1 black): a known Duelist's Gauntlet (DD-126), from the viewer's own items
+   * or the opponent's revealed ones: its When-capturing abilities are never silenced and its
+   * When-captured ones stay silenced by the foil under ONCE_PER_ABILITY after the once.
+   */
+  gauntlet: [boolean, boolean];
+  /**
+   * Per side: a known Reliquary (DD-127): that side's first loss returns to its start square at the
+   * end of this turn if empty. Its slice is private, so "unused" is inferred from "no piece lost".
+   */
+  reliquary: [boolean, boolean];
   know: [Record<PieceType, PieceKnowledge>, Record<PieceType, PieceKnowledge>];
   abilityAware: boolean;
   /** Fraction of the captor's value charged for capturing a piece with unknown abilities. */
@@ -141,6 +152,15 @@ function checkBudget(ctx: SearchCtx): void {
 }
 
 /** Make a move plus the known reactions. `bias` and `terminal` are from the mover's point of view. */
+/** Is `victim` the first piece its side loses: every other piece of that side is still on the board? */
+function firstLoss(pos: SearchCtx['pos'], side: 0 | 1, victim: number): boolean {
+  for (let p = 0; p < pos.psq.length; p++) {
+    if (p === victim || pos.pside[p] !== side) continue;
+    if ((pos.psq[p] as number) < 0) return false;
+  }
+  return true;
+}
+
 export function play(ctx: SearchCtx, m: number): Played {
   const pos = ctx.pos;
   const from = mFrom(m);
@@ -187,16 +207,22 @@ export function play(ctx: SearchCtx, m: number): Played {
     const victimEl = ctx.elem[victim] ?? 'neutral';
     const base =
       ctx.silence === 'OFF' ? { victim: false, captor: false } : silenced(captorEl, victimEl);
-    // ONCE_PER_ABILITY (DD-108): a piece type the foil already silenced fires from then on.
+    // ONCE_PER_ABILITY (DD-108): a piece type the foil already silenced fires from then on, unless
+    // its side wears a known Duelist's Gauntlet, whose When-captured abilities stay silenced (DD-126).
     const sil =
       ctx.silence === 'ONCE_PER_ABILITY'
         ? {
-            victim: base.victim && !ctx.silenceSpent.has(`${vSide}:${victimType}`),
+            victim:
+              base.victim &&
+              (ctx.gauntlet[vSide] || !ctx.silenceSpent.has(`${vSide}:${victimType}`)),
             captor: base.captor && !ctx.silenceSpent.has(`${mover}:${captorType}`),
           }
         : base;
     const trait = traitEffects(captorEl, victimEl, cType, ctx.bulwarkPawns);
-    const capturingSilenced = sil.captor && ctx.silence !== 'REACTIONS_ONLY';
+    // A known Gauntlet on the captor's side keeps its When-capturing abilities unsilenced (DD-126);
+    // its After-capturing ones (`!sil.captor` below) are silenced as usual.
+    const capturingSilenced =
+      sil.captor && ctx.silence !== 'REACTIONS_ONLY' && !ctx.gauntlet[mover as 0 | 1];
     // A negation with its charges spent lets the reactions resolve (DD-120); one that fires spends
     // a charge whether or not the victim had anything to negate (DD-17). A conditional negation
     // (Overwhelm, DD-125) fires, and so spends, only when its conditions hold for this capture.
@@ -235,6 +261,14 @@ export function play(ctx: SearchCtx, m: number): Played {
       }
     }
     if (reactions?.selfRevive) out.bias -= Math.round((VALUE[victimType] as number) * 0.6);
+    // Reliquary (DD-127): a side's first loss returns to its start square at the end of this turn
+    // when that square is empty, so the first capture against a known Reliquary is mostly illusory
+    // (the self-revive discount); a side that has lost a piece already has had its payout.
+    if (ctx.reliquary[vSide] && firstLoss(pos, vSide, victim)) {
+      const start = ctx.start[victim] ?? -1;
+      if (start >= 0 && (pos.board[start] as number) < 0)
+        out.bias -= Math.round((VALUE[victimType] as number) * 0.6);
+    }
     // Redo (DD-100): the capture and the mover's previous action are undone; the material gain is
     // illusory and the tempo is lost.
     if (reactions?.undoesCapture) out.bias -= (VALUE[victimType] as number) + 15;

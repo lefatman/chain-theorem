@@ -222,12 +222,14 @@ export function applyEventToPublic(
       put(ev.piece, ev.square);
       break;
     case 'Spawned': {
-      // A twin waits off the board until its owner's next turn (DD-101).
+      // A twin waits off the board until its owner's next turn (DD-101). It shows what its original
+      // shows: the viewer's own twin its true element, an opponent's the displayed one (Masquerade
+      // Mask, DD-26), as the engine projects the event (R-SEC-001).
       const twin: PublicPiece = {
         id: ev.piece,
         side: ev.side,
         type: ev.type,
-        element: ev.element,
+        element: ev.side === pub.viewer ? ev.element : (pieces[ev.twinOf]?.element ?? ev.element),
         square: -1,
         start: ev.square,
         capturedSeq: -1,

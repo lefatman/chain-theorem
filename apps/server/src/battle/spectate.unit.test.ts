@@ -244,6 +244,14 @@ describe('M7 7.2 spectating in the battle core', () => {
       if (!core.result) take(core.message('white', frame('resign', {}), t + 1));
       const log = core.log();
       const states = statesOf(i, log);
+      // A replay (`hello` from a point, the flush at the end) spans records: each event is judged
+      // against the state it was projected with, the end of its own record (a Necromancer source
+      // on a pawn that later promoted is known on the pawn, not on the queen).
+      const stateAt = (ev: number): GameState =>
+        must(
+          states[log.findIndex((r) => r.from <= ev && ev < r.from + r.events.length)],
+          `state of event ${ev}`,
+        );
       // Raw events carried ids the spectator events had to strip.
       log.forEach((r, n) => {
         const hidden = spectatorHiddenIds(must(states[n], `state ${n}`));
@@ -265,7 +273,7 @@ describe('M7 7.2 spectating in the battle core', () => {
         }
         // Count frames shown while some id was still unknown to one player (not a vacuous scan).
         if (spectatorHiddenIds(state).size > 0) withSecrets++;
-        expect(checkSpectatorMessage(msg, state), `seed ${seed} ${msg.t}`).toBeNull();
+        expect(checkSpectatorMessage(msg, state, stateAt), `seed ${seed} ${msg.t}`).toBeNull();
       }
       // Every record was shown by the end, in order and exactly once.
       const shown = received

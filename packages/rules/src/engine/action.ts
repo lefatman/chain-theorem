@@ -502,6 +502,47 @@ export class ActionRun extends EventHost {
     }
   }
 
+  /**
+   * Host.revive (DD-127): a hook returns a captured piece to `to`. The same intercepts as a REVIVE
+   * effect run (Royal Immunity does not apply, INV-03 judges the acting player's king, then trait,
+   * item and ability hooks), and the fizzle is reported with the module as `item` and no ability.
+   */
+  revive(entry: HookEntry, pieceId: PieceId, to: Square): 'revived' | 'fizzled' {
+    const p = this.s.pieces[pieceId];
+    if (!p) return 'fizzled';
+    const source = sourceOf(entry);
+    const owner = entry.owner ?? p.side;
+    const fail = (reason: FizzleReason, src?: SourceRef): 'fizzled' => {
+      this.emit({
+        k: 'EffectFizzled',
+        side: owner,
+        piece: pieceId,
+        pieceType: p.type,
+        ability: null,
+        ...(entry.kind === 'item' ? { item: entry.id } : {}),
+        effect: 'revive',
+        reason,
+        target: pieceId,
+        ...(src ? { source: src } : {}),
+      });
+      return 'fizzled';
+    };
+    if (p.square >= 0) return fail('already_on_board');
+    if (to < 0 || to > 63) return fail('no_target');
+    if ((this.s.board[to] as number) >= 0) return fail('occupied');
+    const verdict = this.intercept({
+      kind: 'revive',
+      target: this.rt.view(this, pieceId),
+      to,
+      source,
+      sourceSide: owner,
+      actor: this.actor,
+    });
+    if (verdict) return fail(verdict.reason, verdict.source);
+    this.placeRevived(pieceId, to, source);
+    return 'revived';
+  }
+
   /** Host.choose: a hook's question to the module's owner (onActionEnd only). */
   choose(entry: HookEntry, req: HookChoice): ChoiceOption | null {
     if (entry.owner === null || entry.kind !== 'ability') {
@@ -1426,18 +1467,17 @@ export class ActionRun extends EventHost {
       this.fizzle(tc, 'revive', verdict.reason, piece.id, verdict.source);
       return false;
     }
-    const p = this.s.pieces[piece.id] as { square: number; side: Side };
-    p.square = dest;
-    this.s.board[dest] = piece.id;
-    this.emit({
-      k: 'PieceRevived',
-      piece: piece.id,
-      side: p.side,
-      square: dest,
-      source: tc.source,
-    });
-    this.pieceMoved(piece.id, -1, dest, 'revive', false);
+    this.placeRevived(piece.id, dest, tc.source);
     return true;
+  }
+
+  /** Put a captured piece back on `dest` (after the intercepts): board, event, onPieceMoved. */
+  private placeRevived(pieceId: PieceId, dest: Square, source: SourceRef): void {
+    const p = this.s.pieces[pieceId] as { square: number; side: Side };
+    p.square = dest;
+    this.s.board[dest] = pieceId;
+    this.emit({ k: 'PieceRevived', piece: pieceId, side: p.side, square: dest, source });
+    this.pieceMoved(pieceId, -1, dest, 'revive', false);
   }
 
   private fxReveal(spec: RevealSpec, tc: TCtx): boolean {

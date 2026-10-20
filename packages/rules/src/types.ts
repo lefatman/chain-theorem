@@ -310,7 +310,9 @@ export type FizzleReason =
   | 'depth_limit'
   | 'bonus_in_bonus'
   | 'already_on_board'
-  | 'condition';
+  | 'condition'
+  /** An item negated the effect: Warden's Stopwatch on an item's revive (Reliquary, DD-127). */
+  | 'negated';
 
 export type RevealInfo =
   | { kind: 'ability'; pieceType: PieceType; ability: string }
@@ -396,6 +398,8 @@ export type BattleEvent = EventBase &
         piece: PieceId;
         pieceType: PieceType;
         ability: string | null;
+        /** The item whose hook attempted the effect (`ctx.revive`, DD-127); `ability` is null then. */
+        item?: string;
         effect: string;
         reason: FizzleReason;
         target?: PieceId;

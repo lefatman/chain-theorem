@@ -310,6 +310,16 @@ export interface MutCtx extends ReadCtx {
   reveal(side: Side, info: RevealInfo, cause: RevealCause, source?: SourceRef): void;
   /** Reveal the module this hook belongs to (item or ability) to the opponent of its owner. */
   revealSelf(cause?: RevealCause): void;
+  /**
+   * Return a captured piece of either side to the board from a hook (Reliquary, DD-127). The revive
+   * intercepts run first (INV-03 for the acting player's king, Hot Foot's burning squares, item hooks
+   * such as Warden's Stopwatch) and `PieceRevived` is emitted with this module as its source.
+   * `'fizzled'` when the piece is on the board already, the square is occupied or an intercept
+   * stopped it (an `EffectFizzled` event names the reason and this item); `'unavailable'` when the
+   * hook runs outside an action (a speculative turn-end draft, a read-only context), where nothing
+   * happens at all and the hook should change nothing either.
+   */
+  revive(piece: PieceId, to: Square): 'revived' | 'fizzled' | 'unavailable';
 }
 
 export type SetupCtx = MutCtx;

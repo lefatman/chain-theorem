@@ -95,6 +95,8 @@ export interface Host {
   ): void;
   /** Mid-action questions (onActionEnd only). */
   choose?(entry: HookEntry, req: HookChoice): ChoiceOption | null;
+  /** A hook's revive of a captured piece, through the revive intercepts (actions only, DD-127). */
+  revive?(entry: HookEntry, piece: PieceId, to: Square): 'revived' | 'fizzled';
 }
 
 /**
@@ -543,6 +545,11 @@ class Ctx implements ChoiceCtx {
     if (!this.host.choose || !this.entry)
       throw new RulesError('internal', 'choose() is only allowed in onActionEnd');
     return this.host.choose(this.entry, req);
+  }
+  revive(piece: PieceId, to: Square): 'revived' | 'fizzled' | 'unavailable' {
+    // Outside an action (a turn-end draft, a read-only context) nothing can return to the board.
+    if (!this.host.revive || !this.entry) return 'unavailable';
+    return this.host.revive(this.entry, piece, to);
   }
   kingSafeAfter(side: Side, change: (draft: MutCtx) => void): boolean {
     return kingSafeAfter(this.rt, this.host.s, this.entry, side, change);

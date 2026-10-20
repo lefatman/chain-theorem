@@ -136,6 +136,7 @@ export function checkMessage(to: Side, msg: ServerMsg, state: GameState): string
 export function checkSpectatorMessage(
   msg: SpectatorMsg | unknown,
   state: GameState,
+  stateAt?: (eventIndex: number) => GameState,
 ): string | null {
   const wire = JSON.parse(JSON.stringify(msg)) as { t: string; d: Record<string, unknown> };
   const schema = ServerSpectate[wire.t as keyof typeof ServerSpectate];
@@ -144,6 +145,6 @@ export function checkSpectatorMessage(
   if (!parsed.success) return `${wire.t} fails its schema: ${parsed.error.message}`;
   const pub = wire.d.public as { viewer?: string; legal?: unknown[] } | undefined;
   if (pub && pub.viewer !== 'spectator') return `${wire.t} carries the ${pub.viewer} projection`;
-  const leak = scanSpectatorPayload(wire, state);
+  const leak = scanSpectatorPayload(wire, state, stateAt);
   return leak ? `${wire.t} to a spectator: ${leak}` : null;
 }

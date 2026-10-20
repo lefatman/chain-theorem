@@ -1,0 +1,12 @@
+# DD-126: Duelist's Gauntlet (plan item C7; designer brief 2026-10-09) ships as a one-slot, level-10 PLAYTEST item with two hooks: a silenceOverride that keeps the owner's CAPTURING (When-capturing) triggers unsilenced under every scope, and a triggerFilter that silences the owner's CAPTURED (When-captured) triggers whenever the captor's element beats the bearer's, which under ONCE_PER_ABILITY means every time and not once (the element records its once and the Gauntlet's hook silences from the second time on, so the public once-record stays truthful)
+
+Status: binding under D-37 (designer may overrule).
+Spec: 6.2, 7.2, 8.2, R-LOAD-002, R-ELEM-002, R-INFO-002, DD-30, DD-108, plan item C7
+
+## Decision
+
+Duelist's Gauntlet (plan item C7; designer brief 2026-10-09) ships as a one-slot, level-10 PLAYTEST item with two hooks: a silenceOverride that keeps the owner's CAPTURING (When-capturing) triggers unsilenced under every scope, and a triggerFilter that silences the owner's CAPTURED (When-captured) triggers whenever the captor's element beats the bearer's, which under ONCE_PER_ABILITY means every time and not once (the element records its once and the Gauntlet's hook silences from the second time on, so the public once-record stays truthful). CAPTURES (After-capturing) triggers are silenced as usual; under OFF the item does nothing. It is revealed when it changes an outcome: when it spares a Capturing trigger the foil would have silenced, and when its silence bites where the plain rule would have let the ability fire (ONCE_PER_ABILITY after the once). Resonance Crystal's one spared silence still applies to a Gauntlet-forced silence, since the engine asks every silenceOverride, and negations are unaffected. Spec 6.2 and 7.2 updated.
+
+## Why it is the best case
+
+The brief asks for a build-time trade that completes 6.2's 'abilities mitigate innate weaknesses' loop: an army that attacks into its foil keeps its Capturing tricks and gives up its Captured ones. Both halves map onto existing hooks (Resonance Crystal's override; Stillness's and the Stopwatch's trigger filter), so no engine change is needed, and letting the element record its once before the hook takes over keeps DD-108's public record truthful. Reveal-on-observation follows 8.2: nothing is shown while the plain rule would have produced the same outcome, so the item stays hidden in matchups where it does nothing.
