@@ -30,7 +30,7 @@ Build plan: `docs/BUILD_PROMPT.md`. Interfaces: `docs/ARCHITECTURE.md`.
   then overruled both the same day (B3c, DD-111): Stalwart costs one ability slot and nothing else
   (rule 9 reverted), and Electric Slide follows the designer's own rule (rooks and bishops turn once
   at an ally of equal or higher rank, the queen twice at rooks and bishops, never the king or a
-  pawn). B4 makes the four trait numbers config knobs. B5 prices the per-card changes and rule 9 (`docs/BALANCE_BASELINE.md` section 11). C6 ships Cornered, Ricochet and Overwhelm (DD-123 to DD-125) with the ZONE trigger condition and the CONTINUE square selector. C7 ships Duelist's Gauntlet, Reliquary and Herald's Horn (DD-126 to DD-128) with a hook-level revive. Next run: B8, the final balance report.
+  pawn). B4 makes the four trait numbers config knobs. B5 prices the per-card changes and rule 9 (`docs/BALANCE_BASELINE.md` section 11). C6 ships Cornered, Ricochet and Overwhelm (DD-123 to DD-125) with the ZONE trigger condition and the CONTINUE square selector. C7 ships Duelist's Gauntlet, Reliquary and Herald's Horn (DD-126 to DD-128) with a hook-level revive. B8 (section 14 of `docs/BALANCE_BASELINE.md`) is the final balance report on the finished catalogue: the 17.2 scorecard (advantaged element 51.2% and 72.5%, White 48.1% and 50.7%, archetype pairs Maximum–Flexible 51.7% and 62.5%, Maximum–Focused 65.0% and 70.8%, Flexible–Focused 40.8% and 52.1%, five and thirteen cards above 60% alone, three in both formats), the follow-ups of sections 11 to 13, 3,000-game fuzz runs under both candidate silence scopes, and twelve decisions for the designer with a recommendation each. The plan of 2026-10-09 is complete. Next: the designer's review of section 14.3 and of spec section 18 (DD-01 to DD-128), then Playtest Gate 1; the human-only items below are unchanged.
 - Done: M0–M7. M7: Swiss and single-elimination tournaments (TournamentRoom, `pnpm tournament:local`),
   delayed public-projection spectating (2 plies behind; spectators learn only what both players
   know), Storm, Stone and Frost with 12 abilities, 2 items and Highcairn Pass.
@@ -207,8 +207,12 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
       `negated` fizzle reason are the engine additions; Warden's Stopwatch v2 stops item revives; the NPC
       models the Gauntlet's silence trade and the Reliquary's payout; `--suite items` and `--items` in
       the simulator.
-- [ ] B8 Final balance report against 17.2 on the finished catalogue, 3,000-game fuzz, PROGRESS
-      handoff.
+- [x] B8 Final balance report against 17.2 on the finished catalogue, 3,000-game fuzz, PROGRESS
+      handoff. Done 2026-10-20 (evidence log): `docs/BALANCE_BASELINE.md` section 14 is the report, with
+      the 17.2 scorecard on the finished catalogue (36 abilities, 16 items), every card and every
+      mirror-testable item measured alone, the follow-ups of sections 11 to 13, two 3,000-game fuzz
+      runs (`ALL_TRIGGERS` and `ONCE_PER_ABILITY`) and twelve decisions for the designer, each with a
+      measured option and a recommendation.
 
 ## Release checklist (spec 17.3)
 
@@ -216,10 +220,16 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
       11 of them INVARIANT, have named tests; every suite green).
 - [x] R-SEC-001 payload scan passes across 10,000 fuzzed battles (`pnpm test:fuzz:full` scans 10,000
       of 100,000 games for players and spectators; a separate 20,000-game run scanned all of them).
-- [ ] Balance targets met in simulator (closed beta is human-only). Partly: White win rate and Full
-      Battle surprise losses meet 17.2; the advantaged-element rate (64% First Blood, 73% Full
-      against 55–60%), First Blood surprise losses and the Focused build do not. The fixes are
-      kit-level design calls: five questions in `docs/BALANCE_M7.md` section 5 (and Playtest Gate 1).
+- [ ] Balance targets met in simulator (closed beta is human-only). Partly, on the finished
+      catalogue (`docs/BALANCE_BASELINE.md` section 14): White win rate (48.1% and 50.7%) and Full
+      Battle surprise losses meet 17.2; the advantaged element reads 51.2% in First Blood (under the
+      band) and 72.5% in Full Battle (over it), with `ONCE_PER_ABILITY` at 54.8% and 61.4% the
+      closest scope in both formats; two of the three archetype pairs are in band in Full Battle
+      (Maximum over Focused 70.8% is not); First Blood surprise losses read 30.4% in the archetype
+      suite; five First Blood cards and thirteen Full Battle cards win more than 60% of mirror games
+      alone, three in both formats (Obstinate, Stonewall, Squall). The twelve decisions of section
+      14.3 (silence scope, Obstinate, the three C7 items, Overwhelm, Redo, Ricochet, Cornered, First
+      Blood reveals, the archetype gap, clocks) are the designer's at Playtest Gate 1.
 - [x] Measured infrastructure cost ≤ $0.10 per subscriber per month (`pnpm test:load`: $0.0305
       from bot traffic, $0.0149 from server telemetry, per heavy subscriber-month; re-measure in
       production from the cost dashboard, R-COST-003).
@@ -237,6 +247,26 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
 - Arcane Chess codebase path for step 2.8 (optional).
 
 ## Evidence log
+
+- 2026-10-20 B8 (R-TEST-002, R-SEC-001, INV-04): final balance report, `docs/BALANCE_BASELINE.md`
+  section 14. Simulator (20,000 nodes, Trainer, level 25, tag `b8`): element suites at the shipped
+  defaults 51.2% / 72.5% advantaged element (60 and 40 games per pairing; the First Blood table
+  reproduces section 11 cell for cell, as the default builds are unchanged), archetype suites (60
+  and 24 games per pair) Maximum–Flexible 51.7% / 62.5%, Maximum–Focused 65.0% / 70.8%,
+  Flexible–Focused 40.8% / 52.1%, every card alone (36 and 24 games) with five (First Blood) and
+  thirteen (Full Battle) above 60%, three in both formats, every mirror-testable item alone (nine
+  items, 36 and 24 games) with Herald's Horn and Mooring Chain (First Blood) and Reliquary and
+  Multitasker's Schedule (Full Battle) above 60%, and a noise check on fresh seeds (`--seed 5000`,
+  120 and 60 games) Reliquary 51.7% / 60.8%, Herald's Horn 49.2% / 44.2%, Mooring Chain 59.6% /
+  54.2%; follow-ups: `--prefer overwhelm` 54.6% / 71.4%, `--prefer cornered,snowdrift` 42.7% /
+  70.6%, Herald's Horn in the archetype suite (in the Lens's slot, against the same builds without
+  it) First Blood identical over 360 games and Full Battle one game of 144 apart (Flexible–Focused
+  39.6% to 43.8%), `ONCE_PER_ABILITY` 54.8% / 61.4%. Fuzz:
+  `tsx apps/tools/src/fuzz/cli.ts --games 3000` clean (272,929 plies, replays identical, 3,000 games
+  projection-scanned for players and spectators, no crash, 382 games at the ply cap) and the same
+  under `--silence ONCE_PER_ABILITY` clean as well (274,111 plies, replays identical, 3,000 scanned,
+  385 at the cap). No code changed in this item; `pnpm check` on the same code (commit `a2cd799`)
+  1,748 passed, req:coverage 84/84.
 
 - 2026-10-20 C7 (DD-126 to DD-128; R-LOAD-002, R-LOAD-004, R-ELEM-002, R-INFO-002, R-SEC-001,
   INV-03, R-ELEM-005, R-FMT-005, R-TEST-002): Duelist's Gauntlet (silenceOverride for the owner's

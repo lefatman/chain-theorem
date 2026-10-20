@@ -30,7 +30,7 @@ rank, DD-111: 82.5% and 62.3% on its own) and the four trait numbers of B4 as co
 measured alone: Flow's one-ally cap does not tame Tide (aggregate 52.1% to 50.6% in First Blood,
 69.2% to 72.2% in Full Battle), Bulwark's pawn exclusion and Hot Foot's fourth turn are inert at 40
 and 30 games, and Overabundance's extra charge changes no game because no Focused build carries a
-consumable; at the shipped defaults the advantaged element reads 48.3% and 73.5%. Section 11 measures B5's per-card changes and loadout rule 9: Obstinate at two slots still reads 79% and 73% on its own and the defaults 51.2% and 72.5%; Storm with Obstinate turns First Blood on its head (63–85% row) and brings the Full Battle aggregate to 64.0%; `ONCE_PER_ABILITY` with the shipped Crystal reads 57.9% and 62.5%, the closest any scope has come in both formats; and rule 9 brings Flexible against Focused (52.1%) and Maximum against Flexible (47.9%) into the band in Full Battle while Maximum over Focused keeps 72.9%. Scout's Lens now reveals a one-set army whole, so surprise losses read 0% in the element suites by construction. Section 12 measures C6's three neutral cards alone: Overwhelm 63.9% and 64.6% (the one above the line), Cornered 50.0% and 56.3%, Ricochet 50.0% and 39.6%, the last a card the NPC does not plan for. Section 13 measures C7's three items: Reliquary 61.1% and 64.6% (above the line); Duelist's Gauntlet 54.2% and 47.9% in the mirror and nothing in First Blood on the default builds (the Crystal spares the one exchange), 65.2% against 67.5% in Full Battle, 60.3% against 71.9% with Pierce preferred and 48.5% against 50.4% in First Blood without the Crystal; Herald's Horn 54.2% and 41.7% (information a mirror already has); without Scout's Lens, surprise losses return in First Blood (32.4% and 23.8%).
+consumable; at the shipped defaults the advantaged element reads 48.3% and 73.5%. Section 11 measures B5's per-card changes and loadout rule 9: Obstinate at two slots still reads 79% and 73% on its own and the defaults 51.2% and 72.5%; Storm with Obstinate turns First Blood on its head (63–85% row) and brings the Full Battle aggregate to 64.0%; `ONCE_PER_ABILITY` with the shipped Crystal reads 57.9% and 62.5%, the closest any scope has come in both formats; and rule 9 brings Flexible against Focused (52.1%) and Maximum against Flexible (47.9%) into the band in Full Battle while Maximum over Focused keeps 72.9%. Scout's Lens now reveals a one-set army whole, so surprise losses read 0% in the element suites by construction. Section 12 measures C6's three neutral cards alone: Overwhelm 63.9% and 64.6% (the one above the line), Cornered 50.0% and 56.3%, Ricochet 50.0% and 39.6%, the last a card the NPC does not plan for. Section 13 measures C7's three items: Reliquary 61.1% and 64.6% (above the line); Duelist's Gauntlet 54.2% and 47.9% in the mirror and nothing in First Blood on the default builds (the Crystal spares the one exchange), 65.2% against 67.5% in Full Battle, 60.3% against 71.9% with Pierce preferred and 48.5% against 50.4% in First Blood without the Crystal; Herald's Horn 54.2% and 41.7% (information a mirror already has); without Scout's Lens, surprise losses return in First Blood (32.4% and 23.8%). Section 14 is the final report (B8): the finished catalogue at the shipped defaults reproduces section 11 (51.2% and 72.5%); `ONCE_PER_ABILITY` reads 54.8% and 61.4% against 55.4% and 72.8% on the same seeds; two of the three archetype pairs are in band in Full Battle; three cards (Obstinate, Stonewall, Squall) clear the 60% line in both formats and Reliquary is the one item that does in Full Battle; and twelve decisions go to the designer with a recommendation each.
 
 ## 1. Method
 
@@ -1414,3 +1414,582 @@ Advantaged element: **48.5%**. White 48.9%, surprise losses 32.9%, median 22 pli
    archetype tables of section 11 stand. `pnpm test:fuzz` passes (500 games, 44,548 plies, replays
    identical, 500 games projection-scanned for players and spectators, no crash) with the three
    items in the pool.
+
+## 14. Final balance report (B8)
+
+Plan item B8, the last of the designer's list of 2026-10-09: the finished catalogue (36 abilities,
+16 items, six elements, the rulings of sections 10 and 11, the cards of section 12 and the items of
+section 13) measured against the 17.2 targets at the shipped defaults, the follow-ups sections 11 to
+13 asked for, a 3,000-game fuzz under each candidate silence scope, and the decisions this leaves
+with the designer. Method as in section 1: Trainer NPCs at 20,000 nodes, level 25, each side
+searching its own projection; the element suite plays the six mono-element Focused builds against
+each other, the archetype suite the four build archetypes of 7.3 across element pairs, and the mirror
+suites each card and each item against its own absence. The per-card and per-item tables are the
+"pick rate" proxy of 17.2: a card that wins more than 60% of mirror games on its own is one every
+top loadout would carry. Nothing COMMITTED was touched in this item; the catalogue is as the plan
+left it, and every number below is reproducible with the command above its table (`reports/sim/`,
+tag `b8`).
+
+### 14.0 The 17.2 scorecard on the finished catalogue
+
+| 17.2 metric                                                   | Target                                     | First Blood                                                              | Full Battle                                   | Met                    |
+| ------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------ | --------------------------------------------- | ---------------------- |
+| Advantaged element win rate                                   | 55–60%                                     | 51.2%                                                                    | 72.5%                                         | no / no                |
+| Maximum, Flexible, Focused against each other                 | each 45–55%                                | Max–Flex 51.7%, Max–Foc 65.0%, Flex–Foc 40.8%                            | Max–Flex 62.5%, Max–Foc 70.8%, Flex–Foc 52.1% | no / no                |
+| White win rate (element suite)                                | ≤ 56%                                      | 48.1%                                                                    | 50.7%                                         | yes / yes              |
+| Surprise losses (element suite; archetype suite in brackets)  | < 15%                                      | 0.0% (30.4%)                                                             | 0.0% (13.2%)                                  | no / yes               |
+| Any single ability's pick rate (proxy: cards above 60% alone) | < 40%                                      | 5 of 36 cards                                                            | 13 of 36 cards                                | no / no                |
+| Median length (plies; live clocks set the minutes)            | First Blood 2–5 min, Full Battle 10–25 min | 23 plies                                                                 | 110 plies                                     | finding 7, decision 12 |
+| New player first win                                          | < 30 minutes after sign-up                 | not a simulator metric: the first-win e2e covers the path (PROGRESS, M5) |                                               | —                      |
+
+### 14.1 The finished catalogue at the shipped defaults
+
+**Element matchups, First Blood, the shipped defaults** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000`
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 41.7% | 35.8%               | 49.2%               | 65.0%               | 45.8%               | 45.0%               |
+| tide          | 64.2%               | mirror, white 33.3% | 53.3%               | 65.0%               | 81.7%               | 76.7%               |
+| grove         | 50.8%               | 46.7%               | mirror, white 52.5% | 30.8%               | 66.7%               | 60.8%               |
+| storm         | 35.0%               | 35.0%               | 69.2%               | mirror, white 48.3% | 71.7%               | 68.3%               |
+| stone         | 54.2%               | 18.3%               | 33.3%               | 28.3%               | mirror, white 55.0% | 49.2%               |
+| frost         | 55.0%               | 23.3%               | 39.2%               | 31.7%               | 50.8%               | mirror, white 52.5% |
+
+Advantaged element: **51.2%**. White 48.1%, surprise losses 0.0%, median 23 plies. Result reasons: objective 1172, repetition 50, checkmate 32, ply_cap 6.
+
+**Element matchups, Full Battle, the shipped defaults** — `pnpm sim --suite elements --format full --games 40 --nodes 20000`
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 45.0% | 22.5%               | 70.0%               | 73.8%               | 41.3%               | 53.8%               |
+| tide          | 77.5%               | mirror, white 51.2% | 20.0%               | 100.0%              | 56.3%               | 65.0%               |
+| grove         | 30.0%               | 80.0%               | mirror, white 48.8% | 91.3%               | 63.7%               | 65.0%               |
+| storm         | 26.3%               | 0.0%                | 8.8%                | mirror, white 53.8% | 17.5%               | 70.0%               |
+| stone         | 58.8%               | 43.8%               | 36.3%               | 82.5%               | mirror, white 53.8% | 45.0%               |
+| frost         | 46.3%               | 35.0%               | 35.0%               | 30.0%               | 55.0%               | mirror, white 51.2% |
+
+Advantaged element: **72.5%**. White 50.7%, surprise losses 0.0%, median 110 plies. Result reasons: checkmate 399, repetition 328, ply_cap 100, stalemate 2, fifty_move 11.
+
+**Build archetypes, First Blood, the shipped defaults** — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000`
+
+| Row vs column | maximum | flexible | focused | starter |
+| ------------- | ------- | -------- | ------- | ------- |
+| maximum       | —       | 51.7%    | 65.0%   | 66.7%   |
+| flexible      | 48.3%   | —        | 40.8%   | 45.0%   |
+| focused       | 35.0%   | 59.2%    | —       | 81.7%   |
+| starter       | 33.3%   | 55.0%    | 18.3%   | —       |
+
+White 48.5%, surprise losses 30.4%, median 15 plies. Result reasons: objective 348, stalwart_captured 6, repetition 5, checkmate 1.
+
+**Build archetypes, Full Battle, the shipped defaults** — `pnpm sim --suite archetypes --format full --games 24 --nodes 20000`
+
+| Row vs column | maximum | flexible | focused | starter |
+| ------------- | ------- | -------- | ------- | ------- |
+| maximum       | —       | 62.5%    | 70.8%   | 95.8%   |
+| flexible      | 37.5%   | —        | 52.1%   | 87.5%   |
+| focused       | 29.2%   | 47.9%    | —       | 89.6%   |
+| starter       | 4.2%    | 12.5%    | 10.4%   | —       |
+
+White 54.2%, surprise losses 13.2%, median 78 plies. Result reasons: stalwart_captured 32, repetition 27, checkmate 82, stalemate 1, ply_cap 2.
+
+**Every card alone, First Blood** — `pnpm sim --suite cards --format first_blood --games 36 --nodes 20000`
+
+| Card                | Category  | Level | Score with the card | Games | Median plies | Note                    |
+| ------------------- | --------- | ----- | ------------------- | ----- | ------------ | ----------------------- |
+| Electric Slide      | PASSIVE   | 3     | 83.3%               | 36    | 13           | **above 60%**           |
+| Obstinate           | PASSIVE   | 9     | 75.0%               | 36    | 16           | **above 60%**           |
+| Stonewall           | CAPTURED  | 3     | 68.1%               | 36    | 32           | **above 60%**           |
+| Squall              | CAPTURED  | 1     | 62.5%               | 36    | 20           | **above 60%**           |
+| Redo                | CAPTURED  | 15    | 61.1%               | 36    | 19           | **above 60%**           |
+| Stalwart            | PASSIVE   | 16    | 58.3%               | 36    | 9            |                         |
+| Backdraft           | CAPTURED  | 4     | 55.6%               | 36    | 17           |                         |
+| Rebuild             | CAPTURES  | 17    | 55.6%               | 36    | 21           |                         |
+| Snowbound           | CAPTURING | 14    | 55.6%               | 36    | 19           |                         |
+| Antidote            | CAPTURING | 5     | 54.2%               | 36    | 17           |                         |
+| Overwhelm           | CAPTURING | 9     | 54.2%               | 36    | 22           |                         |
+| Permafrost          | CAPTURED  | 20    | 54.2%               | 36    | 18           |                         |
+| Buttress            | CAPTURING | 2     | 52.8%               | 36    | 15           |                         |
+| Ricochet            | CAPTURES  | 8     | 51.4%               | 36    | 18           |                         |
+| Slipstream          | CAPTURES  | 12    | 51.4%               | 36    | 19           |                         |
+| Snowdrift           | CAPTURES  | 9     | 51.4%               | 36    | 17           |                         |
+| Pierce              | CAPTURING | 3     | 50.0%               | 36    | 15           |                         |
+| Rebirth             | CAPTURED  | 14    | 50.0%               | 36    | 20           |                         |
+| Block Path          | PASSIVE   | 12    | 48.6%               | 36    | 20           |                         |
+| Cleave              | CAPTURES  | 3     | 48.6%               | 36    | 25           |                         |
+| Poisoned Meat       | CAPTURED  | 2     | 48.6%               | 36    | 29           |                         |
+| Phalanx             | CAPTURING | 10    | 47.2%               | 36    | 20           |                         |
+| Riposte             | CAPTURED  | 12    | 47.2%               | 36    | 19           |                         |
+| Cornered            | CAPTURED  | 4     | 44.4%               | 36    | 18           |                         |
+| Hit and Run         | CAPTURES  | 1     | 44.4%               | 36    | 21           |                         |
+| Momentum            | CAPTURES  | 8     | 44.4%               | 36    | 19           |                         |
+| Last Word           | CAPTURED  | 1     | 43.1%               | 36    | 22           |                         |
+| Pawn Storm          | CAPTURES  | 7     | 43.1%               | 36    | 17           |                         |
+| Reinforce           | CAPTURES  | 10    | 43.1%               | 36    | 22           |                         |
+| Schrödinger's Joker | CAPTURES  | 20    | 43.1%               | 36    | 20           |                         |
+| Afterimage          | CAPTURES  | 5     | 41.7%               | 36    | 14           |                         |
+| Necromancer         | CAPTURES  | 11    | 40.3%               | 36    | 24           |                         |
+| Scout               | CAPTURING | 1     | 38.9%               | 36    | 30           | below 40% (a liability) |
+| Veil                | PASSIVE   | 18    | 38.9%               | 36    | 16           | below 40% (a liability) |
+| Quantum Kill        | CAPTURES  | 13    | 34.7%               | 36    | 14           | below 40% (a liability) |
+| Frost Heave         | CAPTURED  | 3     | 31.9%               | 36    | 33           | below 40% (a liability) |
+
+5 of 36 cards above 60%: Electric Slide, Obstinate, Stonewall, Squall, Redo. White 53.9%, surprise losses 0.0%, median 18 plies.
+
+**Every card alone, Full Battle** — `pnpm sim --suite cards --format full --games 24 --nodes 20000`
+
+| Card                | Category  | Level | Score with the card | Games | Median plies | Note                    |
+| ------------------- | --------- | ----- | ------------------- | ----- | ------------ | ----------------------- |
+| Poisoned Meat       | CAPTURED  | 2     | 85.4%               | 24    | 110          | **above 60%**           |
+| Obstinate           | PASSIVE   | 9     | 81.3%               | 24    | 88           | **above 60%**           |
+| Rebirth             | CAPTURED  | 14    | 81.3%               | 24    | 89           | **above 60%**           |
+| Riposte             | CAPTURED  | 12    | 81.3%               | 24    | 77           | **above 60%**           |
+| Cleave              | CAPTURES  | 3     | 77.1%               | 24    | 109          | **above 60%**           |
+| Block Path          | PASSIVE   | 12    | 68.8%               | 24    | 91           | **above 60%**           |
+| Stonewall           | CAPTURED  | 3     | 66.7%               | 24    | 121          | **above 60%**           |
+| Backdraft           | CAPTURED  | 4     | 64.6%               | 24    | 86           | **above 60%**           |
+| Pierce              | CAPTURING | 3     | 64.6%               | 24    | 80           | **above 60%**           |
+| Afterimage          | CAPTURES  | 5     | 62.5%               | 24    | 115          | **above 60%**           |
+| Stalwart            | PASSIVE   | 16    | 62.5%               | 24    | 70           | **above 60%**           |
+| Hit and Run         | CAPTURES  | 1     | 60.4%               | 24    | 114          | **above 60%**           |
+| Squall              | CAPTURED  | 1     | 60.4%               | 24    | 86           | **above 60%**           |
+| Cornered            | CAPTURED  | 4     | 58.3%               | 24    | 88           |                         |
+| Overwhelm           | CAPTURING | 9     | 58.3%               | 24    | 100          |                         |
+| Phalanx             | CAPTURING | 10    | 58.3%               | 24    | 86           |                         |
+| Antidote            | CAPTURING | 5     | 56.3%               | 24    | 72           |                         |
+| Necromancer         | CAPTURES  | 11    | 56.3%               | 24    | 97           |                         |
+| Reinforce           | CAPTURES  | 10    | 54.2%               | 24    | 64           |                         |
+| Ricochet            | CAPTURES  | 8     | 54.2%               | 24    | 92           |                         |
+| Snowdrift           | CAPTURES  | 9     | 54.2%               | 24    | 81           |                         |
+| Pawn Storm          | CAPTURES  | 7     | 52.1%               | 24    | 113          |                         |
+| Buttress            | CAPTURING | 2     | 50.0%               | 24    | 81           |                         |
+| Frost Heave         | CAPTURED  | 3     | 50.0%               | 24    | 115          |                         |
+| Last Word           | CAPTURED  | 1     | 50.0%               | 24    | 125          |                         |
+| Momentum            | CAPTURES  | 8     | 50.0%               | 24    | 77           |                         |
+| Quantum Kill        | CAPTURES  | 13    | 47.9%               | 24    | 103          |                         |
+| Scout               | CAPTURING | 1     | 47.9%               | 24    | 111          |                         |
+| Snowbound           | CAPTURING | 14    | 47.9%               | 24    | 108          |                         |
+| Electric Slide      | PASSIVE   | 3     | 45.8%               | 24    | 76           |                         |
+| Rebuild             | CAPTURES  | 17    | 45.8%               | 24    | 81           |                         |
+| Slipstream          | CAPTURES  | 12    | 45.8%               | 24    | 65           |                         |
+| Permafrost          | CAPTURED  | 20    | 43.8%               | 24    | 102          |                         |
+| Schrödinger's Joker | CAPTURES  | 20    | 43.8%               | 24    | 107          |                         |
+| Veil                | PASSIVE   | 18    | 41.7%               | 24    | 96           |                         |
+| Redo                | CAPTURED  | 15    | 37.5%               | 24    | 105          | below 40% (a liability) |
+
+13 of 36 cards above 60%: Poisoned Meat, Obstinate, Rebirth, Riposte, Cleave, Block Path, Stonewall, Backdraft, Pierce, Afterimage, Stalwart, Hit and Run, Squall. White 53.9%, surprise losses 0.0%, median 91 plies.
+
+**Every item the mirror can hold, First Blood** — `pnpm sim --suite items --items duelists_gauntlet,heralds_horn,mainspring,mooring_chain,multitaskers_schedule,reliquary,resonance_crystal,scouts_lens,wardens_stopwatch --format first_blood --games 36 --nodes 20000` (the seven items that need an element choice, a second element or a capacity the Focused build cannot give up are not mirror-testable)
+
+| Item                   | Level | Score with the item | Games | Median plies | Note          |
+| ---------------------- | ----- | ------------------- | ----- | ------------ | ------------- |
+| Herald's Horn          | 7     | 72.2%               | 36    | 22           | **above 60%** |
+| Mooring Chain          | 8     | 63.9%               | 36    | 21           | **above 60%** |
+| Warden's Stopwatch     | 18    | 58.3%               | 36    | 20           |               |
+| Scout's Lens           | 3     | 55.6%               | 36    | 22           |               |
+| Duelist's Gauntlet     | 10    | 54.2%               | 36    | 26           |               |
+| Mainspring             | 11    | 54.2%               | 36    | 23           |               |
+| Reliquary              | 12    | 51.4%               | 36    | 20           |               |
+| Resonance Crystal      | 6     | 48.6%               | 36    | 25           |               |
+| Multitasker's Schedule | 10    | 47.2%               | 36    | 22           |               |
+
+2 of 9 items above 60%: Herald's Horn, Mooring Chain. White 48.8%, surprise losses 27.3%, median 22 plies.
+
+**Every item the mirror can hold, Full Battle** — `pnpm sim --suite items --items duelists_gauntlet,heralds_horn,mainspring,mooring_chain,multitaskers_schedule,reliquary,resonance_crystal,scouts_lens,wardens_stopwatch --format full --games 24 --nodes 20000` (the seven items that need an element choice, a second element or a capacity the Focused build cannot give up are not mirror-testable)
+
+| Item                   | Level | Score with the item | Games | Median plies | Note          |
+| ---------------------- | ----- | ------------------- | ----- | ------------ | ------------- |
+| Reliquary              | 12    | 62.5%               | 24    | 110          | **above 60%** |
+| Multitasker's Schedule | 10    | 60.4%               | 24    | 125          | **above 60%** |
+| Herald's Horn          | 7     | 52.1%               | 24    | 130          |               |
+| Duelist's Gauntlet     | 10    | 47.9%               | 24    | 93           |               |
+| Mooring Chain          | 8     | 47.9%               | 24    | 115          |               |
+| Warden's Stopwatch     | 18    | 45.8%               | 24    | 138          |               |
+| Resonance Crystal      | 6     | 43.8%               | 24    | 122          |               |
+| Mainspring             | 11    | 41.7%               | 24    | 114          |               |
+| Scout's Lens           | 3     | 41.7%               | 24    | 134          |               |
+
+2 of 9 items above 60%: Reliquary, Multitasker's Schedule. White 49.3%, surprise losses 1.3%, median 118 plies.
+
+### 14.2 The follow-ups sections 11 to 13 asked for
+
+Seeds are dealt per game, so a 40-game run plays different games from a 60-game run in every
+pairing; the follow-ups (40 and 30 games per pairing) are read against the shipped defaults on their
+own seeds, below, not against 14.1.
+
+**Element matchups, First Blood, the shipped defaults on the follow-ups' seeds** — `pnpm sim --suite elements --format first_blood --games 40 --nodes 20000`
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 43.8% | 31.3%               | 67.5%               | 80.0%               | 41.3%               | 45.0%               |
+| tide          | 68.8%               | mirror, white 51.2% | 67.5%               | 67.5%               | 71.3%               | 78.8%               |
+| grove         | 32.5%               | 32.5%               | mirror, white 65.0% | 35.0%               | 55.0%               | 51.2%               |
+| storm         | 20.0%               | 32.5%               | 65.0%               | mirror, white 50.0% | 52.5%               | 65.0%               |
+| stone         | 58.8%               | 28.7%               | 45.0%               | 47.5%               | mirror, white 47.5% | 48.8%               |
+| frost         | 55.0%               | 21.3%               | 48.8%               | 35.0%               | 51.2%               | mirror, white 43.8% |
+
+Advantaged element: **55.4%**. White 50.4%, surprise losses 0.0%, median 23 plies. Result reasons: objective 765, repetition 44, checkmate 26, ply_cap 4, fifty_move 1.
+
+**Element matchups, Full Battle, the shipped defaults on the follow-ups' seeds** — `pnpm sim --suite elements --format full --games 30 --nodes 20000`
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 45.0% | 25.0%               | 70.0%               | 76.7%               | 45.0%               | 41.7%               |
+| tide          | 75.0%               | mirror, white 45.0% | 13.3%               | 100.0%              | 45.0%               | 56.7%               |
+| grove         | 30.0%               | 86.7%               | mirror, white 50.0% | 91.7%               | 70.0%               | 70.0%               |
+| storm         | 23.3%               | 0.0%                | 8.3%                | mirror, white 50.0% | 21.7%               | 76.7%               |
+| stone         | 55.0%               | 55.0%               | 30.0%               | 78.3%               | mirror, white 56.7% | 50.0%               |
+| frost         | 58.3%               | 43.3%               | 30.0%               | 23.3%               | 50.0%               | mirror, white 46.7% |
+
+Advantaged element: **72.8%**. White 51.6%, surprise losses 0.0%, median 116 plies. Result reasons: ply_cap 67, checkmate 314, repetition 235, fifty_move 11, stalemate 3.
+
+**Element matchups, First Blood, Overwhelm in every Focused build (`--prefer overwhelm`)** — `pnpm sim --suite elements --format first_blood --games 40 --nodes 20000 --prefer overwhelm`
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 43.8% | 31.3%               | 67.5%               | 80.0%               | 41.3%               | 45.0%               |
+| tide          | 68.8%               | mirror, white 51.2% | 67.5%               | 62.5%               | 71.3%               | 78.8%               |
+| grove         | 32.5%               | 32.5%               | mirror, white 65.0% | 37.5%               | 55.0%               | 51.2%               |
+| storm         | 20.0%               | 37.5%               | 62.5%               | mirror, white 52.5% | 57.5%               | 67.5%               |
+| stone         | 58.8%               | 28.7%               | 45.0%               | 42.5%               | mirror, white 47.5% | 51.2%               |
+| frost         | 55.0%               | 21.3%               | 48.8%               | 32.5%               | 48.8%               | mirror, white 43.8% |
+
+Advantaged element: **54.6%**. White 49.9%, surprise losses 0.0%, median 23 plies. Result reasons: objective 766, repetition 44, checkmate 25, ply_cap 4, fifty_move 1.
+
+**Element matchups, Full Battle, Overwhelm in every Focused build (`--prefer overwhelm`)** — `pnpm sim --suite elements --format full --games 30 --nodes 20000 --prefer overwhelm`
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 46.7% | 23.3%               | 60.0%               | 91.7%               | 48.3%               | 50.0%               |
+| tide          | 76.7%               | mirror, white 43.3% | 20.0%               | 100.0%              | 48.3%               | 66.7%               |
+| grove         | 40.0%               | 80.0%               | mirror, white 50.0% | 90.0%               | 58.3%               | 61.7%               |
+| storm         | 8.3%                | 0.0%                | 10.0%               | mirror, white 60.0% | 5.0%                | 66.7%               |
+| stone         | 51.7%               | 51.7%               | 41.7%               | 95.0%               | mirror, white 56.7% | 50.0%               |
+| frost         | 50.0%               | 33.3%               | 38.3%               | 33.3%               | 50.0%               | mirror, white 51.7% |
+
+Advantaged element: **71.4%**. White 50.1%, surprise losses 0.0%, median 110 plies. Result reasons: repetition 251, checkmate 307, ply_cap 55, fifty_move 16, stalemate 1.
+
+**Element matchups, First Blood, Cornered and Snowdrift in every Focused build (`--prefer cornered,snowdrift`)** — `pnpm sim --suite elements --format first_blood --games 40 --nodes 20000 --prefer cornered,snowdrift`
+
+| Row vs column | ember               | tide               | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------ | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 61.3% | 82.5%              | 30.0%               | 11.3%               | 30.0%               | 41.3%               |
+| tide          | 17.5%               | mirror, white 5.0% | 67.5%               | 23.8%               | 63.7%               | 80.0%               |
+| grove         | 70.0%               | 32.5%              | mirror, white 36.3% | 27.5%               | 45.0%               | 45.0%               |
+| storm         | 88.8%               | 76.3%              | 72.5%               | mirror, white 45.0% | 65.0%               | 70.0%               |
+| stone         | 70.0%               | 36.3%              | 55.0%               | 35.0%               | mirror, white 43.8% | 28.7%               |
+| frost         | 58.8%               | 20.0%              | 55.0%               | 30.0%               | 71.3%               | mirror, white 46.3% |
+
+Advantaged element: **42.7%**. White 43.0%, surprise losses 0.0%, median 18 plies. Result reasons: objective 790, checkmate 23, repetition 26, ply_cap 1.
+
+**Element matchups, Full Battle, Cornered and Snowdrift in every Focused build (`--prefer cornered,snowdrift`)** — `pnpm sim --suite elements --format full --games 30 --nodes 20000 --prefer cornered,snowdrift`
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 48.3% | 16.7%               | 65.0%               | 48.3%               | 18.3%               | 26.7%               |
+| tide          | 83.3%               | mirror, white 61.7% | 3.3%                | 76.7%               | 21.7%               | 33.3%               |
+| grove         | 35.0%               | 96.7%               | mirror, white 55.0% | 71.7%               | 58.3%               | 65.0%               |
+| storm         | 51.7%               | 23.3%               | 28.3%               | mirror, white 58.3% | 36.7%               | 40.0%               |
+| stone         | 81.7%               | 78.3%               | 41.7%               | 63.3%               | mirror, white 50.0% | 25.0%               |
+| frost         | 73.3%               | 66.7%               | 35.0%               | 60.0%               | 75.0%               | mirror, white 48.3% |
+
+Advantaged element: **70.6%**. White 51.5%, surprise losses 0.0%, median 99 plies. Result reasons: repetition 312, ply_cap 8, checkmate 305, fifty_move 5.
+
+**Build archetypes, First Blood, the Focused build without Scout's Lens (the Horn runs' baseline)** — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000 --without scouts_lens`
+
+| Row vs column | maximum | flexible | focused | starter |
+| ------------- | ------- | -------- | ------- | ------- |
+| maximum       | —       | 51.7%    | 70.8%   | 66.7%   |
+| flexible      | 48.3%   | —        | 45.0%   | 45.0%   |
+| focused       | 29.2%   | 55.0%    | —       | 70.0%   |
+| starter       | 33.3%   | 55.0%    | 30.0%   | —       |
+
+White 46.5%, surprise losses 33.6%, median 14 plies. Result reasons: objective 350, stalwart_captured 5, repetition 3, checkmate 2.
+
+**Build archetypes, First Blood, Herald's Horn on the Focused build in the Lens's slot (`--items heralds_horn --without scouts_lens`)** — `pnpm sim --suite archetypes --format first_blood --games 60 --nodes 20000 --without scouts_lens --items heralds_horn`
+
+| Row vs column | maximum | flexible | focused | starter |
+| ------------- | ------- | -------- | ------- | ------- |
+| maximum       | —       | 51.7%    | 70.8%   | 66.7%   |
+| flexible      | 48.3%   | —        | 45.0%   | 45.0%   |
+| focused       | 29.2%   | 55.0%    | —       | 70.0%   |
+| starter       | 33.3%   | 55.0%    | 30.0%   | —       |
+
+White 46.5%, surprise losses 33.6%, median 14 plies. Result reasons: objective 350, stalwart_captured 5, repetition 3, checkmate 2.
+
+**Build archetypes, Full Battle, the Focused build without Scout's Lens (the Horn runs' baseline)** — `pnpm sim --suite archetypes --format full --games 24 --nodes 20000 --without scouts_lens`
+
+| Row vs column | maximum | flexible | focused | starter |
+| ------------- | ------- | -------- | ------- | ------- |
+| maximum       | —       | 62.5%    | 66.7%   | 95.8%   |
+| flexible      | 37.5%   | —        | 39.6%   | 87.5%   |
+| focused       | 33.3%   | 60.4%    | —       | 79.2%   |
+| starter       | 4.2%    | 12.5%    | 20.8%   | —       |
+
+White 53.1%, surprise losses 15.0%, median 78 plies. Result reasons: stalwart_captured 37, repetition 25, checkmate 76, ply_cap 5, stalemate 1.
+
+**Build archetypes, Full Battle, Herald's Horn on the Focused build in the Lens's slot (`--items heralds_horn --without scouts_lens`)** — `pnpm sim --suite archetypes --format full --games 24 --nodes 20000 --without scouts_lens --items heralds_horn`
+
+| Row vs column | maximum | flexible | focused | starter |
+| ------------- | ------- | -------- | ------- | ------- |
+| maximum       | —       | 62.5%    | 66.7%   | 95.8%   |
+| flexible      | 37.5%   | —        | 43.8%   | 87.5%   |
+| focused       | 33.3%   | 56.3%    | —       | 79.2%   |
+| starter       | 4.2%    | 12.5%    | 20.8%   | —       |
+
+White 52.4%, surprise losses 15.0%, median 78 plies. Result reasons: stalwart_captured 36, repetition 25, checkmate 77, ply_cap 5, stalemate 1.
+
+**Element matchups, First Blood, `ONCE_PER_ABILITY` with the shipped Crystal** — `pnpm sim --suite elements --format first_blood --games 40 --nodes 20000 --silence ONCE_PER_ABILITY`
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 43.8% | 31.3%               | 66.3%               | 80.0%               | 41.3%               | 45.0%               |
+| tide          | 68.8%               | mirror, white 51.2% | 67.5%               | 67.5%               | 71.3%               | 78.8%               |
+| grove         | 33.8%               | 32.5%               | mirror, white 65.0% | 35.0%               | 55.0%               | 51.2%               |
+| storm         | 20.0%               | 32.5%               | 65.0%               | mirror, white 50.0% | 55.0%               | 65.0%               |
+| stone         | 58.8%               | 28.7%               | 45.0%               | 45.0%               | mirror, white 47.5% | 48.8%               |
+| frost         | 55.0%               | 21.3%               | 48.8%               | 35.0%               | 51.2%               | mirror, white 43.8% |
+
+Advantaged element: **54.8%**. White 50.5%, surprise losses 0.0%, median 23 plies. Result reasons: objective 764, repetition 45, checkmate 26, ply_cap 4, fifty_move 1.
+
+**Element matchups, Full Battle, `ONCE_PER_ABILITY` with the shipped Crystal** — `pnpm sim --suite elements --format full --games 30 --nodes 20000 --silence ONCE_PER_ABILITY`
+
+| Row vs column | ember               | tide                | grove               | storm               | stone               | frost               |
+| ------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- | ------------------- |
+| ember         | mirror, white 45.0% | 30.0%               | 45.0%               | 76.7%               | 45.0%               | 41.7%               |
+| tide          | 70.0%               | mirror, white 45.0% | 13.3%               | 100.0%              | 45.0%               | 56.7%               |
+| grove         | 55.0%               | 86.7%               | mirror, white 50.0% | 91.7%               | 70.0%               | 70.0%               |
+| storm         | 23.3%               | 0.0%                | 8.3%                | mirror, white 50.0% | 38.3%               | 48.3%               |
+| stone         | 55.0%               | 55.0%               | 30.0%               | 61.7%               | mirror, white 56.7% | 43.3%               |
+| frost         | 58.3%               | 43.3%               | 30.0%               | 51.7%               | 56.7%               | mirror, white 46.7% |
+
+Advantaged element: **61.4%**. White 51.3%, surprise losses 0.0%, median 121 plies. Result reasons: ply_cap 66, checkmate 293, repetition 257, fifty_move 11, stalemate 3.
+
+**What the data says.**
+
+1. **The defaults of section 11 are the finished catalogue's defaults.** The element suites on the
+   finished catalogue reproduce section 11's tables of the shipped defaults cell for cell in both
+   formats (51.2% and 72.5% advantaged element, White 48.1% and 50.7%, surprise losses 0.0%, medians
+   23 and 110 plies, the same result reasons): the picker deals none of C6's cards or C7's items
+   into a default Focused build, the NPC's new condition and item awareness changes no move in these
+   builds, and the simulator is deterministic (INV-04). Everything that changed since section 5's
+   baseline is in sections 7 to 13, each measured when it landed; the defaults are B5's.
+2. **Elements.** First Blood sits at 51.2%, under the 55–60% band: the short format barely sees the
+   wheel, since its first exchange is decided by material and the Capturing card, and the Tide row
+   (53–82%) and Storm over Grove, Stone and Frost (68–72%) carry the aggregate. Full Battle at 72.5%
+   is twelve points over the band, with Tide over Storm 100%, Grove over Storm 91% and Stone over
+   Storm 83%: Storm's Full Battle row (0–26% against four elements) is where the excess lives, and
+   section 11 (finding 4) traced it to Obstinate, which the picker cannot hand Storm beside its
+   passive signature. The scope switch of decision 1 brings the Full Battle aggregate to 61.4%
+   (14.2) and Obstinate's rework (decision 2) is the other lever; neither touches a COMMITTED rule.
+3. **Archetypes.** First Blood reproduces section 11 (Maximum–Flexible 51.7%, Maximum–Focused 65.0%,
+   Flexible–Focused 40.8%; White 48.5%, surprise losses 30.4%, median 15 plies). Full Battle does
+   not quite: Maximum–Flexible reads 62.5% (section 11: 47.9%), Maximum–Focused 70.8% (72.9%) and
+   Flexible–Focused 52.1% (52.1%), White 54.2%, surprise losses 13.2%, median 78 plies, 32 Stalwart
+   kings caught in 144 games (36). The builds are the same (none of the new cards or items is dealt
+   into an archetype build); what changed in play is the NPC honouring Redo's condition (section 12,
+   finding 4), and Redo sits in the knight and bishop sets of the Maximum builds of two of the six
+   element pairs (Grove with Storm, Storm with Stone). A swing of three and a half games in 24 is
+   inside the suite's noise, so the reading stays section 11's: Flexible–Focused in band, Maximum
+   over Focused out by fifteen to twenty points on the Stalwart king plus Obstinate on every type,
+   and Maximum–Flexible on the band's edge. Starter loses 88–96% of its Full Battle games against
+   the three, as a level-5 build should.
+4. **Cards alone.** The whole catalogue in one run, 36 and 24 games a card, each card's games on its
+   own seeds (the targeted runs of sections 7 to 12 drew other seeds, and at 36 games one standard
+   deviation of a mirror score is eight points, at 24 games ten, so a card is read by which side of
+   the line it sits on in both formats, not by a point). In First Blood five cards are above 60%:
+   Electric Slide 83.3% (section 5: 100.0%, before DD-111's turn rule), Obstinate 75.0% (88.9%,
+   before its second slot), Stonewall 68.1% (50.0%), Squall 62.5% (69.4%) and Redo 61.1% (61.1%);
+   Stalwart reads 58.3% paying its ability slot (69.4%), and four cards read as liabilities under
+   40%: Scout 38.9%, Veil 38.9%, Quantum Kill 34.7% and Frost Heave 31.9%. Section 5 had eleven
+   cards above the line in First Blood; B5's prices (Obstinate and Block Path at two slots, Pierce's
+   charges, the Electric Slide rule, Stalwart's slot) and the mirror that now measures a card
+   against the fillers its slots displace have flattened the top of the table, and the Captures
+   cards that lived there (Afterimage 41.7% from 66.7%, Pawn Storm 43.1% from 66.7%, Schrödinger's
+   Joker 43.1% from 66.7%, Necromancer 40.3% from 65.3%) now read as fillers: a bonus move after a
+   capture is worth less against an opponent whose pieces a higher rank cannot take. Scout at 38.9%
+   is the picker's Capturing pick for every default Focused build, which is why sections 11 and 13
+   preferred Pierce into them when the Capturing slot had to matter. In Full Battle thirteen cards
+   are above the line: Poisoned Meat 85.4% (section 5: 77.1%), Obstinate 81.3% (95.8%), Rebirth
+   81.3% (72.9%), Riposte 81.3% (70.8%), Cleave 77.1% (58.3%), Block Path 68.8% (72.9%), Stonewall
+   66.7% (56.3%), Backdraft 64.6% (56.3%), Pierce 64.6% (47.9%, now two charges), Afterimage 62.5%
+   (62.5%), Stalwart 62.5% (81.3%, paying its slot), Hit and Run 60.4% (58.3%) and Squall 60.4%
+   (66.7%); Redo at 37.5% is the one liability, and Electric Slide reads 45.8% (100.0% before
+   DD-111): the turn rule took the long format's forced win away entirely. Three cards clear the
+   line in both formats, Obstinate, Stonewall and Squall. In the long format the When-captured
+   reactions (Poisoned Meat, Rebirth, Riposte, Backdraft, Stonewall, Squall) and Cleave are the
+   cards that pay, because a Full Battle has thirty captures where First Blood has one and a
+   reaction fires on the ones the opponent cannot avoid. Thirteen of 36 above the line is a format
+   in which most cards matter rather than one a few decide; the 17.2 proxy asks whether any one card
+   would sit in every top loadout, and the answer is still Obstinate (decision 2), with Poisoned
+   Meat (85.4% in 24 games) the one reaction to watch when live pick rates arrive.
+5. **Items alone.** Nine of the sixteen items can be mirror-tested (the Attunement Charm and the
+   Masquerade Mask need an element choice, Blended Family a second element, and the Headmaster's
+   Ring, the two gloves and the Journeyman's Medallion are capacity items the Focused build cannot
+   give up or double). In First Blood Herald's Horn (72.2%) and Mooring Chain (63.9%) read above the
+   line, in Full Battle Reliquary (62.5%) and Multitasker's Schedule (60.4%); the Scout's Lens reads
+   55.6% and 41.7%, the Resonance Crystal 48.6% and 43.8%, Duelist's Gauntlet 54.2% and 47.9%. Three
+   of these items can do nothing in a mirror by construction (the Crystal and the Gauntlet act on a
+   silence that never comes, the Horn tells each side an item list the other side's build already
+   matches), so their six numbers, 43.8% to 72.2%, are the noise band of a 36- and 24-game mirror
+   drawn live, and the reading rule of finding 4 applies to every item here: a side of the line in
+   both formats, not a point. Reliquary is the one item that clears the line in Full Battle in both
+   its runs (64.6% in section 13, 62.5% here) and sits at 51.4% in First Blood on these seeds
+   against 61.1% on section 13's; a check on fresh seeds (from seed 5000, tag `b8n`) with 120 and 60
+   games an item settles the three items whose numbers moved most between runs: Reliquary 51.7% and
+   60.8%, a Full Battle item above the line in each of its three runs (64.6%, 62.5%, 60.8%) and no
+   First Blood item, since a return at the end of the opponent's next turn seldom comes before the
+   one exchange that decides the short format; Herald's Horn 49.2% and 44.2%, the 72.2% a draw of
+   the dice; Mooring Chain 59.6% and 54.2%, a First Blood item on the line, whose fizzle of the
+   first push (a Frost Heave, a Snowdrift, a Hit and Run landing) is worth the most in the exchange
+   that decides that format. The reveal items (the Lens, the Horn, and Scout among the cards) read
+   at or under the line everywhere: the Trainer search values what it learns about the opponent's
+   cards at less than a slot, which is a caveat on every reveal measurement in this document, since
+   a human reads the opponent's cards and the NPC largely does not.
+6. **The follow-ups.** Each follow-up is read against the shipped defaults on its own seeds (14.2's
+   first two tables, 40 and 30 games per pairing: 55.4% and 72.8%), because seeds are dealt per game
+   and a 60-game pairing plays different games from a 40-game one. `ONCE_PER_ABILITY` reads 54.8%
+   and 61.4%: First Blood unchanged (55.4% under `ALL_TRIGGERS` on the same seeds, the one exchange
+   seldom meets a second silence) and Full Battle a point over the band, from 72.8%, with the
+   Crystal in every build and Scout as the Capturing card, where section 11 had 57.9% and 62.5% with
+   Pierce preferred; the Full Battle foil pairs read Tide over Ember 70%, Ember over Grove 45%,
+   Grove over Tide 87%, Frost over Stone 57%, Stone over Storm 62% and Storm over Frost 48%, four of
+   six the right way, and of the two that are not (Ember over Grove, Storm over Frost) the second is
+   Obstinate's doing, as in section 11. Overwhelm in Scout's place reads 54.6% and 71.4% (decision
+   5): no movement outside the noise. Cornered and Snowdrift preferred together read 42.7% and 70.6%
+   (decision 8), the first an inverted wheel, because the two one-slot cards push Obstinate out of
+   five builds; the run is a picture of the catalogue without its backbone (Storm's First Blood row
+   65–89%, the Full Battle ply cap down from 100 games in 840 to 8 in 630) more than of the pair.
+   Herald's Horn in the Lens's slot on the Focused build against the other archetypes: the Horn
+   changes nothing in First Blood (its baseline cell for cell over 360 games) and one game of 144 in
+   Full Battle (decision 9); what shows instead is the Lens's absence, Focused over Maximum down
+   from 35.0% to 29.2% in First Blood and First Blood surprise losses at 33.6% against 30.4% with
+   it.
+7. **Lengths and ends.** Medians: First Blood 23 plies in the element suite, 15 in the archetype
+   suite and 18 in the card mirrors; Full Battle 110, 78 and 91. Full Battle element games end by
+   checkmate 399 times in 840, by repetition 328, at the 240-ply cap 100 times, by the fifty-move
+   rule 11 and by stalemate 2: half of them are shuffles between armies whose pieces the other
+   side's higher ranks cannot take (two-slot Obstinate on both sides, section 11 finding 2), which
+   is the cost of the shield in the long format and the reason decision 12 keeps the cap in view.
+   First Blood ends by the objective 1,172 times in 1,260, by repetition 50, by checkmate 32 and at
+   the cap 6. In the archetype suite 32 of 144 Full Battle games end with a captured Stalwart king:
+   the one-passive king set of rule 9 is what gets hunted. Starter's games are the shortest and most
+   one-sided, as a level-5 build's should be.
+
+### 14.3 Decisions for the designer
+
+Each is a PLAYTEST call with a measured option; none blocks the alpha, and each is one config line
+or one content module away. The recommendation is the agent's best case under the delegation
+(section 0); the designer can overrule any of them in section 18.
+
+1. **The silence scope (6.2 knob, DD-108).** `ONCE_PER_ABILITY` with the shipped Crystal reads 54.8%
+   and 61.4% against `ALL_TRIGGERS` at 55.4% and 72.8% on the same seeds (14.2; section 11 had 57.9%
+   and 62.5% against 51.2% and 72.5% with Pierce preferred). First Blood does not move, since its
+   one exchange seldom meets a second silence and the Crystal spares the first; Full Battle comes
+   down to a point over the band, the closest any scope has come in every run since section 8, and
+   `ONCE_PER_ABILITY` is the one scope under which Duelist's Gauntlet has a price. Recommendation:
+   ship `ONCE_PER_ABILITY` (`CAPS.SILENCE_SCOPE` in `packages/content/config.ts`, one line; the fuzz
+   under it is in 14.4) and keep `ALL_TRIGGERS` as the Trainer-tier fallback if live First Blood
+   data shows the foil no longer matters there.
+2. **Obstinate (DD-116, v3).** Alone it reads 75.0% and 81.3% (section 11: 79.2% and 72.9%), still
+   the only card above the line in both formats, and it is the card behind Tide's First Blood row,
+   Storm's Full Battle row and the Maximum-Focused archetype gap (section 11, findings 2, 4 and 6).
+   Options: (a) ship as is and read the live pick rate (17.2's real metric); (b) level 20, so it
+   arrives with the Ring rather than in the first week; (c) a rework that keeps the identity and
+   narrows the cover: pawns and knights only (the pieces a higher rank is meant to take), which the
+   picker would still deal and the mirror would re-measure in one run. Recommendation: (c), measured
+   before Playtest Gate 1; (b) is the fallback that costs nothing.
+3. **Duelist's Gauntlet (DD-126).** Under `ALL_TRIGGERS` its cost half is already charged by the
+   element rule, so it is pure upside: with Pierce in every build it takes the Full Battle
+   advantaged element from 71.9% to 60.3% by neutralising the wheel in the pairs where the wheel
+   silenced Pierce (section 13). Options: a higher level (18 or above), a real price under every
+   scope (the wearer's When-captured cards silenced by every opponent, not only the foil), or the
+   item as is under `ONCE_PER_ABILITY`, where its cost exists. Recommendation: decision 1 settles
+   it; if `ALL_TRIGGERS` stays, level 18.
+4. **Reliquary (DD-127).** 61.1% and 64.6% alone, above the line in both formats, and 51.4% and
+   62.5% in 14.1's item table (51.7% and 60.8% on 120 and 60 fresh games: a Full Battle item, above
+   the line in each of its three Full Battle runs). Options: level 16 or above; the return at the
+   end of the owner's second turn (one more turn in which the opponent can occupy the start square);
+   pieces up to a knight (the queen's return is most of the Full Battle number). Recommendation: the
+   rank cap, which keeps the identity (a relic brings back the fallen, not the queen) and is one
+   line in the module; measured with `--suite items` in one run.
+5. **Overwhelm (DD-125).** 63.9% and 64.6% alone (section 12), 54.2% and 58.3% in the
+   whole-catalogue run on other seeds (14.1). Preferred into every Focused build in Scout's place,
+   the advantaged element reads 54.6% and 71.4% against 55.4% and 72.8% on the same seeds (14.2): no
+   movement outside the noise; Tide's rows do not move (69–79% and 67–100%) and Storm's Full Battle
+   row falls further (5–10% against four elements), so a conditional Capturing card is not what
+   Storm lacks, and the one-charge-or-level question sits inside the mirror's noise, not above it.
+   Recommendation: keep Overwhelm at two charges and level 9 and read the live pick rate; if a brake
+   is wanted, one charge is the lighter touch, since the second charge is the First Blood edge, as
+   with Pierce.
+6. **Redo (DD-118, v2).** 61.1% alone in First Blood and 37.5% in Full Battle (section 11: 55.6% and
+   33.3%): a First Blood card and a Full Battle liability by design, since the rewind gives the
+   opponent a second try at a piece it has already chosen to take, which a long game punishes and a
+   short one never reaches. Not a balance fault but a format split the card text does not announce.
+   Options: keep it and let the pick rate by format speak; rework the rewind so the captor returns
+   to its square and loses the tempo (no retake); retire it to the later shelf (`retired`, as
+   Schrödinger's Joker's flag works). Recommendation: keep, with the split in the card's long text,
+   and revisit with live data; the rework is the fallback if Full Battle players never pick it.
+7. **Ricochet (DD-124).** 50.0% and 39.6% alone (section 12), 51.4% and 54.2% now, with an NPC that
+   does not plan the continuation square. This is a tooling follow-up, not a design call: the search
+   needs a `Played` relocation for the captor (one line each in `play` and `unplay`, as the Frost
+   Heave push) before the card's number means anything. Recommendation: the search change first,
+   then the mirror again; the card stays.
+8. **Cornered and Snowdrift (DD-123).** Cornered alone reads 50.0% and 56.3% (section 12); with its
+   partner Snowdrift preferred into every Focused build the advantaged element reads 42.7% and 70.6%
+   against 55.4% and 72.8% on the same seeds (14.2). Two one-slot cards fill Obstinate's two slots,
+   so Obstinate leaves five of the six builds and the run measures a catalogue without its backbone
+   more than the pair. First Blood inverts (42.7% against 55.4%): White 43.0%, Storm's row 65–89%
+   (its turning sliders with nothing to stop them), Ember over Tide 82.5% where the same seeds give
+   31% under the defaults. Full Battle reads 70.6% (72.8% on the same seeds) with Stone's and
+   Frost's rows up (63–82% and 60–75% against three elements), the games shorter (median 99 plies)
+   and the ply cap all but gone (8 games of 630 against 100 of 840 at the defaults): without the
+   shield the long format ends. The pair's own share cannot be separated here, since a rim trap
+   needs the opponent to take on the rim and Snowdrift moves enemy pieces, not the Cornered one;
+   Cornered alone stays section 12's 50.0% and 56.3%. Recommendation: no change to either card; what
+   this run shows is decision 2's rework from the other side, a Full Battle without Obstinate's
+   shuffles, which is worth the designer's eye more than the pair is.
+9. **Herald's Horn (DD-128).** Worth nothing in a mirror (section 13); on the Focused build in the
+   Lens's slot, against the three other archetypes with the Lens out of both runs (where the item
+   lists differ), the Horn changes nothing in First Blood (360 games, the baseline cell for cell)
+   and one game in Full Battle (Flexible over Focused 39.6% to 43.8%, 24 games): the Trainer's
+   belief state asks of the opponent's item list only whether a Stopwatch, a Crystal or a Gauntlet
+   is known, and it meets those at the first silence or revive anyway. The item's worth is a
+   human's, knowing before the first exchange that the opponent carries a Reliquary or a Stopwatch
+   changes what a player risks, and the NPC does not model that. Recommendation: keep the Horn as it
+   is, a cheap information item at level 7, harmless by construction (both lists are revealed) and
+   unmeasurable by the Trainer; read it from live pick rates.
+10. **Surprise losses in First Blood.** 0.0% in the element and card suites by construction (every
+    Focused build carries Scout's Lens and one army-wide set), 30.4% in the archetype suite, where
+    Maximum and Flexible keep per-type sets the Lens does not open, against the 15% target; 23.8% in
+    the element suite without the Lens (section 13). The short format is decided by the first
+    exchange, and a hidden card in that exchange is the metric's whole content. Options: (a) accept
+    it as the format's nature and re-count from live loadouts; (b) a battle-start reveal of both
+    pawn sets for everyone (the Horn's cousin for abilities, one neutral item or a format rule); (c)
+    a Lens that opens the whole army. Recommendation: (a), with (b) as the First Blood format rule
+    if the live number stays above 15%.
+11. **The archetype gap.** Maximum over Focused reads 70.8% in Full Battle (section 11: 72.9%) with
+    the other two pairs 62.5% and 52.1%: the Stalwart king plus Obstinate on every type against
+    Obstinate alone. Decision 2's rework is the lever; nothing else cheap moves it. Recommendation:
+    no further change before live data; Focused is the build of the first month, not the ranked
+    ladder.
+12. **Clocks (R-FMT-001, PROVISIONAL).** The median Full Battle game is 110 plies and 100 of the 840
+    element-suite games reach the 240-ply cap under repetition shuffles; the median First Blood game
+    is 23 plies. The shipped PROVISIONAL clocks are 3+2 for First Blood and 10+5 for Full Battle. At
+    ten seconds a move, 55 moves a side is about 18 minutes of Full Battle and 11 moves a side about
+    4 minutes of First Blood, inside the 17.2 bands (10–25 and 2–5 minutes), and the ply cap already
+    ends the shuffles. Recommendation: keep the clocks and re-read them from live game lengths after
+    the first month; the only lever worth preparing is a repetition-count draw rule shorter than the
+    cap if live Full Battle games cluster at it.
+
+### 14.4 Fuzz
+
+`tsx apps/tools/src/fuzz/cli.ts --games 3000` at the shipped scope: 3,000 games, 272,929 plies,
+replays identical (INV-04), all 3,000 games projection-scanned for both players and a spectator
+(R-SEC-001, R-INFO-005), no crash, at most 20 events in one action, 382 games at the 300-ply cap;
+results white 957 and black 1,026 by objective, 33 and 52 by checkmate, 9 and 12 by a captured
+Stalwart king, 290 fifty-move, 133 repetition and 106 stalemate draws. The same under `--silence
+ONCE_PER_ABILITY`: 3,000 games, 274,111 plies, replays identical, all 3,000 projection-scanned, no
+crash, 385 games at the cap; white 960 and black 1,023 by objective, 27 and 48 by checkmate, 9 and
+12 by a captured Stalwart king, 290 fifty-move, 130 repetition and 116 stalemate draws. The
+once-per-ability record (`state.silenced`) changes no replay and leaks nothing to a spectator across
+the 6,000 games, so the scope switch of decision 1 is a config line with its fuzz already run.
