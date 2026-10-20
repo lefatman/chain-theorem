@@ -1253,8 +1253,12 @@ When-capturing abilities never silenced, When-captured ones always silenced by t
 once) and Herald's Horn (level 7: both item lists revealed at battle start). Items are measured two
 ways. The new `--suite items` mirror test puts the item on one side of the element's Focused build
 with Scout's Lens left out of both sides to free the slot (same element both sides, so no silence,
-which makes the Gauntlet read 50% there by construction), and the element suites run with `--items
-duelists_gauntlet --without scouts_lens` against the same builds without the Gauntlet, so the
-silence trade is measured where silence happens.
+which makes the Gauntlet read 50% there by construction). The Gauntlet is then measured in the
+element suites, `--items duelists_gauntlet` against the same builds without it and Scout's Lens left
+out of both runs: first on the default Focused builds, whose only When-capturing card is Scout; then
+with Pierce preferred in every build (`--prefer pierce`, a When-capturing card with a board effect);
+and in First Blood also with the Resonance Crystal left out, because the Crystal spares a piece's
+first silence and a First Blood game rarely sees a second, so there the Gauntlet alone meets the
+first silence.
 
 _The `c7` simulator batch (the three items in the mirror suite, the element suites with and without Duelist's Gauntlet, Scout's Lens left out) was still running at this commit; its tables and findings follow in the next commit._
