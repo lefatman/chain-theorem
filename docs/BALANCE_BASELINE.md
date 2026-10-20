@@ -1485,12 +1485,12 @@ section 13) measured against the 17.2 targets at the shipped defaults, the follo
 13 asked for, a 3,000-game fuzz under each candidate silence scope, and the decisions this leaves
 with the designer. Method as in section 1: Trainer NPCs at 20,000 nodes, level 25, each side
 searching its own projection; the element suite plays the six mono-element Focused builds against
-each other, the archetype suite the four build archetypes of 7.3 across element pairs, and the mirror
-suites each card and each item against its own absence. The per-card and per-item tables are the
-"pick rate" proxy of 17.2: a card that wins more than 60% of mirror games on its own is one every
-top loadout would carry. Nothing COMMITTED was touched in this item; the catalogue is as the plan
-left it, and every number below is reproducible with the command above its table (`reports/sim/`,
-tag `b8`).
+each other, the archetype suite the four build archetypes of 7.3 across element pairs, and the
+mirror suites each card and each item against its own absence. The per-card and per-item tables are
+the "pick rate" proxy of 17.2: a card that wins more than 60% of mirror games on its own is one
+every top loadout would carry. Nothing COMMITTED was touched in this item; the catalogue is as the
+plan left it, and every number below is reproducible with the command above its table or beside its
+number (`reports/sim/`, tags `b8`, `b8s` for the same-seed baselines and `b8n` for the noise check).
 
 ### 14.0 The 17.2 scorecard on the finished catalogue
 
@@ -1836,61 +1836,67 @@ Advantaged element: **61.4%**. White 51.3%, surprise losses 0.0%, median 121 pli
    these builds, and the simulator is deterministic (INV-04). Everything that changed since section
    5's baseline is in sections 7 to 13, each measured when it landed; the defaults are B5's.
 2. **Elements.** First Blood sits at 51.2%, under the 55–60% band: the short format has shown little
-   of the wheel in every run of this document (48–55% from section 5 to here), and the Tide row
-   (53–82%) and Storm over Grove, Stone and Frost (68–72%) carry the aggregate. Full Battle at 72.5%
-   is twelve and a half points over the band, with Tide over Storm 100%, Grove over Storm 91% and
-   Stone over Storm 83%: Storm's Full Battle row (0–26% against four elements) is where the excess
-   lives, and section 11 (finding 4) traced it to Obstinate, which the picker cannot hand Storm
-   beside its passive signature. The scope switch of decision 1 brings the Full Battle aggregate
-   from 72.8% to 61.4% on the follow-ups' seeds (14.2) and Obstinate's rework (decision 2) is the
-   other lever; neither touches a COMMITTED rule.
+   of the wheel in every run of this document (the shipped defaults read 47–55% from section 2 to
+   here, and no configuration has taken First Blood past 58%), and the Tide row (53–82%) and Storm
+   over Grove, Stone and Frost (68–72%) carry the aggregate. Full Battle at 72.5% is twelve and a
+   half points over the band, with Tide over Storm 100%, Grove over Storm 91% and Stone over Storm
+   83%: Storm's Full Battle row (0–26% against four elements) is where the excess lives, and section
+   11 (finding 4) traced it to Obstinate, which the picker cannot hand Storm beside its passive
+   signature. The scope switch of decision 1 brings the Full Battle aggregate from 72.8% to 61.4% on
+   the follow-ups' seeds (14.2) and Obstinate's rework (decision 2) is the other lever; neither
+   touches a COMMITTED rule.
 3. **Archetypes.** First Blood reproduces section 11 (Maximum–Flexible 51.7%, Maximum–Focused 65.0%,
    Flexible–Focused 40.8%; White 48.5%, surprise losses 30.4%, median 15 plies). Full Battle does
    not quite: Maximum–Flexible reads 62.5% (section 11: 47.9%), Maximum–Focused 70.8% (72.9%) and
    Flexible–Focused 52.1% (52.1%), White 54.2%, surprise losses 13.2%, median 78 plies, 32 Stalwart
-   kings caught in 144 games (36). The builds are the same (none of the new cards or items is dealt
-   into an archetype build); the one change in play since section 11 that reaches these builds is
-   the NPC honouring trigger conditions (section 12, finding 4), and the one condition-bearing card
-   they carry is Redo, in Storm's per-type sets of the two Maximum builds that pair Storm (with
-   Grove and with Stone); no archetype build holds Phalanx, the Gauntlet or the Reliquary. A swing
-   of three and a half games in 24 is one the suite's noise can produce (one standard deviation at
-   24 games is ten points), so the reading is section 11's with one pair moved: Flexible–Focused in
-   band, Maximum over Focused out by fifteen to twenty points (section 11 read it as the Stalwart
-   king plus Obstinate on every type), and Maximum–Flexible now 7.5 points over the band where
-   section 11 had it inside. Section 12 wrote that section 11's archetype tables stood after C6; the
-   Full Battle table did not, since the search change landed with C6. Starter loses 88–96% of its
-   Full Battle games against the three, as a level-5 build should.
+   kings caught in 144 games (36). Two things differ from section 11's runs, which were kept from
+   before the B5 close-out (section 11, finding 7): Obstinate v3's eligibility has since put Block
+   Path in place of Obstinate in the Maximum queen set, and the NPC honours trigger conditions since
+   C6 (section 12, finding 4), where Redo, in Storm's per-type sets of the two Maximum builds that
+   pair Storm (with Grove and with Stone), is the one condition-bearing card these builds carry;
+   none of the new cards or items is dealt into an archetype build, and no archetype build holds
+   Phalanx, the Gauntlet or the Reliquary. A swing of three and a half games in 24 is one the
+   suite's noise can produce (one standard deviation at 24 games is ten points), so the reading is
+   section 11's with one pair moved: Flexible–Focused in band, Maximum over Focused out by fifteen
+   to twenty points (section 11 read it as the Stalwart king plus Obstinate on every type), and
+   Maximum–Flexible now 7.5 points over the band where section 11 had it inside. Section 12 wrote
+   that section 11's archetype tables stood after C6; the Full Battle table did not, since the
+   search change landed with C6. Starter loses 88–96% of its Full Battle games against the three, as
+   a level-5 build should.
 4. **Cards alone.** The whole catalogue in one run, 36 and 24 games a card, each card's games on its
-   own seeds (section 5's 33-card run and the targeted runs of sections 7 to 12 drew other seeds,
+   own seeds (the six cards before Cornered in registry order, Afterimage to Cleave, kept section
+   5's seeds; every later card and every card of the targeted runs of sections 7 to 12 drew others,
    and section 5 used the older mirror; at 36 games one standard deviation of a mirror score is
    eight points, at 24 games ten, so a card is read by which side of the line it sits on in both
    formats, not by a point). In First Blood five cards are above 60%: Electric Slide 83.3% (section
-   5: 100.0%, before DD-111's turn rule), Obstinate 75.0% (88.9%, before its second slot), Stonewall
-   68.1% (50.0%), Squall 62.5% (69.4%) and Redo 61.1% (61.1%); Stalwart reads 58.3% paying its
-   ability slot (69.4%), and four cards read as liabilities under 40%: Scout 38.9%, Veil 38.9%,
-   Quantum Kill 34.7% and Frost Heave 31.9%. Section 5 had eleven cards above the line in First
-   Blood; the changes of sections 9 to 11 (Obstinate and Block Path at two slots, Stalwart's slot,
-   the Electric Slide turn rule of DD-111, Pierce's second charge) and the mirror that now measures
-   a card against the fillers its slots displace have flattened the top of the table, and the
-   Captures cards that lived there (Afterimage 41.7% from 66.7%, Pawn Storm 43.1% from 66.7%,
-   Schrödinger's Joker 43.1% from 66.7%, Necromancer 40.3% from 65.3%) now read as fillers, which
-   fits a bonus move being worth less against an opponent whose pieces a higher rank cannot take,
-   though no run isolates that. Scout at 38.9% is the picker's Capturing pick for every default
-   Focused build, which is why sections 11 and 13 preferred Pierce into them when the Capturing slot
-   had to matter. In Full Battle thirteen cards are above the line: Poisoned Meat 85.4% (section 5:
-   77.1%), Obstinate 81.3% (95.8%), Rebirth 81.3% (72.9%), Riposte 81.3% (70.8%), Cleave 77.1%
-   (58.3%), Block Path 68.8% (72.9%), Stonewall 66.7% (56.3%), Backdraft 64.6% (56.3%), Pierce 64.6%
-   (47.9%, now two charges), Afterimage 62.5% (62.5%), Stalwart 62.5% (81.3%, paying its slot), Hit
-   and Run 60.4% (58.3%) and Squall 60.4% (66.7%); Redo at 37.5% is the one liability, and Electric
-   Slide reads 45.8% (100.0% before DD-111): the turn rule took the long format's forced win away
-   entirely. Three cards clear the line in both formats, Obstinate, Stonewall and Squall. In the
-   long format the When-captured reactions (Poisoned Meat, Rebirth, Riposte, Backdraft, Stonewall,
-   Squall) and Cleave are the cards that pay: a Full Battle runs through most of the material where
-   First Blood ends at the first capture, and a reaction fires on the captures the opponent cannot
-   avoid. Thirteen of 36 above the line is a format in which a third of the cards pay rather than
-   one a few decide; the 17.2 proxy asks whether any one card would sit in every top loadout, and
-   the answer is still Obstinate (decision 2), with Poisoned Meat (85.4% in 24 games) the one
-   reaction to watch when live pick rates arrive.
+   5: 100.0%, before DD-106 and DD-111; section 10.1 read the DD-111 rule at 82.5% over 300 games),
+   Obstinate 75.0% (88.9%, before its second slot), Stonewall 68.1% (50.0%), Squall 62.5% (69.4%)
+   and Redo 61.1% (61.1%); Stalwart reads 58.3% (69.4%), and four cards read as liabilities under
+   40%: Scout 38.9%, Veil 38.9%, Quantum Kill 34.7% and Frost Heave 31.9%. Section 5 had eleven
+   cards above the line in First Blood; the changes of sections 7 to 11 (the Electric Slide rules of
+   DD-106 and DD-111, Obstinate and Block Path at two slots, Pierce's second charge) and the mirror
+   that now measures a card against the fillers its slots displace came between the two tables, and
+   the Captures cards that lived at the top (Afterimage 41.7% from 66.7%, Pawn Storm 43.1% from
+   66.7%, Slipstream 51.4% from 68.1%, Schrödinger's Joker 43.1% from 66.7%, Necromancer 40.3% from
+   65.3%) now read as fillers, which fits a bonus move being worth less against an opponent whose
+   pieces a higher rank cannot take, though no run isolates that. Scout at 38.9% is the picker's
+   Capturing pick for every default Focused build, which is why sections 11 and 13 preferred Pierce
+   into them when the Capturing slot had to matter. In Full Battle thirteen cards are above the
+   line: Poisoned Meat 85.4% (section 5: 77.1%), Obstinate 81.3% (95.8%), Rebirth 81.3% (72.9%),
+   Riposte 81.3% (70.8%), Cleave 77.1% (58.3%), Block Path 68.8% (72.9%), Stonewall 66.7% (56.3%),
+   Backdraft 64.6% (56.3%), Pierce 64.6% (47.9%, now two charges), Afterimage 62.5% (62.5%),
+   Stalwart 62.5% (81.3%, paying its slot), Hit and Run 60.4% (58.3%) and Squall 60.4% (66.7%); Redo
+   at 37.5% is the one liability, and Electric Slide reads 45.8% (section 5: 100.0%, before DD-106;
+   section 7 read the DD-106 rule at 75.0% and section 10.1 the DD-111 rule at 62.3% over 200
+   games): the forced win went with DD-106, and on these seeds the card sits under the line. Three
+   cards clear the line in both formats, Obstinate, Stonewall and Squall. In the long format the
+   When-captured reactions (Poisoned Meat, Rebirth, Riposte, Backdraft, Stonewall, Squall) and
+   Cleave are seven of the thirteen cards that pay, beside Obstinate, Block Path, Stalwart, Pierce,
+   Afterimage and Hit and Run, which reads as the long format giving reactions the captures First
+   Blood never reaches; no run isolates it. Thirteen of 36 above the line is a format in which a
+   third of the cards pay rather than one a few decide; the 17.2 proxy asks whether any one card
+   would sit in every top loadout, and the answer is still Obstinate (decision 2), with Poisoned
+   Meat (85.4% in 24 games) the one reaction to watch when live pick rates arrive.
 5. **Items alone.** Nine of the sixteen items can be mirror-tested (the Attunement Charm and the
    Masquerade Mask need an element choice, Blended Family a second element, and the Headmaster's
    Ring, the two gloves and the Journeyman's Medallion are capacity items the Focused build cannot
@@ -1904,39 +1910,44 @@ Advantaged element: **61.4%**. White 51.3%, surprise losses 0.0%, median 121 pli
    both formats, not a point. Reliquary is the one item that clears the line in Full Battle in both
    its runs (64.6% in section 13, 62.5% here) and sits at 51.4% in First Blood on these seeds
    against 61.1% on section 13's; a check on fresh seeds (from seed 5000, tag `b8n`) with 120 and 60
-   games an item settles the two items whose numbers moved most between runs and the one that read
-   above the line in First Blood for the first time: Reliquary 51.7% and 60.8%, a Full Battle item
+   games an item settles the two items whose numbers moved most between runs, and Mooring Chain,
+   above the line in First Blood in its first run
+   (`pnpm sim --suite items --items heralds_horn,reliquary,mooring_chain --format first_blood --games 120 --seed 5000 --nodes 20000`
+   and the same with `--format full --games 60`): Reliquary 51.7% and 60.8%, a Full Battle item
    above the line in each of its three runs (64.6%, 62.5%, 60.8%) and no First Blood item, which
    fits a return at the end of the opponent's next turn seldom coming before the one exchange that
-   decides the short format; Herald's Horn 49.2% and 44.2%, the 72.2% a draw of the dice; Mooring
-   Chain 59.6% and 54.2%, a First Blood item on the line; its fizzle of the first push (a Frost
-   Heave, a Snowdrift, a Hit and Run landing) would be worth the most in the exchange that decides
-   that format, though no run records the pushes it met. The reveal items (the Lens, the Horn, and
-   Scout among the cards) read at or under the line in every run but the Horn's 72.2% draw: the
-   Trainer search values what it learns about the opponent's cards at less than a slot, which is a
-   caveat on every reveal measurement in this document, since a human reads the opponent's cards and
-   the NPC largely does not.
+   decides the short format, though no run records when the return fires; Herald's Horn 49.2% and
+   44.2%, the 72.2% a draw of the dice; Mooring Chain 59.6% and 54.2%, a First Blood item on the
+   line; its fizzle of the first enemy push of one of its pieces (a Frost Heave, a Snowdrift) would
+   be worth the most in the exchange that decides that format, though no run records the pushes it
+   met. The reveal items (the Lens, the Horn, and Scout among the cards) read at or under the line
+   in every run but the Horn's 72.2% draw. The Trainer does read what is revealed (its belief state
+   carries every revealed opponent card and the two items the search models), and section 13
+   measured the Lens's whole-set knowledge at about five points to the favoured side in Full Battle;
+   what a reveal is worth to a human who plans around it is not what this NPC measures, a caveat on
+   every reveal number in this document.
 6. **The follow-ups.** Each follow-up is read against the shipped defaults on its own seeds (14.2's
    first two tables, 40 and 30 games per pairing: 55.4% and 72.8%), because seeds are dealt per game
    and a 60-game pairing plays different games from a 40-game one. `ONCE_PER_ABILITY` reads 54.8%
-   and 61.4%: First Blood inside the noise (55.4% under `ALL_TRIGGERS` on the same seeds; four cells
-   of thirty differ by a game or two, and section 13's probe log showed why a one-exchange game
-   seldom meets a second silence) and Full Battle 1.4 points over the band, from 72.8%, with the
-   Crystal in every build and Scout as the Capturing card, where section 11 had 57.9% and 62.5% with
-   Pierce preferred; the Full Battle foil pairs read Tide over Ember 70%, Ember over Grove 45%,
-   Grove over Tide 87%, Frost over Stone 57%, Stone over Storm 62% and Storm over Frost 48%, four of
-   six the right way, and of the two that are not (Ember over Grove, Storm over Frost) the second is
-   the Storm pair section 11 traced to Obstinate's absence. Overwhelm in Scout's place reads 54.6%
-   and 71.4% (decision 5): no movement outside the noise. Cornered and Snowdrift preferred together
-   read 42.7% and 70.6% (decision 8), the first an inverted wheel: the picker's builds for this run
-   (`elementLoadout` with the two cards preferred) hold the signature, the pair, Scout and Veil, and
-   the two one-slot cards leave no room for Obstinate's two slots in five of the six, so the run is
-   a picture of the catalogue without its backbone (Storm's First Blood row 65–89%, the Full Battle
-   ply cap down from 67 games in 630 on the same seeds to 8) more than of the pair. Herald's Horn in
-   the Lens's slot on the Focused build against the other archetypes: the Horn changes nothing in
-   First Blood (its baseline cell for cell over 360 games) and one game of 144 in Full Battle
-   (decision 9); what shows instead is the Lens's absence, Focused over Maximum down from 35.0% to
-   29.2% in First Blood and First Blood surprise losses at 33.6% against 30.4% with it.
+   and 61.4%: First Blood inside the noise (55.4% under `ALL_TRIGGERS` on the same seeds; two of the
+   fifteen pairings differ, by half a game and by one, and section 13's probe log showed why a
+   one-exchange game seldom meets a second silence) and Full Battle 1.4 points over the band, from
+   72.8%, with the Crystal in every build and Scout as the Capturing card, where section 11 had
+   57.9% and 62.5% with Pierce preferred; the Full Battle foil pairs read Tide over Ember 70%, Ember
+   over Grove 45%, Grove over Tide 87%, Frost over Stone 57%, Stone over Storm 62% and Storm over
+   Frost 48%, four of six the right way, and of the two that are not (Ember over Grove, Storm over
+   Frost) the second is the Storm pair section 11 traced to Obstinate's absence. Overwhelm in
+   Scout's place reads 54.6% and 71.4% (decision 5): no movement outside the noise. Cornered and
+   Snowdrift preferred together read 42.7% and 70.6% (decision 8), the first an inverted wheel: the
+   picker's builds for this run (`elementLoadout` with the two cards preferred) hold the signature,
+   the pair, Scout and Veil (Storm: Last Word), and the two one-slot cards leave no room for
+   Obstinate's two slots in five of the six, so the run is a picture of the catalogue without its
+   backbone (Storm's First Blood row 65–89%, the Full Battle ply cap down from 67 games in 630 on
+   the same seeds to 8) more than of the pair. Herald's Horn in the Lens's slot on the Focused build
+   against the other archetypes: the Horn changes nothing in First Blood (its baseline cell for cell
+   over 360 games) and one game of 144 in Full Battle (decision 9); what shows instead is the Lens's
+   absence, Focused over Maximum down from 35.0% to 29.2% in First Blood and First Blood surprise
+   losses at 33.6% against 30.4% with it.
 7. **Lengths and ends.** Medians: First Blood 23 plies in the element suite, 15 in the archetype
    suite and 18 in the card mirrors; Full Battle 110, 78 and 91. Full Battle element games end by
    checkmate 399 times in 840, by repetition 328, at the 240-ply cap 100 times, by the fifty-move
@@ -1957,12 +1968,12 @@ or one content module away. The recommendation is the agent's best case under th
 
 1. **The silence scope (6.2 knob, DD-108).** `ONCE_PER_ABILITY` with the shipped Crystal reads 54.8%
    and 61.4% against `ALL_TRIGGERS` at 55.4% and 72.8% on the same seeds (14.2; section 11 read
-   57.9% and 62.5% with Pierce preferred, on other seeds and builds). First Blood stays inside the
-   noise (section 13's probe log showed a one-exchange game seldom meeting a second silence, and the
-   Crystal spares the first); Full Battle comes down to 1.4 points over the band, the closest a
-   scope switch alone has brought it (section 13's 60.3% needed Pierce in every build and the
-   Gauntlet on both sides), and `ONCE_PER_ABILITY` is the one scope under which Duelist's Gauntlet
-   has a price. Recommendation: ship `ONCE_PER_ABILITY` (`CAPS.SILENCE_SCOPE` in
+   57.9% and 62.5% on the same seeds with Pierce preferred into every build). First Blood stays
+   inside the noise (section 13's probe log showed a one-exchange game seldom meeting a second
+   silence, and the Crystal spares the first); Full Battle comes down to 1.4 points over the band,
+   the closest a scope switch alone has brought it (section 13's 60.3% needed Pierce in every build
+   and the Gauntlet on both sides), and `ONCE_PER_ABILITY` is the one scope under which Duelist's
+   Gauntlet has a price. Recommendation: ship `ONCE_PER_ABILITY` (`CAPS.SILENCE_SCOPE` in
    `packages/content/config.ts`, one line; the fuzz under it is in 14.4) and keep `ALL_TRIGGERS` as
    the Trainer-tier fallback if live First Blood data shows the foil no longer matters there.
 2. **Obstinate (DD-116, v3).** Alone it reads 75.0% and 81.3% (section 11: 79.2% and 72.9%, on other
@@ -1982,66 +1993,69 @@ or one content module away. The recommendation is the agent's best case under th
    scope (the wearer's When-captured cards silenced by every opponent, not only the foil), or the
    item as is under `ONCE_PER_ABILITY`, where its cost exists. Recommendation: decision 1 settles
    it; if `ALL_TRIGGERS` stays, level 18.
-4. **Reliquary (DD-127).** 61.1% and 64.6% alone, above the line in both formats, and 51.4% and
-   62.5% in 14.1's item table (51.7% and 60.8% on 120 and 60 fresh games: a Full Battle item, above
-   the line in each of its three Full Battle runs). Options: level 16 or above; the return at the
-   end of the owner's second turn (one more turn in which the opponent can occupy the start square);
-   pieces up to a knight (a returned major piece is the largest swing the item can make; no run
-   records which piece came back). Recommendation: the rank cap, which keeps the identity (a relic
-   brings back the fallen, not the queen) and is one line in the module; measured with
-   `--suite items` in one run.
+4. **Reliquary (DD-127).** 61.1% and 64.6% alone in section 13, above the line in both formats, and
+   51.4% and 62.5% in 14.1's item table on other seeds (51.7% and 60.8% on 120 and 60 fresh games: a
+   Full Battle item, above the line in each of its three Full Battle runs). Options: level 16 or
+   above; the return at the end of the owner's second turn (one more turn in which the opponent can
+   occupy the start square); pieces up to a knight (a returned major piece is the largest swing the
+   item can make; no run records which piece came back). Recommendation: the rank cap, which keeps
+   the identity (a relic brings back the fallen, not the queen) and is one line in the module;
+   measured with `--suite items` in one run.
 5. **Overwhelm (DD-125).** 63.9% and 64.6% alone (section 12), 54.2% and 58.3% in the
    whole-catalogue run on other seeds (14.1). Preferred into every Focused build in Scout's place,
    the advantaged element reads 54.6% and 71.4% against 55.4% and 72.8% on the same seeds (14.2): no
    movement outside the noise; Tide's rows barely move (First Blood 63–79% from 68–79%, Full Battle
    20–100% from 13–100%) and Storm's Full Battle row falls further (0–10% against four elements,
-   from 0–23%), so a conditional Capturing card is not what Storm lacks, and the one-charge-or-level
-   question sits inside the mirror's noise, not above it. Recommendation: keep Overwhelm at two
-   charges and level 9 and read the live pick rate; if a brake is wanted, one charge is the lighter
-   touch, as Pierce's second charge was its First Blood edge (section 11); no one-charge run exists
-   yet.
-6. **Redo (DD-118, v2).** 61.1% alone in First Blood and 37.5% in Full Battle (section 11: 55.6% and
-   33.3%, on other seeds): a First Blood card and a Full Battle liability, which fits a rewind that
-   gives the opponent a second try at a piece it has already chosen to take, punished in a long game
-   and never reached in a short one. Not a balance fault but a format split the card text does not
-   announce. Options: keep it and let the pick rate by format speak; rework the rewind so the captor
-   returns to its square and loses the tempo (no retake); retire it to the later shelf (`retired`,
-   as Schrödinger's Joker's flag works). Recommendation: keep, with the split in the card's long
-   text, and revisit with live data; the rework is the fallback if Full Battle players never pick
-   it.
-7. **Ricochet (DD-124).** 50.0% and 39.6% alone (section 12), 51.4% and 54.2% now, with an NPC that
-   does not plan the continuation square. This is a tooling follow-up, not a design call: the search
-   needs a `Played` relocation for the captor (one line each in `play` and `unplay`, as the Frost
-   Heave push) before the card's number means anything. Recommendation: the search change first,
-   then the mirror again; the card stays.
+   from 0–23%), which reads as a conditional Capturing card not being what Storm lacks, and the
+   one-charge-or-level question sits inside the mirror's noise, not above it. Recommendation: keep
+   Overwhelm at two charges and level 9 and read the live pick rate; if a brake is wanted, one
+   charge is the lighter touch, as Pierce's second charge was its First Blood edge (section 11); no
+   one-charge run exists yet.
+6. **Redo (DD-119, v2).** 61.1% alone in First Blood and 37.5% in Full Battle (section 11: 55.6% and
+   33.3%, on other seeds): a First Blood card and a Full Battle liability, which fits section 11's
+   reading of the card (a second try for the opponent at a piece it has already chosen to take),
+   punished in a long game and never reached in a short one. Not a balance fault but a format split
+   the card text does not announce. Options: keep it and let the pick rate by format speak; rework
+   the rewind so the captor returns to its square and loses the tempo (no retake); retire it to the
+   later shelf (`retired`, as Schrödinger's Joker's flag works). Recommendation: keep, with the
+   split in the card's long text, and revisit with live data; the rework is the fallback if Full
+   Battle players never pick it.
+7. **Ricochet (DD-124).** 50.0% and 39.6% alone (section 12), 51.4% and 54.2% in 14.1 on other
+   seeds, with an NPC that does not plan the continuation square. This is a tooling follow-up, not a
+   design call: the search needs a `Played` relocation for the captor (one line each in `play` and
+   `unplay`, as the Frost Heave push) before the card's number means anything. Recommendation: the
+   search change first, then the mirror again; the card stays.
 8. **Cornered and Snowdrift (DD-123).** Cornered alone reads 50.0% and 56.3% in section 12 and 44.4%
    and 58.3% in 14.1 (other seeds); with its partner Snowdrift preferred into every Focused build
    the advantaged element reads 42.7% and 70.6% against 55.4% and 72.8% on the same seeds (14.2).
-   The picker's builds for this run hold the signature, the pair, Scout and Veil (`elementLoadout`
-   with the two cards preferred): the two one-slot cards leave no room for Obstinate's two slots in
-   five of the six, so the run measures a catalogue without its backbone more than the pair. First
-   Blood inverts (42.7% against 55.4%): White 43.0%, Storm's row 65–89% (its turning sliders with no
-   Obstinate in any build to stop them), Ember over Tide 82.5% where the same seeds give 31% under
-   the defaults. Full Battle reads 70.6% (72.8% on the same seeds) with Stone's row up against three
-   elements (63–82%) and Frost's against four (60–75%), the games shorter (median 99 plies) and the
-   ply cap all but gone (8 games of 630 against 67 at the defaults on the same seeds): without the
-   shield the long format ends. The pair's own share cannot be separated here, since a rim trap
-   needs the opponent to take on the rim and Snowdrift moves enemy pieces, not the Cornered one;
-   Cornered alone stays where its mirrors put it, around the line in Full Battle and under it in
-   First Blood. Recommendation: no change to either card; what this run shows is decision 2's rework
-   from the other side, a Full Battle without Obstinate's shuffles, which is worth the designer's
-   eye more than the pair is.
+   The picker's builds for this run hold the signature, the pair, Scout and Veil, Storm's Last Word
+   in Veil's place (`elementLoadout` with the two cards preferred): the two one-slot cards leave no
+   room for Obstinate's two slots in five of the six, so the run measures a catalogue without its
+   backbone more than the pair. First Blood inverts (42.7% against 55.4%): White 43.0%, Storm's row
+   65–89% (a reading: its turning sliders meet no Obstinate in any build), Ember over Tide 82.5%
+   where the same seeds give 31% under the defaults. Full Battle reads 70.6% (72.8% on the same
+   seeds) with Stone's row up against Ember, Tide and Grove (82%, 78% and 42% from 55%, 55% and 30%)
+   and down against Storm and Frost, Frost's row up against all five (35–75% from 23–58%), the games
+   shorter (median 99 plies) and the ply cap all but gone (8 games of 630 against 67 at the defaults
+   on the same seeds), which reads as the long format ending once the shield is gone (section 11,
+   finding 2, for the shuffle reading). The pair's own share cannot be separated here, since a rim
+   trap needs the opponent to take on the rim and Snowdrift moves enemy pieces, not the Cornered
+   one; Cornered alone stays where its mirrors put it, around the line in Full Battle and under it
+   in First Blood. Recommendation: no change to either card; what this run shows is decision 2's
+   rework from the other side, a Full Battle without Obstinate's shuffles, which is worth the
+   designer's eye more than the pair is.
 9. **Herald's Horn (DD-128).** Worth nothing in a mirror (section 13); on the Focused build in the
    Lens's slot, against the three other archetypes with the Lens out of both runs (where the item
    lists differ), the Horn changes nothing in First Blood (360 games, the baseline cell for cell)
    and one game in Full Battle (Flexible over Focused 39.6% to 43.8%, 24 games): the Trainer's
-   search reads the opponent's item list for a Gauntlet and a Reliquary only (`knownItem` in
-   `packages/ai/src/index.ts`), and no build in this suite carries either, so the Horn has nothing
-   to tell it. The item's worth is a human's, knowing before the first exchange that the opponent
-   carries a Reliquary or a Stopwatch changes what a player risks, and the NPC does not model that.
-   Recommendation: keep the Horn as it is, a cheap information item at level 7, harmless by
-   construction (both lists are revealed) and unmeasurable by the Trainer; read it from live pick
-   rates.
+   search uses the opponent's revealed items in two places, the root move resolved with them as
+   revealed (`beliefState`) and the fast search reading the list for a Gauntlet and a Reliquary
+   (`knownItem` in `packages/ai/src/index.ts`); the builds in this suite carry neither of those two,
+   and what the Horn adds at the root (the Flexible build's Crystal, the capacity items) changed one
+   game in 144. The item's worth is a human's: knowing the whole list before the first exchange
+   changes what a player risks, where the search reads two items. Recommendation: keep the Horn as
+   it is, a cheap information item at level 7, harmless by construction (both lists are revealed)
+   and unmeasurable by the Trainer; read it from live pick rates.
 10. **Surprise losses in First Blood.** 0.0% in the element and card suites by construction (every
     Focused build carries Scout's Lens and one army-wide set), 30.4% in the archetype suite, where
     Maximum and Flexible keep per-type sets the Lens does not open, against the 15% target; 23.8% in
@@ -2057,13 +2071,14 @@ or one content module away. The recommendation is the agent's best case under th
     cheap moves it. Recommendation: no further change before live data; Focused is the build of the
     first month, not the ranked ladder.
 12. **Clocks (R-FMT-001, PROVISIONAL).** The median Full Battle game is 110 plies and 100 of the 840
-    element-suite games reach the 240-ply cap under repetition shuffles; the median First Blood game
-    is 23 plies. The shipped PROVISIONAL clocks are 3+2 for First Blood and 10+5 for Full Battle. At
-    ten seconds a move, 55 moves a side is about 18 minutes of Full Battle and 11 moves a side about
-    4 minutes of First Blood, inside the 17.2 bands (10–25 and 2–5 minutes), and the ply cap already
-    ends the shuffles. Recommendation: keep the clocks and re-read them from live game lengths after
-    the first month; the only lever worth preparing is a repetition-count draw rule shorter than the
-    cap if live Full Battle games cluster at it.
+    element-suite games reach the 240-ply cap (section 11, finding 2, read the capped and repeated
+    games as shuffles); the median First Blood game is 23 plies. The shipped PROVISIONAL clocks are
+    3+2 for First Blood and 10+5 for Full Battle. At ten seconds a move, 55 moves a side is about 18
+    minutes of Full Battle and 11 moves a side about 4 minutes of First Blood, inside the 17.2 bands
+    (10–25 and 2–5 minutes), and the ply cap already ends the shuffles. Recommendation: keep the
+    clocks and re-read them from live game lengths after the first month; the only lever worth
+    preparing is a repetition-count draw rule shorter than the cap if live Full Battle games cluster
+    at it.
 
 ### 14.4 Fuzz
 
@@ -2072,10 +2087,11 @@ replays identical (INV-04), all 3,000 games projection-scanned for both players 
 (R-SEC-001, R-INFO-005), no crash, at most 20 events in one action, 382 games at the 300-ply cap;
 results white 957 and black 1,026 by objective, 33 and 52 by checkmate, 9 and 12 by a captured
 Stalwart king, 290 fifty-move, 133 repetition and 106 stalemate draws (the fuzz writes
-`reports/fuzz-3000.json`, which the second run below overwrote; the first run's figures are also in
-the PROGRESS evidence log). The same under `--silence ONCE_PER_ABILITY`: 3,000 games, 274,111 plies,
-replays identical, all 3,000 projection-scanned, no crash, 385 games at the cap; white 960 and black
-1,023 by objective, 27 and 48 by checkmate, 9 and 12 by a captured Stalwart king, 290 fifty-move,
-130 repetition and 116 stalemate draws. The once-per-ability record (`state.silenced`) changes no
-replay and leaks nothing to a spectator across the 6,000 games, so the scope switch of decision 1 is
-a config line with its fuzz already run.
+`reports/fuzz-3000.json`, which the second run below overwrote, so this paragraph is the record of
+the first run; the PROGRESS evidence log repeats its summary). The same under
+`--silence ONCE_PER_ABILITY`: 3,000 games, 274,111 plies, replays identical, all 3,000
+projection-scanned, no crash, 385 games at the cap; white 960 and black 1,023 by objective, 27 and
+48 by checkmate, 9 and 12 by a captured Stalwart king, 290 fifty-move, 130 repetition and 116
+stalemate draws. The once-per-ability record (`state.silenced`) changes no replay and leaks nothing
+to a spectator across the 3,000 games under that scope, so the scope switch of decision 1 is a
+config line with its fuzz already run.
