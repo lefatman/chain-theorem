@@ -249,8 +249,8 @@ The proposal behind the list is in the chat record of 2026-10-09 and summarised 
   `reducer.test.ts` case), and the spectator scan judged a replay against its last state, where a
   Necromancer pawn had since promoted (`scanSpectatorPayload(payload, state, stateAt?)`, new
   `spectator.test.ts` case; `pnpm vitest run --project unit apps/client/src/lab/reducer.test.ts
-  packages/content/test/spectator.test.ts apps/server/src/battle/spectate.unit.test.ts`: 52 passed).
-  Measurement batch running at this commit; its numbers follow in the next commit.
+packages/content/test/spectator.test.ts apps/server/src/battle/spectate.unit.test.ts`: 52 passed).
+  Simulator (20,000 nodes, Trainer; `docs/BALANCE_BASELINE.md` section 13): `--suite items` mirror tests (Scout's Lens left out of both sides) Reliquary 61.1% / 64.6%, Duelist's Gauntlet 54.2% / 47.9%, Herald's Horn 54.2% / 41.7% (36 and 24 games); element suites without Scout's Lens, advantaged element 50.7% / 67.5% (60 and 40 games per pairing), with Duelist's Gauntlet on every default Focused build identical in First Blood (360 games) and 65.2% in Full Battle; Pierce preferred, Full Battle 71.9% without and 60.3% with the Gauntlet (30 games per pairing); First Blood without the Resonance Crystal 50.4% without and 48.5% with it (40 games per pairing); surprise losses without the Lens 32.4% (mirror) and 23.8% (elements) in First Blood, 0.0% and 4.6% in Full Battle. `pnpm test:fuzz` 500 games clean (44,548 plies, replays identical, 500 projection-scanned for players and spectators). `pnpm check` 1,748 passed, req:coverage 84/84.
 
 - 2026-10-12 C6 (DD-123 to DD-125; R-ABIL-002, R-ABIL-003, R-ABIL-004, R-ABIL-005, R-LOAD-002,
   R-LOAD-003, R-ELEM-005, R-RULES-004, R-FMT-005, R-TEST-001, R-TEST-002): Cornered (Captured, L4,

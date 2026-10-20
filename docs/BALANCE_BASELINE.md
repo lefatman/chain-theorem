@@ -30,7 +30,7 @@ rank, DD-111: 82.5% and 62.3% on its own) and the four trait numbers of B4 as co
 measured alone: Flow's one-ally cap does not tame Tide (aggregate 52.1% to 50.6% in First Blood,
 69.2% to 72.2% in Full Battle), Bulwark's pawn exclusion and Hot Foot's fourth turn are inert at 40
 and 30 games, and Overabundance's extra charge changes no game because no Focused build carries a
-consumable; at the shipped defaults the advantaged element reads 48.3% and 73.5%. Section 11 measures B5's per-card changes and loadout rule 9: Obstinate at two slots still reads 79% and 73% on its own and the defaults 51.2% and 72.5%; Storm with Obstinate turns First Blood on its head (63–85% row) and brings the Full Battle aggregate to 64.0%; `ONCE_PER_ABILITY` with the shipped Crystal reads 57.9% and 62.5%, the closest any scope has come in both formats; and rule 9 brings Flexible against Focused (52.1%) and Maximum against Flexible (47.9%) into the band in Full Battle while Maximum over Focused keeps 72.9%. Scout's Lens now reveals a one-set army whole, so surprise losses read 0% in the element suites by construction. Section 12 measures C6's three neutral cards alone: Overwhelm 63.9% and 64.6% (the one above the line), Cornered 50.0% and 56.3%, Ricochet 50.0% and 39.6%, the last a card the NPC does not plan for.
+consumable; at the shipped defaults the advantaged element reads 48.3% and 73.5%. Section 11 measures B5's per-card changes and loadout rule 9: Obstinate at two slots still reads 79% and 73% on its own and the defaults 51.2% and 72.5%; Storm with Obstinate turns First Blood on its head (63–85% row) and brings the Full Battle aggregate to 64.0%; `ONCE_PER_ABILITY` with the shipped Crystal reads 57.9% and 62.5%, the closest any scope has come in both formats; and rule 9 brings Flexible against Focused (52.1%) and Maximum against Flexible (47.9%) into the band in Full Battle while Maximum over Focused keeps 72.9%. Scout's Lens now reveals a one-set army whole, so surprise losses read 0% in the element suites by construction. Section 12 measures C6's three neutral cards alone: Overwhelm 63.9% and 64.6% (the one above the line), Cornered 50.0% and 56.3%, Ricochet 50.0% and 39.6%, the last a card the NPC does not plan for. Section 13 measures C7's three items: Reliquary 61.1% and 64.6% (above the line); Duelist's Gauntlet 54.2% and 47.9% in the mirror and nothing in First Blood on the default builds (the Crystal spares the one exchange), 65.2% against 67.5% in Full Battle, 60.3% against 71.9% with Pierce preferred and 48.5% against 50.4% in First Blood without the Crystal; Herald's Horn 54.2% and 41.7% (information a mirror already has); without Scout's Lens, surprise losses return in First Blood (32.4% and 23.8%).
 
 ## 1. Method
 
@@ -1261,4 +1261,156 @@ and in First Blood also with the Resonance Crystal left out, because the Crystal
 first silence and a First Blood game rarely sees a second, so there the Gauntlet alone meets the
 first silence.
 
-_The `c7` simulator batch (the three items in the mirror suite, the element suites with and without Duelist's Gauntlet, Scout's Lens left out) was still running at this commit; its tables and findings follow in the next commit._
+**The three items alone, First Blood** — `pnpm sim --suite items --items duelists_gauntlet,reliquary,heralds_horn --format first_blood --games 36 --nodes 20000` (Scout's Lens left out of both sides)
+
+| Reliquary | 12 | 61.1% | 36 | 25 | **above 60%** |
+| Duelist's Gauntlet | 10 | 54.2% | 36 | 26 | |
+| Herald's Horn | 7 | 54.2% | 36 | 23 | |
+
+**The three items alone, Full Battle** — `pnpm sim --suite items --items duelists_gauntlet,reliquary,heralds_horn --format full --games 24 --nodes 20000` (Scout's Lens left out of both sides)
+
+| Reliquary | 12 | 64.6% | 24 | 114 | **above 60%** |
+| Duelist's Gauntlet | 10 | 47.9% | 24 | 93 | |
+| Herald's Horn | 7 | 41.7% | 24 | 114 | |
+
+**Element matchups, First Blood, the default Focused builds without Scout's Lens (the Gauntlet runs' baseline)** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000 --without scouts_lens`
+
+| ember | mirror, white 55.8% | 29.2% | 50.8% | 61.7% | 50.8% | 47.5% |
+| tide | 70.8% | mirror, white 47.5% | 55.0% | 68.3% | 73.3% | 68.3% |
+| grove | 49.2% | 45.0% | mirror, white 40.0% | 36.7% | 40.8% | 56.7% |
+| storm | 38.3% | 31.7% | 63.3% | mirror, white 40.0% | 83.3% | 68.3% |
+| stone | 49.2% | 26.7% | 59.2% | 16.7% | mirror, white 59.2% | 47.5% |
+| frost | 52.5% | 31.7% | 43.3% | 31.7% | 52.5% | mirror, white 52.5% |
+
+Advantaged element: **50.7%**. White 50.2%, surprise losses 23.8%, median 21 plies. Result reasons: objective 1176, repetition 49, checkmate 32, ply_cap 3.
+
+**Element matchups, Full Battle, the default Focused builds without Scout's Lens (the Gauntlet runs' baseline)** — `pnpm sim --suite elements --format full --games 40 --nodes 20000 --without scouts_lens`
+
+| ember | mirror, white 63.7% | 23.8% | 62.5% | 85.0% | 41.3% | 48.8% |
+| tide | 76.3% | mirror, white 55.0% | 23.8% | 100.0% | 53.8% | 70.0% |
+| grove | 37.5% | 76.3% | mirror, white 47.5% | 92.5% | 66.3% | 76.3% |
+| storm | 15.0% | 0.0% | 7.5% | mirror, white 53.8% | 23.8% | 63.7% |
+| stone | 58.8% | 46.3% | 33.8% | 76.3% | mirror, white 50.0% | 50.0% |
+| frost | 51.2% | 30.0% | 23.8% | 36.3% | 50.0% | mirror, white 51.2% |
+
+Advantaged element: **67.5%**. White 49.9%, surprise losses 4.6%, median 108 plies. Result reasons: repetition 344, checkmate 410, ply_cap 74, fifty_move 10, stalemate 2.
+
+**Element matchups, First Blood, Duelist's Gauntlet on every default Focused build** — `pnpm sim --suite elements --format first_blood --games 60 --nodes 20000 --items duelists_gauntlet --without scouts_lens`: the same table as the First Blood run above, cell for cell, over 360 games (finding 2).
+
+**Element matchups, Full Battle, Duelist's Gauntlet on every default Focused build (`--items duelists_gauntlet --without scouts_lens`)** — `pnpm sim --suite elements --format full --games 40 --nodes 20000 --items duelists_gauntlet --without scouts_lens`
+
+| ember | mirror, white 63.7% | 21.3% | 60.0% | 85.0% | 41.3% | 48.8% |
+| tide | 78.8% | mirror, white 55.0% | 28.7% | 100.0% | 53.8% | 70.0% |
+| grove | 40.0% | 71.3% | mirror, white 47.5% | 92.5% | 66.3% | 76.3% |
+| storm | 15.0% | 0.0% | 7.5% | mirror, white 53.8% | 26.3% | 57.5% |
+| stone | 58.8% | 46.3% | 33.8% | 73.8% | mirror, white 50.0% | 50.0% |
+| frost | 51.2% | 30.0% | 23.8% | 42.5% | 50.0% | mirror, white 51.2% |
+
+Advantaged element: **65.2%**. White 51.0%, surprise losses 4.6%, median 108 plies. Result reasons: repetition 341, checkmate 411, ply_cap 76, fifty_move 10, stalemate 2.
+
+**Element matchups, Full Battle, Pierce preferred, without Scout's Lens** — `pnpm sim --suite elements --format full --games 30 --nodes 20000 --prefer pierce --without scouts_lens`
+
+| ember | mirror, white 53.3% | 25.0% | 71.7% | 83.3% | 70.0% | 48.3% |
+| tide | 75.0% | mirror, white 38.3% | 30.0% | 100.0% | 76.7% | 58.3% |
+| grove | 28.3% | 70.0% | mirror, white 48.3% | 68.3% | 41.7% | 43.3% |
+| storm | 16.7% | 0.0% | 31.7% | mirror, white 75.0% | 13.3% | 78.3% |
+| stone | 30.0% | 23.3% | 58.3% | 86.7% | mirror, white 50.0% | 50.0% |
+| frost | 51.7% | 41.7% | 56.7% | 21.7% | 50.0% | mirror, white 51.7% |
+
+Advantaged element: **71.9%**. White 50.1%, surprise losses 3.9%, median 104 plies. Result reasons: repetition 236, ply_cap 52, checkmate 333, fifty_move 9.
+
+**Element matchups, Full Battle, Pierce preferred, Duelist's Gauntlet on every build** — `pnpm sim --suite elements --format full --games 30 --nodes 20000 --prefer pierce --without scouts_lens --items duelists_gauntlet`
+
+| ember | mirror, white 53.3% | 25.0% | 68.3% | 83.3% | 70.0% | 48.3% |
+| tide | 75.0% | mirror, white 38.3% | 63.3% | 100.0% | 76.7% | 58.3% |
+| grove | 31.7% | 36.7% | mirror, white 48.3% | 68.3% | 41.7% | 43.3% |
+| storm | 16.7% | 0.0% | 31.7% | mirror, white 75.0% | 11.7% | 50.0% |
+| stone | 30.0% | 23.3% | 58.3% | 88.3% | mirror, white 50.0% | 56.7% |
+| frost | 51.7% | 41.7% | 56.7% | 50.0% | 43.3% | mirror, white 51.7% |
+
+Advantaged element: **60.3%**. White 49.1%, surprise losses 4.0%, median 106 plies. Result reasons: repetition 243, ply_cap 60, checkmate 321, fifty_move 6.
+
+**Element matchups, First Blood, Pierce preferred, without Scout's Lens and the Resonance Crystal** — `pnpm sim --suite elements --format first_blood --games 40 --nodes 20000 --prefer pierce --without scouts_lens,resonance_crystal`
+
+| ember | mirror, white 57.5% | 27.5% | 58.8% | 85.0% | 43.8% | 48.8% |
+| tide | 72.5% | mirror, white 40.0% | 77.5% | 65.0% | 68.8% | 76.3% |
+| grove | 41.3% | 22.5% | mirror, white 40.0% | 47.5% | 47.5% | 53.8% |
+| storm | 15.0% | 35.0% | 52.5% | mirror, white 45.0% | 65.0% | 70.0% |
+| stone | 56.3% | 31.3% | 52.5% | 35.0% | mirror, white 38.8% | 56.3% |
+| frost | 51.2% | 23.8% | 46.3% | 30.0% | 43.8% | mirror, white 47.5% |
+
+Advantaged element: **50.4%**. White 48.0%, surprise losses 33.2%, median 21 plies. Result reasons: objective 779, repetition 32, checkmate 25, ply_cap 3, fifty_move 1.
+
+**Element matchups, First Blood, Pierce preferred, Duelist's Gauntlet on every build, without Scout's Lens and the Resonance Crystal** — `pnpm sim --suite elements --format first_blood --games 40 --nodes 20000 --prefer pierce --without scouts_lens,resonance_crystal --items duelists_gauntlet`
+
+| ember | mirror, white 57.5% | 27.5% | 58.8% | 85.0% | 43.8% | 48.8% |
+| tide | 72.5% | mirror, white 40.0% | 76.3% | 65.0% | 68.8% | 76.3% |
+| grove | 41.3% | 23.8% | mirror, white 40.0% | 47.5% | 47.5% | 53.8% |
+| storm | 15.0% | 35.0% | 52.5% | mirror, white 45.0% | 62.5% | 55.0% |
+| stone | 56.3% | 31.3% | 52.5% | 37.5% | mirror, white 38.8% | 56.3% |
+| frost | 51.2% | 23.8% | 46.3% | 45.0% | 43.8% | mirror, white 47.5% |
+
+Advantaged element: **48.5%**. White 48.9%, surprise losses 32.9%, median 22 plies. Result reasons: objective 780, repetition 31, checkmate 25, ply_cap 3, fifty_move 1.
+
+**What the data says.**
+
+1. **Reliquary is the one that wins on its own.** 61.1% in First Blood and 64.6% in Full Battle (36
+   and 24 games), above the 60% line in both formats, measured as the Focused build's Headmaster's
+   Ring and Resonance Crystal plus the Reliquary against the Ring and the Crystal alone. A free
+   return of the first piece lost is a full piece of material once per battle, and it asks nothing
+   of the carrier: the NPC that knows the return is coming (`reliquary` in the search context, the
+   first loss discounted at 60% of the piece's value) plays the exchange it would otherwise decline,
+   and in Full Battle the returned piece is on the board for the rest of the game. The mirror
+   opponent carries no Warden's Stopwatch, so this is the unanswered number; the Stopwatch at level
+   14 negates the return (v2, DD-127). It goes to B8 as a candidate for a higher level or a brake
+   (the return at the end of the owner's second turn, or pieces up to a knight), measured with
+   `--suite items`.
+2. **Duelist's Gauntlet changes nothing in First Blood on the default builds, by construction; its
+   measurement is Full Battle and the first silence without the Crystal.** In the mirror it reads
+   54.2% and 47.9%, noise around the 50% the test gives it (same element both sides, so no silence
+   to trade). On the default Focused builds, the First Blood element run with the Gauntlet on every
+   build is its baseline cell for cell over 360 games. A probe game log shows why: a First Blood
+   game has one exchange, and the Resonance Crystal in every Focused build spares that piece's
+   triggers in that capture; with the Gauntlet, the Gauntlet spares the When-capturing trigger and
+   the Crystal the When-captures one next to it, the same outcome with a different item paying. The
+   default builds' only When-capturing card is Scout, a reveal, besides. In Full Battle, where the
+   Crystal is spent before the game is decided, the advantaged element reads 65.2% with the Gauntlet
+   against 67.5% without (40 games per pairing). With Pierce preferred in every build (a
+   When-capturing card with a board effect) Full Battle reads 60.3% with the Gauntlet against 71.9%
+   without (30 games). What the Gauntlet does under the shipped scope is take the element wheel out
+   of the pairs where the wheel silenced the carrier's Pierce: grove over tide falls from 70.0% to
+   36.7% and storm over frost from 78.3% to 50.0%, the other pairs keep their scores, and the
+   aggregate lands at 60.3%, the closest Full Battle has come to the 55–60% band in any
+   configuration (section 11's best was 62.5% under `ONCE_PER_ABILITY` with the same Pierce). It
+   gets there by neutralising the wheel rather than by balancing it: a one-slot level-10 item whose
+   cost half (When-captured cards always silenced by the foil) the element rule already charges
+   under the shipped scope, so it is pure upside for anyone who carries When-capturing cards. In
+   First Blood with the Crystal left out, where the Gauntlet alone meets the first silence, the
+   advantaged element reads 48.5% with it against 50.4% without, and the one pair that moves is
+   again a Pierce pair, storm over frost from 70.0% to 55.0%: the format's one exchange has little
+   wheel left to neutralise (First Blood reads 51.2% at the defaults in section 11), so the Gauntlet
+   is a Full Battle item. It goes to B8 with three options: a higher level (18 or above, so Focused
+   builds meet it late), a real price under every scope (the wearer's When-captured cards silenced
+   by every opponent, not only the foil), or keeping it as the `ONCE_PER_ABILITY` item, where its
+   cost exists.
+3. **Herald's Horn reads 54.2% and 41.7%: information both sides already have.** In a mirror the two
+   item lists differ by the Horn alone, so revealing them is worth nothing by construction, and the
+   two numbers are noise at 36 and 24 games (41.7% is 10 of 24). What the Horn buys is the NPC's
+   belief state knowing the opponent's items from move one (`beliefState` counts only revealed
+   items: a Stopwatch that will negate a revive, a Crystal that spares a silence, a Mask's element),
+   which only shows where the lists differ; B8 measures it in the archetype suite (Focused against
+   Maximum) with `--items heralds_horn`.
+4. **Without Scout's Lens, surprise losses are back.** 32.4% of decided First Blood battles in the
+   mirror suite and 23.8% in the element suite without the Lens, against 0.0% with it in sections 11
+   and 12: the Lens's whole-set reveal is what hides them, and in First Blood the first capture
+   decides the battle before any other reveal. In Full Battle they read 0.0% in the mirror suite and
+   4.6% in the element suite, under the 15% target (a set is revealed long before the decision). The
+   advantaged element without the Lens reads 50.7% and 67.5% against 51.2% and 72.5% with it
+   (section 11): whole-set knowledge is worth about five points to the favoured side in Full Battle,
+   which plays the long game with the opponent's cards in view, and nothing in First Blood, which
+   ends before the knowledge is used.
+5. **Builds.** The Focused build's items are a fixed list (Headmaster's Ring, Resonance Crystal,
+   Scout's Lens), so the three items enter a build only through `--items` and the element and
+   archetype tables of section 11 stand. `pnpm test:fuzz` passes (500 games, 44,548 plies, replays
+   identical, 500 games projection-scanned for players and spectators, no crash) with the three
+   items in the pool.
